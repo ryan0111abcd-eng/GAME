@@ -1,45 +1,110 @@
-// --- 在 <script> 標籤內新增與修改的部分 ---
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <title>我的無限沙盒世界 3.0</title>
+    <style>
+        body { margin: 0; overflow: hidden; background: #000; font-family: Arial, sans-serif; }
+        canvas { display: block; }
+        #ui { position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%); 
+              display: flex; gap: 10px; background: rgba(0,0,0,0.5); padding: 10px; border-radius: 10px; }
+        .slot { width: 40px; height: 40px; border: 2px solid #fff; display: flex; align-items: center; justify-content: center; color: white; }
+        .active { border-color: yellow; box-shadow: 0 0 10px yellow; }
+    </style>
+</head>
+<body>
+    <div id="ui">
+        <div id="slot1" class="slot active">草</div>
+        <div id="slot2" class="slot">土</div>
+        <div id="slot3" class="slot">石</div>
+    </div>
+    <canvas id="gameCanvas"></canvas>
 
-// 1. 滑鼠互動邏輯
-canvas.onmousedown = (e) => {
-    const rect = canvas.getBoundingClientRect();
-    // 計算滑鼠在世界中的絕對座標（加上相機偏移）
-    const worldMouseX = e.clientX - rect.left + cameraX;
-    const worldMouseY = e.clientY - rect.top;
-    
-    // 轉換成格子座標
-    const gridX = Math.floor(worldMouseX / tileSize);
-    const gridY = Math.floor(worldMouseY / tileSize);
-    
-    if (e.button === 0) { // 左鍵挖掘
-        worldData[`${gridX}_${gridY}`] = 0;
-    } else if (e.button === 2) { // 右鍵放置 (放泥土)
-        // 只有該格是空氣時才能放
-        if (getBlock(gridX, gridY) === 0) {
-            worldData[`${gridX}_${gridY}`] = 1; 
+<script>
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+    const tileSize = 32;
+
+    // --- 1. 遊戲狀態與存檔 ---
+    // 嘗試從本地儲存讀取舊地圖，若無則建立空的
+    let worldData = JSON.parse(localStorage.getItem('myCraftSave')) || {};
+    let selectedBlock = 2; // 預設手持草地
+    let time = 0; // 0 ~ 2000 代表一天
+
+    let player = { x: 100, y: 0, w: 24, h: 48, vx: 0, vy: 0, speed: 5, jump: -12, grounded: false };
+    let cameraX = 0;
+
+    function saveGame() {
+        localStorage.setItem('myCraftSave', JSON.stringify(worldData));
+    }
+
+    // --- 2. 地形生成邏輯 ---
+    function getBlock(x, y) {
+        const key = `${x}_${y}`;
+        if (worldData[key] !== undefined) return worldData[key];
+        
+        let groundLevel = Math.floor(12 + Math.sin(x * 0.1) * 5);
+        let block = 0;
+        if (y > groundLevel + 3) block = 3; // 深層是石頭
+        else if (y > groundLevel) block = 1; // 泥土
+        else if (y === groundLevel) block = 2; // 草地
+        
+        return block;
+    }
+
+    // --- 3. 交互功能 ---
+    window.onkeydown = (e) => {
+        if (e.key === '1') { selectedBlock = 2; updateUI(1); }
+        if (e.key === '2') { selectedBlock = 1; updateUI(2); }
+        if (e.key === '3') { selectedBlock = 3; updateUI(3); }
+        keys[e.code] = true;
+    };
+    function updateUI(n) {
+        document.querySelectorAll('.slot').forEach(s => s.classList.remove('active'));
+        document.getElementById('slot' + n).classList.add('active');
+    }
+
+    canvas.onmousedown = (e) => {
+        const rect = canvas.getBoundingClientRect();
+        const gx = Math.floor((e.clientX - rect.left + cameraX) / tileSize);
+        const gy = Math.floor((e.clientY - rect.top) / tileSize);
+        if (e.button === 0) worldData[`${gx}_${gy}`] = 0; // 挖掉
+        if (e.button === 2) worldData[`${gx}_${gy}`] = selectedBlock; // 放置
+        saveGame(); // 每次更動都自動存檔
+    };
+
+    // --- 4. 渲染循環 ---
+    function draw() {
+        time = (time + 1) % 2000;
+        // 日夜天空顏色：利用 Math.sin 讓天空變色
+        let skyBrightness = Math.max(20, (Math.sin(time * 0.003) + 1) * 50);
+        ctx.fillStyle = `rgb(${skyBrightness}, ${skyBrightness + 50}, ${skyBrightness + 100})`;
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        let startX = Math.floor(cameraX / tileSize);
+        let endX = startX + Math.ceil(canvas.width / tileSize) + 1;
+
+        for (let x = startX; x < endX; x++) {
+            for (let y = 0; y < 25; y++) {
+                let block = getBlock(x, y);
+                if (block === 1) ctx.fillStyle = '#8B4513'; // 泥土
+                else if (block === 2) ctx.fillStyle = '#228B22'; // 草地
+                else if (block === 3) ctx.fillStyle = '#666'; // 石頭
+                else continue;
+                ctx.fillRect(x * tileSize - cameraX, y * tileSize, tileSize, tileSize);
+            }
         }
-    }
-};
 
-// 2. 繪製雲朵 (簡單的裝飾)
-function drawClouds() {
-    ctx.fillStyle = "white";
-    for (let i = 0; i < 5; i++) {
-        // 根據相機位置移動雲朵，製造一點遠近感 (Parallax)
-        let cx = ((i * 400 - cameraX * 0.2) % (canvas.width + 200)) - 100;
-        ctx.beginPath();
-        ctx.arc(cx, 50 + i * 20, 30, 0, Math.PI * 2);
-        ctx.arc(cx + 35, 50 + i * 20, 25, 0, Math.PI * 2);
-        ctx.arc(cx - 35, 50 + i * 20, 25, 0, Math.PI * 2);
-        ctx.fill();
+        // 畫玩家與更新物理 (省略與前版相同的物理 code)
+        ctx.fillStyle = '#FF5733';
+        ctx.fillRect(player.x - cameraX, player.y, player.w, player.h);
+        
+        // 呼叫物理更新邏輯 (請保留之前的 update 函式)
+        update(); 
+        requestAnimationFrame(draw);
     }
-}
-
-// 3. 修改 draw 函式，加入雲朵
-function draw() {
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
     
-    drawClouds(); // 先畫雲朵（在背景）
-
-    // ... (原本的渲染方塊與玩家邏輯) ...
-}
+    // (補上之前的 update 和 resize 函式內容...)
+</script>
+</body>
+</html>
