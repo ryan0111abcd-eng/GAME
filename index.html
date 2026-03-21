@@ -1,50 +1,114 @@
-// 新增變數：相機位置與地圖快取
-let cameraX = 0;
-const worldData = {}; // 改用物件存儲，格式：{ "x_y": blockID }
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <title>我的無限 2D Minecraft</title>
+    <style>
+        body { margin: 0; overflow: hidden; background: #222; }
+        canvas { display: block; background: #87CEEB; }
+    </style>
+</head>
+<body>
+    <canvas id="gameCanvas"></canvas>
 
-// 取得特定座標的方塊（如果沒生成過，就用 Noise 生成）
-function getBlock(x, y) {
-    const key = `${x}_${y}`;
-    if (worldData[key] !== undefined) return worldData[key];
+<script>
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
 
-    // 使用 Sine 波模擬自然地形 (可以替換成更複雜的 Perlin Noise)
-    let groundLevel = Math.floor(10 + Math.sin(x * 0.1) * 4 + Math.sin(x * 0.5) * 1);
-    
-    let block;
-    if (y < groundLevel) block = 0; // 空氣
-    else if (y === groundLevel) block = 2; // 草地
-    else block = 1; // 泥土
+    // 初始化畫布大小
+    function resize() {
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+    }
+    window.onresize = resize;
+    resize();
 
-    worldData[key] = block;
-    return block;
-}
+    const tileSize = 32;
+    const worldData = {};
+    let cameraX = 0;
 
-// 修改後的渲染函式
-function draw() {
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    
-    // 計算畫面中應該顯示哪些方塊
-    let startX = Math.floor(cameraX / tileSize);
-    let endX = startX + (canvas.width / tileSize) + 1;
+    // 玩家設定
+    let player = {
+        x: 100, y: 0,
+        w: 24, h: 48,
+        vx: 0, vy: 0,
+        speed: 5, jump: -12,
+        grounded: false
+    };
 
-    for (let x = startX; x < endX; x++) {
-        for (let y = 0; y < rows; y++) {
-            let block = getBlock(x, y);
-            if (block > 0) {
-                ctx.fillStyle = (block === 2) ? '#228B22' : '#8B4513';
-                // 繪製時減去相機偏移量
-                ctx.fillRect(x * tileSize - cameraX, y * tileSize, tileSize, tileSize);
-            }
-        }
+    // 取得/生成方塊邏輯
+    function getBlock(x, y) {
+        const key = `${x}_${y}`;
+        if (worldData[key] !== undefined) return worldData[key];
+
+        // 這裡就是你截圖中的地形生成邏輯
+        let groundLevel = Math.floor(15 + Math.sin(x * 0.1) * 5);
+        let block = 0;
+        if (y > groundLevel) block = 1;      // 泥土
+        else if (y === groundLevel) block = 2; // 草地
+        
+        worldData[key] = block;
+        return block;
     }
 
-    // 更新相機：讓相機跟隨玩家，並保持玩家在畫面中心
-    cameraX = player.x - canvas.width / 2;
-    
-    // 繪製玩家（也要扣掉相機偏移）
-    ctx.fillStyle = '#FF5733';
-    ctx.fillRect(player.x - cameraX, player.y, player.w, player.h);
+    // 控制與物理 (略同前版，但加入 cameraX 影響)
+    let keys = {};
+    window.onkeydown = (e) => keys[e.code] = true;
+    window.onkeyup = (e) => keys[e.code] = false;
 
-    update();
-    requestAnimationFrame(draw);
-}
+    function update() {
+        if (keys['KeyA']) player.vx = -player.speed;
+        else if (keys['KeyD']) player.vx = player.speed;
+        else player.vx *= 0.8;
+
+        player.vy += 0.6; // 重力
+        player.x += player.vx;
+        player.y += player.vy;
+
+        // 簡易地板碰撞
+        let headX = Math.floor(player.x / tileSize);
+        let footY = Math.floor((player.y + player.h) / tileSize);
+        if (getBlock(headX, footY) > 0) {
+            player.y = footY * tileSize - player.h;
+            player.vy = 0;
+            player.grounded = true;
+        } else {
+            player.grounded = false;
+        }
+
+        if (keys['Space'] && player.grounded) player.vy = player.jump;
+
+        // 相機跟隨
+        cameraX = player.x - canvas.width / 2;
+    }
+
+    function draw() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        
+        // 渲染畫面內的方塊
+        let startX = Math.floor(cameraX / tileSize);
+        let endX = startX + Math.ceil(canvas.width / tileSize) + 1;
+        let rows = Math.ceil(canvas.height / tileSize);
+
+        for (let x = startX; x < endX; x++) {
+            for (let y = 0; y < rows; y++) {
+                let block = getBlock(x, y);
+                if (block > 0) {
+                    ctx.fillStyle = block === 2 ? '#228B22' : '#8B4513';
+                    ctx.fillRect(x * tileSize - cameraX, y * tileSize, tileSize, tileSize);
+                }
+            }
+        }
+
+        // 畫玩家
+        ctx.fillStyle = '#FF5733';
+        ctx.fillRect(player.x - cameraX, player.y, player.w, player.h);
+
+        update();
+        requestAnimationFrame(draw);
+    }
+
+    draw();
+</script>
+</body>
+</html>
