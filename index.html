@@ -1,134 +1,45 @@
-<script>
-    const canvas = document.getElementById('gameCanvas');
-    const ctx = canvas.getContext('2d');
-    canvas.width = window.innerWidth;
-    canvas.height = window.innerHeight;
-
-    const tileSize = 32;
-    const gravity = 0.5;
-    let world = [];
-    const cols = Math.ceil(canvas.width / tileSize);
-    const rows = Math.ceil(canvas.height / tileSize);
-    
-    const Blocks = { AIR: 0, GRASS: 1, DIRT: 2, STONE: 3, WOOD: 4, LEAF: 5 };
-    const BlockColors = { 1: '#4CAF50', 2: '#795548', 3: '#757575', 4: '#A1887F', 5: '#2E7D32' };
-
-    let player = { x: 200, y: 50, w: 20, h: 30, vx: 0, vy: 0, hp: 10, invul: 0, grounded: false };
-    let enemies = [];
-    let gameTime = 0;
-    const keys = {};
-
-    function initWorld() {
-        for (let x = 0; x < cols; x++) {
-            world[x] = [];
-            let ground = Math.floor(rows / 2 + Math.sin(x * 0.2) * 2);
-            for (let y = 0; y < rows; y++) {
-                if (y > ground + 4) world[x][y] = Blocks.STONE;
-                else if (y > ground) world[x][y] = Blocks.DIRT;
-                else if (y === ground) world[x][y] = Blocks.GRASS;
-                else world[x][y] = Blocks.AIR;
-            }
-        }
-    }
-
-    // 核心碰撞檢查：回傳該位置是否有方塊
-    function getTile(px, py) {
-        let gx = Math.floor(px / tileSize);
-        let gy = Math.floor(py / tileSize);
-        if (gx < 0 || gx >= cols || gy < 0 || gy >= rows) return Blocks.STONE; // 邊界視為牆
-        return world[gx][gy];
-    }
-
-    // --- 終極防穿牆物理引擎 ---
-    function checkPhysics(obj) {
-        // 1. 先處理水平 X 軸
+function checkPhysics(obj) {
+        // --- 1. 先處理 X 軸 (水平) ---
         obj.x += obj.vx;
+        
         // 檢查右側
         if (getTile(obj.x + obj.w, obj.y + 2) || getTile(obj.x + obj.w, obj.y + obj.h - 2)) {
-            obj.x = Math.floor((obj.x + obj.w) / tileSize) * tileSize - obj.w - 0.01;
+            // 撞到右邊，強制推回左邊緣外 0.1 像素
+            obj.x = Math.floor((obj.x + obj.w) / tileSize) * tileSize - obj.w - 0.1;
             obj.vx = 0;
         }
         // 檢查左側
         if (getTile(obj.x, obj.y + 2) || getTile(obj.x, obj.y + obj.h - 2)) {
-            obj.x = Math.ceil(obj.x / tileSize) * tileSize + 0.01;
+            // 撞到左邊，強制推回右邊緣外 0.1 像素
+            obj.x = Math.ceil(obj.x / tileSize) * tileSize + 0.1;
             obj.vx = 0;
         }
 
-        // 2. 再處理垂直 Y 軸
+        // --- 2. 處理 Y 軸 (垂直) ---
         obj.vy += gravity;
         obj.y += obj.vy;
         obj.grounded = false;
 
-        // 檢查下方 (落地)
+        // 落地判定 (往下掉)
         if (obj.vy >= 0) {
-            if (getTile(obj.x + 2, obj.y + obj.h) || getTile(obj.x + obj.w - 2, obj.y + obj.h)) {
+            // 我們檢查角色的左腳與右腳 (向內縮 4 像素避免卡牆)
+            if (getTile(obj.x + 4, obj.y + obj.h) || getTile(obj.x + obj.w - 4, obj.y + obj.h)) {
+                // 強制將 Y 座標設定在方塊表面
                 obj.y = Math.floor((obj.y + obj.h) / tileSize) * tileSize - obj.h;
                 obj.vy = 0;
                 obj.grounded = true;
             }
         }
-        // 檢查上方 (撞頭)
+        // 撞頭判定 (往上跳)
         else if (obj.vy < 0) {
-            if (getTile(obj.x + 2, obj.y) || getTile(obj.x + obj.w - 2, obj.y)) {
-                obj.y = Math.ceil(obj.y / tileSize) * tileSize + 0.01;
+            if (getTile(obj.x + 4, obj.y) || getTile(obj.x + obj.w - 4, obj.y)) {
+                obj.y = Math.ceil(obj.y / tileSize) * tileSize + 0.1;
                 obj.vy = 0;
             }
         }
-    }
-
-    function update() {
-        gameTime += 0.01;
-        let light = Math.sin(gameTime * 0.5) * 40 + 50;
-        document.body.style.background = `hsl(200, 60%, ${light}%)`;
-
-        player.vx = keys['KeyA'] ? -4 : (keys['KeyD'] ? 4 : 0);
-        if (keys['Space'] && player.grounded) {
-            player.vy = -10;
-            player.grounded = false;
+        
+        // --- 3. 額外保險：如果角色還是嵌在土裡，強制彈出 ---
+        if (getTile(obj.x + obj.w/2, obj.y + obj.h - 2)) {
+            obj.y -= 2; // 微量向上彈出
         }
-
-        checkPhysics(player);
-
-        // 殭屍與傷害邏輯簡化
-        if (Math.random() < 0.002 && light < 40) {
-            enemies.push({ x: Math.random() * canvas.width, y: 0, w: 20, h: 30, vx: 0, vy: 0 });
-        }
-        enemies.forEach((en, i) => {
-            en.vx = (player.x > en.x) ? 1.5 : -1.5;
-            checkPhysics(en);
-            if (en.vx !== 0 && !en.grounded && Math.random() < 0.05) en.vy = -5; // 簡單跳躍 AI
-        });
     }
-
-    function draw() {
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-        // 畫地圖
-        for (let x = 0; x < cols; x++) {
-            for (let y = 0; y < rows; y++) {
-                if (world[x][y] !== Blocks.AIR) {
-                    ctx.fillStyle = BlockColors[world[x][y]];
-                    ctx.fillRect(x * tileSize, y * tileSize, tileSize, tileSize);
-                }
-            }
-        }
-        // 畫玩家與怪物
-        ctx.fillStyle = "#3AB09E"; ctx.fillRect(player.x, player.y, player.w, player.h);
-        ctx.fillStyle = "#2E7D32"; enemies.forEach(en => ctx.fillRect(en.x, en.y, en.w, en.h));
-    }
-
-    window.addEventListener('keydown', e => keys[e.code] = true);
-    window.addEventListener('keyup', e => keys[e.code] = false);
-    
-    // 挖掘與放置
-    canvas.addEventListener('mousedown', e => {
-        const gx = Math.floor(e.clientX / tileSize);
-        const gy = Math.floor(e.clientY / tileSize);
-        if (e.button === 0) world[gx][gy] = 0;
-        else world[gx][gy] = 1; // 預設放草
-    });
-    canvas.oncontextmenu = () => false;
-
-    initWorld();
-    function loop() { update(); draw(); requestAnimationFrame(loop); }
-    loop();
-</script>
