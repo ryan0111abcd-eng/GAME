@@ -2,109 +2,194 @@
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
-    <title>我的無限沙盒世界 3.0</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>我的無限 2D Minecraft 完整版</title>
     <style>
-        body { margin: 0; overflow: hidden; background: #000; font-family: Arial, sans-serif; }
-        canvas { display: block; }
-        #ui { position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%); 
-              display: flex; gap: 10px; background: rgba(0,0,0,0.5); padding: 10px; border-radius: 10px; }
-        .slot { width: 40px; height: 40px; border: 2px solid #fff; display: flex; align-items: center; justify-content: center; color: white; }
-        .active { border-color: yellow; box-shadow: 0 0 10px yellow; }
+        body { margin: 0; overflow: hidden; background: #000; font-family: 'Courier New', Courier, monospace; }
+        canvas { display: block; cursor: crosshair; }
+        #ui { 
+            position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%); 
+            display: flex; gap: 10px; background: rgba(0,0,0,0.7); padding: 10px; border-radius: 5px; 
+            border: 2px solid #555; pointer-events: none;
+        }
+        .slot { 
+            width: 50px; height: 50px; border: 3px solid #777; 
+            display: flex; flex-direction: column; align-items: center; justify-content: center; 
+            color: white; font-size: 12px; font-weight: bold;
+        }
+        .slot.active { border-color: #fff; box-shadow: 0 0 15px #fff; background: rgba(255,255,255,0.2); }
+        #msg { position: absolute; top: 10px; left: 10px; color: white; background: rgba(0,0,0,0.5); padding: 5px; }
     </style>
 </head>
 <body>
+
+    <div id="msg">左鍵: 挖 | 右鍵: 蓋 | 1-3: 選方塊 | 空白鍵: 跳 | A/D: 移動</div>
+
     <div id="ui">
-        <div id="slot1" class="slot active">草</div>
-        <div id="slot2" class="slot">土</div>
-        <div id="slot3" class="slot">石</div>
+        <div id="slot1" class="slot active"><div style="width:20px;height:20px;background:#228B22"></div>1.草</div>
+        <div id="slot2" class="slot"><div style="width:20px;height:20px;background:#8B4513"></div>2.土</div>
+        <div id="slot3" class="slot"><div style="width:20px;height:20px;background:#666"></div>3.石</div>
     </div>
+
     <canvas id="gameCanvas"></canvas>
 
 <script>
     const canvas = document.getElementById('gameCanvas');
     const ctx = canvas.getContext('2d');
+
+    // --- 基礎設定 ---
     const tileSize = 32;
-
-    // --- 1. 遊戲狀態與存檔 ---
-    // 嘗試從本地儲存讀取舊地圖，若無則建立空的
-    let worldData = JSON.parse(localStorage.getItem('myCraftSave')) || {};
-    let selectedBlock = 2; // 預設手持草地
-    let time = 0; // 0 ~ 2000 代表一天
-
-    let player = { x: 100, y: 0, w: 24, h: 48, vx: 0, vy: 0, speed: 5, jump: -12, grounded: false };
     let cameraX = 0;
+    let time = 500; // 日夜時間
+    const keys = {};
+    const blocks = { AIR: 0, DIRT: 1, GRASS: 2, STONE: 3 };
+    const colors = { 1: '#8B4513', 2: '#228B22', 3: '#666' };
 
-    function saveGame() {
-        localStorage.setItem('myCraftSave', JSON.stringify(worldData));
-    }
+    // --- 遊戲數據與存檔 ---
+    let worldData = JSON.parse(localStorage.getItem('save_2d_mc')) || {};
+    let selectedBlock = blocks.GRASS;
 
-    // --- 2. 地形生成邏輯 ---
+    // --- 實體設定 ---
+    let player = {
+        x: 100, y: 0, w: 24, h: 44, vx: 0, vy: 0, 
+        speed: 4, jump: -11, grounded: false
+    };
+
+    let mobs = []; // 存儲小羊 AI
+    for(let i=0; i<3; i++) mobs.push({ x: 300 + i*500, y: 0, w: 30, h: 22, vx: 0, vy: 0, timer: 0 });
+
+    // --- 核心邏輯 ---
+
     function getBlock(x, y) {
         const key = `${x}_${y}`;
         if (worldData[key] !== undefined) return worldData[key];
         
-        let groundLevel = Math.floor(12 + Math.sin(x * 0.1) * 5);
-        let block = 0;
-        if (y > groundLevel + 3) block = 3; // 深層是石頭
-        else if (y > groundLevel) block = 1; // 泥土
-        else if (y === groundLevel) block = 2; // 草地
-        
-        return block;
+        // 地形生成演算法
+        let groundLevel = Math.floor(12 + Math.sin(x * 0.15) * 4);
+        if (y < groundLevel) return blocks.AIR;
+        if (y === groundLevel) return blocks.GRASS;
+        if (y > groundLevel + 4) return blocks.STONE;
+        return blocks.DIRT;
     }
 
-    // --- 3. 交互功能 ---
-    window.onkeydown = (e) => {
-        if (e.key === '1') { selectedBlock = 2; updateUI(1); }
-        if (e.key === '2') { selectedBlock = 1; updateUI(2); }
-        if (e.key === '3') { selectedBlock = 3; updateUI(3); }
-        keys[e.code] = true;
-    };
-    function updateUI(n) {
-        document.querySelectorAll('.slot').forEach(s => s.classList.remove('active'));
-        document.getElementById('slot' + n).classList.add('active');
+    function checkCollision(obj) {
+        obj.grounded = false;
+        let left = Math.floor(obj.x / tileSize);
+        let right = Math.floor((obj.x + obj.w) / tileSize);
+        let top = Math.floor(obj.y / tileSize);
+        let bottom = Math.floor((obj.y + obj.h) / tileSize);
+
+        for (let x = left; x <= right; x++) {
+            for (let y = top; y <= bottom; y++) {
+                if (getBlock(x, y) !== blocks.AIR) {
+                    // 簡單的底部碰撞回彈
+                    if (obj.vy > 0 && obj.y + obj.h > y * tileSize) {
+                        obj.y = y * tileSize - obj.h;
+                        obj.vy = 0;
+                        obj.grounded = true;
+                    }
+                    // 頭部碰撞
+                    else if (obj.vy < 0 && obj.y < (y+1) * tileSize) {
+                        obj.y = (y+1) * tileSize;
+                        obj.vy = 0;
+                    }
+                }
+            }
+        }
     }
+
+    // --- 監聽事件 ---
+    window.onkeydown = (e) => {
+        keys[e.code] = true;
+        if (e.key === '1') { selectedBlock = blocks.GRASS; updateUI(1); }
+        if (e.key === '2') { selectedBlock = blocks.DIRT; updateUI(2); }
+        if (e.key === '3') { selectedBlock = blocks.STONE; updateUI(3); }
+    };
+    window.onkeyup = (e) => keys[e.code] = false;
 
     canvas.onmousedown = (e) => {
         const rect = canvas.getBoundingClientRect();
         const gx = Math.floor((e.clientX - rect.left + cameraX) / tileSize);
         const gy = Math.floor((e.clientY - rect.top) / tileSize);
-        if (e.button === 0) worldData[`${gx}_${gy}`] = 0; // 挖掉
-        if (e.button === 2) worldData[`${gx}_${gy}`] = selectedBlock; // 放置
-        saveGame(); // 每次更動都自動存檔
+        
+        if (e.button === 0) worldData[`${gx}_${gy}`] = blocks.AIR;
+        if (e.button === 2) worldData[`${gx}_${gy}`] = selectedBlock;
+        
+        localStorage.setItem('save_2d_mc', JSON.stringify(worldData));
     };
+    canvas.oncontextmenu = (e) => e.preventDefault();
 
-    // --- 4. 渲染循環 ---
-    function draw() {
-        time = (time + 1) % 2000;
-        // 日夜天空顏色：利用 Math.sin 讓天空變色
-        let skyBrightness = Math.max(20, (Math.sin(time * 0.003) + 1) * 50);
-        ctx.fillStyle = `rgb(${skyBrightness}, ${skyBrightness + 50}, ${skyBrightness + 100})`;
+    function updateUI(n) {
+        document.querySelectorAll('.slot').forEach(s => s.classList.remove('active'));
+        document.getElementById('slot' + n).classList.add('active');
+    }
+
+    // --- 渲染循環 ---
+    function loop() {
+        // 1. 環境更新
+        time = (time + 1) % 4000;
+        let skyB = Math.max(10, Math.sin(time * 0.0016) * 100 + 50);
+        ctx.fillStyle = `rgb(${skyB}, ${skyB + 40}, ${skyB + 80})`;
         ctx.fillRect(0, 0, canvas.width, canvas.height);
 
+        // 2. 玩家物理
+        if (keys['KeyA']) player.vx = -player.speed;
+        else if (keys['KeyD']) player.vx = player.speed;
+        else player.vx *= 0.8;
+
+        player.vy += 0.6; // 重力
+        player.x += player.vx;
+        player.y += player.vy;
+        checkCollision(player);
+        if (keys['Space'] && player.grounded) player.vy = player.jump;
+
+        cameraX += (player.x - canvas.width/2 - cameraX) * 0.1;
+
+        // 3. 渲染世界
         let startX = Math.floor(cameraX / tileSize);
         let endX = startX + Math.ceil(canvas.width / tileSize) + 1;
-
+        
         for (let x = startX; x < endX; x++) {
             for (let y = 0; y < 25; y++) {
-                let block = getBlock(x, y);
-                if (block === 1) ctx.fillStyle = '#8B4513'; // 泥土
-                else if (block === 2) ctx.fillStyle = '#228B22'; // 草地
-                else if (block === 3) ctx.fillStyle = '#666'; // 石頭
-                else continue;
-                ctx.fillRect(x * tileSize - cameraX, y * tileSize, tileSize, tileSize);
+                let b = getBlock(x, y);
+                if (b !== blocks.AIR) {
+                    ctx.fillStyle = colors[b];
+                    ctx.fillRect(x * tileSize - cameraX, y * tileSize, tileSize, tileSize);
+                    // 畫邊框讓方塊感更強
+                    ctx.strokeStyle = 'rgba(0,0,0,0.1)';
+                    ctx.strokeRect(x * tileSize - cameraX, y * tileSize, tileSize, tileSize);
+                }
             }
         }
 
-        // 畫玩家與更新物理 (省略與前版相同的物理 code)
-        ctx.fillStyle = '#FF5733';
+        // 4. 渲染 AI 小羊
+        mobs.forEach(m => {
+            m.timer--;
+            if (m.timer <= 0) {
+                m.vx = (Math.random() - 0.5) * 2;
+                m.timer = 100 + Math.random() * 100;
+            }
+            m.vy += 0.6; m.x += m.vx; m.y += m.vy;
+            checkCollision(m);
+            ctx.fillStyle = "#EEE";
+            ctx.fillRect(m.x - cameraX, m.y, m.w, m.h);
+            ctx.fillStyle = "#000"; // 眼睛
+            ctx.fillRect(m.x - cameraX + (m.vx > 0 ? 20 : 5), m.y + 5, 4, 4);
+        });
+
+        // 5. 渲染玩家 (畫一個簡單像素人)
+        ctx.fillStyle = '#FF5733'; // 身體
         ctx.fillRect(player.x - cameraX, player.y, player.w, player.h);
-        
-        // 呼叫物理更新邏輯 (請保留之前的 update 函式)
-        update(); 
-        requestAnimationFrame(draw);
+        ctx.fillStyle = '#333'; // 眼睛
+        ctx.fillRect(player.x - cameraX + (player.vx >= 0 ? 15 : 5), player.y + 10, 5, 5);
+
+        requestAnimationFrame(loop);
     }
-    
-    // (補上之前的 update 和 resize 函式內容...)
+
+    // 視窗縮放
+    window.onresize = () => { canvas.width = window.innerWidth; canvas.height = window.innerHeight; };
+    window.onresize();
+    loop();
 </script>
 </body>
 </html>
