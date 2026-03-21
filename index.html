@@ -1,62 +1,135 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>My 2D Minecraft</title>
+    <title>My 2D Minecraft - Full Version</title>
     <style>
-        canvas { border: 2px solid #333; background: #87CEEB; } /* 天空藍背景 */
+        body { margin: 0; overflow: hidden; display: flex; justify-content: center; align-items: center; height: 100vh; background: #222; }
+        canvas { border: 4px solid #444; background: #87CEEB; cursor: crosshair; }
     </style>
 </head>
 <body>
-    <canvas id="gameCanvas" width="800" height="400"></canvas>
+    <canvas id="gameCanvas"></canvas>
 
-    <script>
-        const canvas = document.getElementById('gameCanvas');
-        const ctx = canvas.getContext('2d');
-        
-        const tileSize = 20; // 每個方塊的大小 (像素)
-        const cols = 40;     // 地圖寬度
-        const rows = 20;     // 地圖高度
-        
-        // 1. 初始化地圖陣列 (0: 空氣, 1: 泥土, 2: 草地)
-        let world = [];
+<script>
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
 
-        function generateWorld() {
-            for (let x = 0; x < cols; x++) {
-                world[x] = [];
-                // 簡單的地形高度：在地圖中間以下填充
-                let groundLevel = 12 + Math.floor(Math.random() * 2); 
-                
-                for (let y = 0; y < rows; y++) {
-                    if (y < groundLevel) {
-                        world[x][y] = 0; // 空氣
-                    } else if (y === groundLevel) {
-                        world[x][y] = 2; // 草地
+    // 設定
+    const tileSize = 32;
+    const cols = 30;
+    const rows = 20;
+    canvas.width = cols * tileSize;
+    canvas.height = rows * tileSize;
+
+    // 遊戲狀態
+    let world = [];
+    let player = {
+        x: tileSize * 5, y: 0,
+        w: tileSize * 0.8, h: tileSize * 1.6,
+        vx: 0, vy: 0,
+        speed: 4, jump: -12,
+        grounded: false
+    };
+
+    // 1. 隨機地形生成 (使用 Sine 波模擬)
+    function generateWorld() {
+        for (let x = 0; x < cols; x++) {
+            world[x] = [];
+            let height = 10 + Math.sin(x * 0.3) * 3; // 讓地面起伏
+            for (let y = 0; y < rows; y++) {
+                if (y < height) world[x][y] = 0; // 空氣
+                else if (y < height + 1) world[x][y] = 2; // 草地
+                else world[x][y] = 1; // 泥土
+            }
+        }
+    }
+
+    // 2. 鍵盤控制
+    let keys = {};
+    window.onkeydown = (e) => keys[e.code] = true;
+    window.onkeyup = (e) => keys[e.code] = false;
+
+    // 3. 滑鼠互動 (挖掘與放置)
+    canvas.onmousedown = (e) => {
+        const rect = canvas.getBoundingClientRect();
+        const mouseX = Math.floor((e.clientX - rect.left) / tileSize);
+        const mouseY = Math.floor((e.clientY - rect.top) / tileSize);
+        
+        if (mouseX >= 0 && mouseX < cols && mouseY >= 0 && mouseY < rows) {
+            if (e.button === 0) world[mouseX][mouseY] = 0; // 左鍵：挖掉
+            if (e.button === 2) world[mouseX][mouseY] = 1; // 右鍵：放土
+        }
+    };
+    canvas.oncontextmenu = (e) => e.preventDefault(); // 停用右鍵選單
+
+    // 4. 物理與碰撞偵測
+    function update() {
+        // 左右移動
+        if (keys['KeyA']) player.vx = -player.speed;
+        else if (keys['KeyD']) player.vx = player.speed;
+        else player.vx *= 0.8; // 摩擦力
+
+        // 重力
+        player.vy += 0.8; 
+        player.x += player.vx;
+        checkCollision(true); // 檢查 X 軸碰撞
+        player.y += player.vy;
+        checkCollision(false); // 檢查 Y 軸碰撞
+
+        // 跳躍
+        if (keys['Space'] && player.grounded) {
+            player.vy = player.jump;
+            player.grounded = false;
+        }
+    }
+
+    function checkCollision(isX) {
+        let left = Math.floor(player.x / tileSize);
+        let right = Math.floor((player.x + player.w) / tileSize);
+        let top = Math.floor(player.y / tileSize);
+        let bottom = Math.floor((player.y + player.h) / tileSize);
+
+        for (let x = left; x <= right; x++) {
+            for (let y = top; y <= bottom; y++) {
+                if (world[x] && world[x][y] > 0) {
+                    if (isX) {
+                        if (player.vx > 0) player.x = x * tileSize - player.w;
+                        if (player.vx < 0) player.x = (x + 1) * tileSize;
+                        player.vx = 0;
                     } else {
-                        world[x][y] = 1; // 泥土
+                        if (player.vy > 0) {
+                            player.y = y * tileSize - player.h;
+                            player.grounded = true;
+                        }
+                        if (player.vy < 0) player.y = (y + 1) * tileSize;
+                        player.vy = 0;
                     }
                 }
             }
         }
+    }
 
-        // 2. 渲染函式：將數字變成顏色方塊
-        function drawWorld() {
-            for (let x = 0; x < cols; x++) {
-                for (let y = 0; y < rows; y++) {
-                    if (world[x][y] === 1) {
-                        ctx.fillStyle = "#8B4513"; // 泥土棕
-                    } else if (world[x][y] === 2) {
-                        ctx.fillStyle = "#228B22"; // 草地綠
-                    } else {
-                        continue; // 空氣不畫
-                    }
-                    // 繪製方塊：(x座標, y座標, 寬, 高)
-                    ctx.fillRect(x * tileSize, y * tileSize, tileSize, tileSize);
-                }
+    function draw() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        // 畫地圖
+        for (let x = 0; x < cols; x++) {
+            for (let y = 0; y < rows; y++) {
+                if (world[x][y] === 1) ctx.fillStyle = '#8B4513';
+                else if (world[x][y] === 2) ctx.fillStyle = '#228B22';
+                else continue;
+                ctx.fillRect(x * tileSize, y * tileSize, tileSize, tileSize);
             }
         }
+        // 畫玩家
+        ctx.fillStyle = '#FF5733';
+        ctx.fillRect(player.x, player.y, player.w, player.h);
+        
+        update();
+        requestAnimationFrame(draw);
+    }
 
-        generateWorld();
-        drawWorld();
-    </script>
+    generateWorld();
+    draw();
+</script>
 </body>
 </html>
