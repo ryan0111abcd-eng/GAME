@@ -2,33 +2,32 @@
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
-    <title>我的 2D Minecraft - 存檔與建築版</title>
+    <title>我的 2D Minecraft - 生存大更新</title>
     <style>
-        body { margin: 0; overflow: hidden; background: #87CEEB; font-family: 'Segoe UI', sans-serif; }
+        body { margin: 0; overflow: hidden; font-family: 'Segoe UI', sans-serif; transition: background 2s; }
         canvas { display: block; cursor: crosshair; }
-        #ui { position: absolute; top: 10px; left: 10px; background: rgba(0,0,0,0.6); color: white; padding: 12px; border-radius: 8px; pointer-events: none; border: 2px solid #333; line-height: 1.5; }
+        #ui { position: absolute; top: 10px; left: 10px; background: rgba(0,0,0,0.6); color: white; padding: 12px; border-radius: 8px; pointer-events: none; }
         #hotbar { position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%); display: flex; gap: 5px; background: rgba(0,0,0,0.5); padding: 5px; border: 2px solid #fff; }
-        .slot { width: 45px; height: 45px; border: 2px solid #555; display: flex; flex-direction: column; justify-content: center; align-items: center; background: #333; color: white; font-size: 12px; }
-        .selected { border-color: #FFFF00; background: #666; box-shadow: 0 0 10px #FFFF00; }
-        .block-preview { width: 20px; height: 20px; margin-bottom: 2px; }
+        .slot { width: 45px; height: 45px; border: 2px solid #555; display: flex; flex-direction: column; justify-content: center; align-items: center; background: #333; color: white; font-size: 11px; }
+        .selected { border-color: #FFFF00; background: #666; }
+        #hp-bar { color: #ff5252; font-weight: bold; font-size: 20px; }
     </style>
 </head>
 <body>
 
 <div id="ui">
-    <b>我的 2D 世界</b><br>
-    • 移動：A, D / 跳躍：Space<br>
-    • 挖掘：左鍵 / 放置：右鍵<br>
-    • 切換：數字鍵 1-5<br>
-    <span style="color: #ffeb3b;">★ 遊戲會自動存檔於瀏覽器</span>
+    <div id="hp-bar">❤ HP: 10</div>
+    <b>生存模式</b><br>
+    • 1-5 切換方塊 | A,D 移動 | Space 跳<br>
+    • 晚上會有殭屍出現！
 </div>
 
 <div id="hotbar">
-    <div id="slot-1" class="slot selected"><div class="block-preview" style="background:#4CAF50"></div>1</div>
-    <div id="slot-2" class="slot"><div class="block-preview" style="background:#795548"></div>2</div>
-    <div id="slot-3" class="slot"><div class="block-preview" style="background:#757575"></div>3</div>
-    <div id="slot-4" class="slot"><div class="block-preview" style="background:#A1887F"></div>4</div>
-    <div id="slot-5" class="slot"><div class="block-preview" style="background:#2E7D32"></div>5</div>
+    <div id="slot-1" class="slot selected"><div style="width:15px;height:15px;background:#4CAF50"></div>1</div>
+    <div id="slot-2" class="slot"><div style="width:15px;height:15px;background:#795548"></div>2</div>
+    <div id="slot-3" class="slot"><div style="width:15px;height:15px;background:#757575"></div>3</div>
+    <div id="slot-4" class="slot"><div style="width:15px;height:15px;background:#A1887F"></div>4</div>
+    <div id="slot-5" class="slot"><div style="width:15px;height:15px;background:#2E7D32"></div>5</div>
 </div>
 
 <canvas id="gameCanvas"></canvas>
@@ -40,134 +39,144 @@
     canvas.height = window.innerHeight;
 
     const tileSize = 32;
-    const gravity = 0.5;
-    let world = []; 
+    const gravity = 0.45;
+    let world = [];
     const cols = Math.ceil(canvas.width / tileSize);
     const rows = Math.ceil(canvas.height / tileSize);
-
-    // 方塊定義
     const Blocks = { AIR: 0, GRASS: 1, DIRT: 2, STONE: 3, WOOD: 4, LEAF: 5 };
     const BlockColors = { 1: '#4CAF50', 2: '#795548', 3: '#757575', 4: '#A1887F', 5: '#2E7D32' };
-    let currentSelectedBlock = Blocks.GRASS;
 
-    const player = {
-        x: canvas.width / 2, y: 100, w: 24, h: 32,
-        vx: 0, vy: 0, speed: 5, jumpPower: -10, grounded: false
-    };
+    let player = { x: 100, y: 100, w: 22, h: 30, vx: 0, vy: 0, hp: 10, invul: 0 };
+    let enemies = [];
+    let gameTime = 0; // 用於日夜循環
 
-    // 1. 初始化或讀取存檔
+    // 初始化地圖
     function initWorld() {
-        const savedWorld = localStorage.getItem('my2DMinecraftWorld');
-        if (savedWorld) {
-            world = JSON.parse(savedWorld);
-            console.log("已讀取存檔");
-        } else {
-            generateNewWorld();
-        }
-    }
-
-    function generateNewWorld() {
         for (let x = 0; x < cols; x++) {
             world[x] = [];
-            let groundLevel = Math.floor(rows / 2 + Math.sin(x * 0.3) * 3);
+            let ground = Math.floor(rows / 2 + Math.sin(x * 0.2) * 2);
             for (let y = 0; y < rows; y++) {
-                if (y > groundLevel + 3) world[x][y] = Blocks.STONE;
-                else if (y > groundLevel) world[x][y] = Blocks.DIRT;
-                else if (y === groundLevel) world[x][y] = Blocks.GRASS;
+                if (y > ground) world[x][y] = (y > ground + 3) ? Blocks.STONE : Blocks.DIRT;
+                else if (y === ground) world[x][y] = Blocks.GRASS;
                 else world[x][y] = Blocks.AIR;
             }
         }
-        saveWorld();
     }
 
-    function saveWorld() {
-        localStorage.setItem('my2DMinecraftWorld', JSON.stringify(world));
+    // --- 核心：修補後的碰撞偵測 ---
+    function isSolid(px, py) {
+        let gx = Math.floor(px / tileSize);
+        let gy = Math.floor(py / tileSize);
+        if (gx < 0 || gx >= cols || gy < 0 || gy >= rows) return false;
+        return world[gx][gy] !== Blocks.AIR;
     }
 
-    // 2. 操控與選單
-    const keys = {};
-    window.addEventListener('keydown', e => {
-        keys[e.code] = true;
-        if (['1','2','3','4','5'].includes(e.key)) {
-            const idx = parseInt(e.key);
-            const types = [null, Blocks.GRASS, Blocks.DIRT, Blocks.STONE, Blocks.WOOD, Blocks.LEAF];
-            selectSlot(idx, types[idx]);
+    function checkCollision(obj) {
+        // 垂直碰撞 (上下)
+        if (obj.vy > 0) { // 下落
+            if (isSolid(obj.x, obj.y + obj.h) || isSolid(obj.x + obj.w, obj.y + obj.h)) {
+                obj.y = Math.floor((obj.y + obj.h) / tileSize) * tileSize - obj.h;
+                obj.vy = 0;
+                obj.grounded = true;
+            } else { obj.grounded = false; }
+        } else if (obj.vy < 0) { // 上升
+            if (isSolid(obj.x, obj.y) || isSolid(obj.x + obj.w, obj.y)) {
+                obj.y = Math.ceil(obj.y / tileSize) * tileSize;
+                obj.vy = 0;
+            }
         }
-    });
-    window.addEventListener('keyup', e => keys[e.code] = false);
-
-    function selectSlot(num, blockType) {
-        currentSelectedBlock = blockType;
-        document.querySelectorAll('.slot').forEach(s => s.classList.remove('selected'));
-        document.getElementById('slot-' + num).classList.add('selected');
+        // 水平碰撞 (左右)
+        if (obj.vx > 0) { // 往右
+            if (isSolid(obj.x + obj.w, obj.y + 4) || isSolid(obj.x + obj.w, obj.y + obj.h - 4)) {
+                obj.x = Math.floor((obj.x + obj.w) / tileSize) * tileSize - obj.w - 1;
+            }
+        } else if (obj.vx < 0) { // 往左
+            if (isSolid(obj.x, obj.y + 4) || isSolid(obj.x, obj.y + obj.h - 4)) {
+                obj.x = Math.ceil(obj.x / tileSize) * tileSize + 1;
+            }
+        }
     }
 
-    canvas.addEventListener('mousedown', e => {
-        const rect = canvas.getBoundingClientRect();
-        const gx = Math.floor((e.clientX - rect.left) / tileSize);
-        const gy = Math.floor((e.clientY - rect.top) / tileSize);
-
-        if (gx >= 0 && gx < cols && gy >= 0 && gy < rows) {
-            if (e.button === 0) world[gx][gy] = Blocks.AIR; 
-            else if (e.button === 2) world[gx][gy] = currentSelectedBlock;
-            saveWorld(); // 每次變動就存檔
+    // 殭屍 AI
+    function updateEnemies() {
+        if (Math.random() < 0.005 && (gameTime % 2000 > 1000)) { // 晚上機率生成
+            enemies.push({ x: Math.random() * canvas.width, y: 0, w: 24, h: 30, vx: 1, vy: 0 });
         }
-    });
-    canvas.oncontextmenu = () => false;
+        enemies.forEach((en, index) => {
+            en.vy += gravity;
+            en.vx = (player.x > en.x) ? 1.5 : -1.5;
+            en.x += en.vx; en.y += en.vy;
+            checkCollision(en);
+            // 碰玩家扣血
+            let dx = player.x - en.x; let dy = player.y - en.y;
+            if (Math.abs(dx) < 20 && Math.abs(dy) < 20 && player.invul <= 0) {
+                player.hp--; player.invul = 60;
+                document.getElementById('hp-bar').innerText = "❤ HP: " + player.hp;
+            }
+        });
+        if (player.invul > 0) player.invul--;
+    }
 
-    // 3. 物理更新
     function update() {
-        player.vx = keys['KeyA'] ? -player.speed : (keys['KeyD'] ? player.speed : 0);
-        if (keys['Space'] && player.grounded) {
-            player.vy = player.jumpPower;
-            player.grounded = false;
-        }
+        gameTime++;
+        // 天空顏色 (日夜)
+        let skyBrightness = Math.sin(gameTime * 0.002) * 50 + 50;
+        document.body.style.background = `hsl(200, 70%, ${skyBrightness}%)`;
 
+        player.vx = keys['KeyA'] ? -4 : (keys['KeyD'] ? 4 : 0);
+        if (keys['Space'] && player.grounded) player.vy = -9;
+        
         player.vy += gravity;
         player.x += player.vx;
         player.y += player.vy;
+        
+        checkCollision(player);
+        updateEnemies();
 
-        // 碰撞檢測 (簡單版)
-        player.grounded = false;
-        let gx = Math.floor((player.x + player.w / 2) / tileSize);
-        let gy = Math.floor((player.y + player.h) / tileSize);
-
-        if (world[gx] && world[gx][gy] !== Blocks.AIR) {
-            player.y = gy * tileSize - player.h;
-            player.vy = 0;
-            player.grounded = true;
-        }
+        if (player.hp <= 0) { alert("你被殭屍吃掉了！"); location.reload(); }
     }
 
-    // 4. 繪製畫面
     function draw() {
         ctx.clearRect(0, 0, canvas.width, canvas.height);
-        
-        // 畫雲
-        ctx.fillStyle = "white";
-        ctx.beginPath(); ctx.arc(100, 100, 30, 0, Math.PI*2); ctx.fill();
-        ctx.beginPath(); ctx.arc(130, 100, 40, 0, Math.PI*2); ctx.fill();
-
+        // 畫世界
         for (let x = 0; x < cols; x++) {
             for (let y = 0; y < rows; y++) {
                 if (world[x][y] !== Blocks.AIR) {
                     ctx.fillStyle = BlockColors[world[x][y]];
                     ctx.fillRect(x * tileSize, y * tileSize, tileSize, tileSize);
-                    ctx.strokeStyle = 'rgba(0,0,0,0.05)';
-                    ctx.strokeRect(x * tileSize, y * tileSize, tileSize, tileSize);
                 }
             }
         }
-
-        // 畫角色
-        ctx.fillStyle = '#3AB09E'; ctx.fillRect(player.x, player.y + 10, player.w, player.h - 10);
-        ctx.fillStyle = '#E8BEAC'; ctx.fillRect(player.x + 4, player.y, player.w - 8, 12);
+        // 畫殭屍 (綠色)
+        enemies.forEach(en => {
+            ctx.fillStyle = "#2E7D32"; ctx.fillRect(en.x, en.y, en.w, en.h);
+        });
+        // 畫玩家
+        ctx.fillStyle = (player.invul % 10 > 5) ? "white" : "#3AB09E";
+        ctx.fillRect(player.x, player.y, player.w, player.h);
     }
 
-    function gameLoop() { update(); draw(); requestAnimationFrame(gameLoop); }
-    
-    initWorld();
-    gameLoop();
+    const keys = {};
+    window.addEventListener('keydown', e => keys[e.code] = true);
+    window.addEventListener('keyup', e => keys[e.code] = false);
+    canvas.addEventListener('mousedown', e => {
+        const gx = Math.floor(e.clientX / tileSize);
+        const gy = Math.floor(e.clientY / tileSize);
+        if (e.button === 0) world[gx][gy] = Blocks.AIR;
+        else world[gx][gy] = currentSelectedBlock;
+    });
+
+    let currentSelectedBlock = 1;
+    window.addEventListener('keydown', e => {
+        if (['1','2','3','4','5'].includes(e.key)) {
+            currentSelectedBlock = parseInt(e.key);
+            document.querySelectorAll('.slot').forEach(s => s.classList.remove('selected'));
+            document.getElementById('slot-'+e.key).classList.add('selected');
+        }
+    });
+
+    function loop() { update(); draw(); requestAnimationFrame(loop); }
+    initWorld(); loop();
 </script>
 </body>
 </html>
