@@ -180,3 +180,68 @@
 </script>
 </body>
 </html>
+// 強化版：分軸碰撞偵測 (Axe-Separated Collision)
+    function checkPhysics(obj) {
+        // --- 1. 處理水平位移與碰撞 ---
+        obj.x += obj.vx; 
+        
+        // 檢查右側碰撞
+        if (obj.vx > 0) {
+            if (isSolid(obj.x + obj.w, obj.y + 2) || isSolid(obj.x + obj.w, obj.y + obj.h - 2)) {
+                obj.x = Math.floor((obj.x + obj.w) / tileSize) * tileSize - obj.w - 0.1;
+                if (obj !== player) obj.vy = -6; // 殭屍跳躍 AI
+            }
+        } 
+        // 檢查左側碰撞
+        else if (obj.vx < 0) {
+            if (isSolid(obj.x, obj.y + 2) || isSolid(obj.x, obj.y + obj.h - 2)) {
+                obj.x = Math.ceil(obj.x / tileSize) * tileSize + 0.1;
+                if (obj !== player) obj.vy = -6; // 殭屍跳躍 AI
+            }
+        }
+
+        // --- 2. 處理垂直位移與碰撞 ---
+        obj.vy += gravity;
+        obj.y += obj.vy;
+        obj.grounded = false;
+
+        // 檢查下方碰撞 (落地)
+        if (obj.vy > 0) {
+            if (isSolid(obj.x + 2, obj.y + obj.h) || isSolid(obj.x + obj.w - 2, obj.y + obj.h)) {
+                obj.y = Math.floor((obj.y + obj.h) / tileSize) * tileSize - obj.h;
+                obj.vy = 0;
+                obj.grounded = true;
+            }
+        } 
+        // 檢查上方碰撞 (撞頭)
+        else if (obj.vy < 0) {
+            if (isSolid(obj.x + 2, obj.y) || isSolid(obj.x + obj.w - 2, obj.y)) {
+                obj.y = Math.ceil(obj.y / tileSize) * tileSize;
+                obj.vy = 0;
+            }
+        }
+
+        // 邊界保護：防止掉出地圖外
+        if (obj.x < 0) obj.x = 0;
+        if (obj.x > canvas.width - obj.w) obj.x = canvas.width - obj.w;
+    }
+
+    // 更新繪製邏輯中的 update 呼叫
+    function update() {
+        gameTime += 0.01;
+        let light = Math.sin(gameTime * 0.5) * 40 + 50;
+        document.body.style.background = `hsl(200, 60%, ${light}%)`;
+
+        // 玩家控制量
+        player.vx = keys['KeyA'] ? -4.5 : (keys['KeyD'] ? 4.5 : 0);
+        if (keys['Space'] && player.grounded) {
+            player.vy = -9.5;
+            player.grounded = false;
+        }
+
+        // 執行強化版物理
+        checkPhysics(player);
+
+        // 殭屍更新
+        updateEnemies();
+    }
