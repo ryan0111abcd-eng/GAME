@@ -1,29 +1,91 @@
-function loop() {
-    // 1. 清除畫布
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-    // 2. 計算目前相機看得到的「格子範圍」
-    // 關鍵：startX 會隨相機移動而改變
-    let startX = Math.floor(cameraX / tileSize); 
-    let endX = startX + Math.ceil(canvas.width / tileSize) + 1;
-
-    // 3. 只繪製這範圍內的方塊
-    for (let x = startX; x < endX; x++) {
-        // y 軸通常是固定的，或者你也可以根據畫布高度動態計算
-        for (let y = 0; y < 25; y++) {
-            let b = getBlock(x, y); // getBlock 內含數學公式，傳入 x 就會吐出地形
-            if (b !== blocks.AIR) {
-                ctx.fillStyle = colors[b];
-                // 繪製位置必須減去 cameraX，才會產生「人在走、地在動」的效果
-                ctx.fillRect(x * tileSize - cameraX, y * tileSize, tileSize, tileSize);
-            }
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <title>2D Minecraft: 怪物生存版</title>
+    <style>
+        body { margin: 0; overflow: hidden; background: #000; font-family: 'Courier New', monospace; }
+        canvas { display: block; background: #87CEEB; }
+        #ui { 
+            position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%); 
+            display: flex; gap: 10px; background: rgba(0,0,0,0.8); padding: 10px; border-radius: 5px; border: 2px solid #fff;
         }
-    }
+        .slot { width: 50px; height: 50px; border: 2px solid #777; display: flex; align-items: center; justify-content: center; color: white; font-size: 10px; }
+        .slot.active { border-color: #ff0; box-shadow: 0 0 10px #ff0; }
+        #stats { position: absolute; top: 10px; left: 10px; color: white; background: rgba(0,0,0,0.5); padding: 10px; line-height: 1.5; }
+    </style>
+</head>
+<body>
 
-    // 4. 更新相機位置（讓它跟著玩家）
-    // 這行沒寫的話，地圖看起來就不會延伸
-    cameraX = player.x - canvas.width / 2;
+<div id="stats">
+    血量: <span id="hp" style="color: #f00;">100</span> | 座標: <span id="pos">0,0</span><br>
+    左鍵: 挖 | 右鍵: 蓋 | 1-3: 切換 | A/D: 移動 | 空白: 跳
+</div>
 
-    // ... 剩下的玩家與 AI 更新 ...
-    requestAnimationFrame(loop);
+<div id="ui">
+    <div id="slot1" class="slot active">草</div>
+    <div id="slot2" class="slot">土</div>
+    <div id="slot3" class="slot">石</div>
+</div>
+
+<canvas id="gameCanvas"></canvas>
+
+<script>
+const canvas = document.getElementById('gameCanvas');
+const ctx = canvas.getContext('2d');
+
+// --- 設定 ---
+const tileSize = 32;
+let cameraX = 0;
+let worldData = JSON.parse(localStorage.getItem('mc_full_save')) || {};
+const blocks = { AIR: 0, DIRT: 1, GRASS: 2, STONE: 3 };
+const colors = { 1: '#8B4513', 2: '#228B22', 3: '#666' };
+let selectedBlock = blocks.GRASS;
+let keys = {};
+
+// --- 玩家與怪物 ---
+let player = {
+    x: 100, y: 0, w: 24, h: 44, vx: 0, vy: 0, hp: 100,
+    speed: 4.5, jump: -12, grounded: false
+};
+
+let enemies = []; // 存儲怪物（殭屍）
+
+// 生成怪物的函式
+function spawnEnemy(x) {
+    enemies.push({ x: x, y: 0, w: 24, h: 44, vx: 0, vy: 0, hp: 20, type: 'zombie' });
 }
+
+// 初始生成幾隻怪物
+for(let i=0; i<3; i++) spawnEnemy(600 + i*800);
+
+// --- 地形生成 ---
+function getBlock(x, y) {
+    const key = `${Math.floor(x)}_${Math.floor(y)}`;
+    if (worldData[key] !== undefined) return worldData[key];
+    let groundLevel = Math.floor(12 + Math.sin(x * 0.1) * 4);
+    if (y < groundLevel) return blocks.AIR;
+    if (y === groundLevel) return blocks.GRASS;
+    return blocks.DIRT;
+}
+
+// --- 物理碰撞 ---
+function applyPhysics(obj) {
+    obj.vy += 0.6; // 重力
+    obj.x += obj.vx;
+    obj.y += obj.vy;
+    obj.grounded = false;
+
+    let left = Math.floor(obj.x / tileSize);
+    let right = Math.floor((obj.x + obj.w) / tileSize);
+    let top = Math.floor(obj.y / tileSize);
+    let bottom = Math.floor((obj.y + obj.h) / tileSize);
+
+    for (let x = left; x <= right; x++) {
+        for (let y = top; y <= bottom; y++) {
+            if (getBlock(x, y) !== blocks.AIR) {
+                if (obj.vy > 0 && obj.y + obj.h > y * tileSize) {
+                    obj.y = y * tileSize - obj.h;
+                    obj.vy = 0;
+                    obj.grounded = true;
+                }
