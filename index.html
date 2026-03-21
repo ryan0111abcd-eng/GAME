@@ -2,20 +2,35 @@
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
-    <title>我的 2D Minecraft</title>
+    <title>我的 2D Minecraft - 存檔與建築版</title>
     <style>
-        body { margin: 0; overflow: hidden; background: #87CEEB; font-family: Arial, sans-serif; }
-        canvas { display: block; }
-        #ui { position: absolute; top: 10px; left: 10px; background: rgba(0,0,0,0.5); color: white; padding: 10px; border-radius: 5px; pointer-events: none; }
+        body { margin: 0; overflow: hidden; background: #87CEEB; font-family: 'Segoe UI', sans-serif; }
+        canvas { display: block; cursor: crosshair; }
+        #ui { position: absolute; top: 10px; left: 10px; background: rgba(0,0,0,0.6); color: white; padding: 12px; border-radius: 8px; pointer-events: none; border: 2px solid #333; line-height: 1.5; }
+        #hotbar { position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%); display: flex; gap: 5px; background: rgba(0,0,0,0.5); padding: 5px; border: 2px solid #fff; }
+        .slot { width: 45px; height: 45px; border: 2px solid #555; display: flex; flex-direction: column; justify-content: center; align-items: center; background: #333; color: white; font-size: 12px; }
+        .selected { border-color: #FFFF00; background: #666; box-shadow: 0 0 10px #FFFF00; }
+        .block-preview { width: 20px; height: 20px; margin-bottom: 2px; }
     </style>
 </head>
 <body>
 
 <div id="ui">
-    控制：A, D 移動 / Space 跳躍<br>
-    滑鼠左鍵：挖掘 / 右鍵：放土 (需點擊空白處)<br>
-    狀態：<span id="status">遊戲運行中</span>
+    <b>我的 2D 世界</b><br>
+    • 移動：A, D / 跳躍：Space<br>
+    • 挖掘：左鍵 / 放置：右鍵<br>
+    • 切換：數字鍵 1-5<br>
+    <span style="color: #ffeb3b;">★ 遊戲會自動存檔於瀏覽器</span>
 </div>
+
+<div id="hotbar">
+    <div id="slot-1" class="slot selected"><div class="block-preview" style="background:#4CAF50"></div>1</div>
+    <div id="slot-2" class="slot"><div class="block-preview" style="background:#795548"></div>2</div>
+    <div id="slot-3" class="slot"><div class="block-preview" style="background:#757575"></div>3</div>
+    <div id="slot-4" class="slot"><div class="block-preview" style="background:#A1887F"></div>4</div>
+    <div id="slot-5" class="slot"><div class="block-preview" style="background:#2E7D32"></div>5</div>
+</div>
+
 <canvas id="gameCanvas"></canvas>
 
 <script>
@@ -24,132 +39,133 @@
     canvas.width = window.innerWidth;
     canvas.height = window.innerHeight;
 
-    // 遊戲參數
     const tileSize = 32;
     const gravity = 0.5;
-    const world = []; // [x][y]
+    let world = []; 
     const cols = Math.ceil(canvas.width / tileSize);
     const rows = Math.ceil(canvas.height / tileSize);
 
-    // 玩家設定
+    // 方塊定義
+    const Blocks = { AIR: 0, GRASS: 1, DIRT: 2, STONE: 3, WOOD: 4, LEAF: 5 };
+    const BlockColors = { 1: '#4CAF50', 2: '#795548', 3: '#757575', 4: '#A1887F', 5: '#2E7D32' };
+    let currentSelectedBlock = Blocks.GRASS;
+
     const player = {
-        x: canvas.width / 2,
-        y: 0,
-        w: 24,
-        h: 30,
-        vx: 0,
-        vy: 0,
-        speed: 4,
-        jumpPower: -10,
-        grounded: false
+        x: canvas.width / 2, y: 100, w: 24, h: 32,
+        vx: 0, vy: 0, speed: 5, jumpPower: -10, grounded: false
     };
 
-    // 1. 初始化地形
+    // 1. 初始化或讀取存檔
     function initWorld() {
+        const savedWorld = localStorage.getItem('my2DMinecraftWorld');
+        if (savedWorld) {
+            world = JSON.parse(savedWorld);
+            console.log("已讀取存檔");
+        } else {
+            generateNewWorld();
+        }
+    }
+
+    function generateNewWorld() {
         for (let x = 0; x < cols; x++) {
             world[x] = [];
-            // 使用正弦波產生起伏山丘
-            let groundLevel = Math.floor(rows / 2 + Math.sin(x * 0.2) * 4);
+            let groundLevel = Math.floor(rows / 2 + Math.sin(x * 0.3) * 3);
             for (let y = 0; y < rows; y++) {
-                if (y > groundLevel + 1) world[x][y] = 3; // 石頭
-                else if (y > groundLevel) world[x][y] = 2; // 泥土
-                else if (y === groundLevel) world[x][y] = 1; // 草地
-                else world[x][y] = 0; // 空氣
+                if (y > groundLevel + 3) world[x][y] = Blocks.STONE;
+                else if (y > groundLevel) world[x][y] = Blocks.DIRT;
+                else if (y === groundLevel) world[x][y] = Blocks.GRASS;
+                else world[x][y] = Blocks.AIR;
             }
         }
+        saveWorld();
     }
 
-    // 2. 鍵盤控制
+    function saveWorld() {
+        localStorage.setItem('my2DMinecraftWorld', JSON.stringify(world));
+    }
+
+    // 2. 操控與選單
     const keys = {};
-    window.addEventListener('keydown', e => keys[e.code] = true);
-    window.addEventListener('keyup', e => keys[e.code] = false);
-
-    // 3. 滑鼠互動 (挖掘與建造)
-    canvas.addEventListener('mousedown', e => {
-        e.preventDefault();
-        const rect = canvas.getBoundingClientRect();
-        const mouseX = e.clientX - rect.left;
-        const mouseY = e.clientY - rect.top;
-        const gx = Math.floor(mouseX / tileSize);
-        const gy = Math.floor(mouseY / tileSize);
-
-        if (gx >= 0 && gx < cols && gy >= 0 && gy < rows) {
-            if (e.button === 0) world[gx][gy] = 0; // 左鍵：挖掉
-            if (e.button === 2) world[gx][gy] = 2; // 右鍵：放土
+    window.addEventListener('keydown', e => {
+        keys[e.code] = true;
+        if (['1','2','3','4','5'].includes(e.key)) {
+            const idx = parseInt(e.key);
+            const types = [null, Blocks.GRASS, Blocks.DIRT, Blocks.STONE, Blocks.WOOD, Blocks.LEAF];
+            selectSlot(idx, types[idx]);
         }
     });
-    canvas.oncontextmenu = () => false; // 禁用右鍵選單
+    window.addEventListener('keyup', e => keys[e.code] = false);
 
-    // 4. 碰撞檢查
-    function checkCollision(x, y) {
-        let gx = Math.floor(x / tileSize);
-        let gy = Math.floor(y / tileSize);
-        if (gx < 0 || gx >= cols || gy < 0 || gy >= rows) return false;
-        return world[gx][gy] !== 0;
+    function selectSlot(num, blockType) {
+        currentSelectedBlock = blockType;
+        document.querySelectorAll('.slot').forEach(s => s.classList.remove('selected'));
+        document.getElementById('slot-' + num).classList.add('selected');
     }
 
-    // 5. 更新邏輯
-    function update() {
-        // 玩家移動
-        if (keys['KeyA']) player.vx = -player.speed;
-        else if (keys['KeyD']) player.vx = player.speed;
-        else player.vx = 0;
+    canvas.addEventListener('mousedown', e => {
+        const rect = canvas.getBoundingClientRect();
+        const gx = Math.floor((e.clientX - rect.left) / tileSize);
+        const gy = Math.floor((e.clientY - rect.top) / tileSize);
 
+        if (gx >= 0 && gx < cols && gy >= 0 && gy < rows) {
+            if (e.button === 0) world[gx][gy] = Blocks.AIR; 
+            else if (e.button === 2) world[gx][gy] = currentSelectedBlock;
+            saveWorld(); // 每次變動就存檔
+        }
+    });
+    canvas.oncontextmenu = () => false;
+
+    // 3. 物理更新
+    function update() {
+        player.vx = keys['KeyA'] ? -player.speed : (keys['KeyD'] ? player.speed : 0);
         if (keys['Space'] && player.grounded) {
             player.vy = player.jumpPower;
             player.grounded = false;
         }
 
-        // 重力
         player.vy += gravity;
         player.x += player.vx;
         player.y += player.vy;
 
-        // 簡易地板碰撞
-        let gridX = Math.floor(player.x / tileSize);
-        let gridY = Math.ceil((player.y + player.h) / tileSize);
+        // 碰撞檢測 (簡單版)
+        player.grounded = false;
+        let gx = Math.floor((player.x + player.w / 2) / tileSize);
+        let gy = Math.floor((player.y + player.h) / tileSize);
 
-        if (checkCollision(player.x + player.w/2, player.y + player.h)) {
-            player.y = (gridY - 1) * tileSize - player.h;
+        if (world[gx] && world[gx][gy] !== Blocks.AIR) {
+            player.y = gy * tileSize - player.h;
             player.vy = 0;
             player.grounded = true;
-        } else {
-            player.grounded = false;
         }
-
-        // 邊界限制
-        if (player.x < 0) player.x = 0;
-        if (player.x > canvas.width - player.w) player.x = canvas.width - player.w;
     }
 
-    // 6. 繪製
+    // 4. 繪製畫面
     function draw() {
         ctx.clearRect(0, 0, canvas.width, canvas.height);
+        
+        // 畫雲
+        ctx.fillStyle = "white";
+        ctx.beginPath(); ctx.arc(100, 100, 30, 0, Math.PI*2); ctx.fill();
+        ctx.beginPath(); ctx.arc(130, 100, 40, 0, Math.PI*2); ctx.fill();
 
-        // 繪製世界
         for (let x = 0; x < cols; x++) {
             for (let y = 0; y < rows; y++) {
-                if (world[x][y] === 0) continue;
-                
-                if (world[x][y] === 1) ctx.fillStyle = '#4CAF50'; // 草
-                else if (world[x][y] === 2) ctx.fillStyle = '#795548'; // 土
-                else if (world[x][y] === 3) ctx.fillStyle = '#757575'; // 石
-                
-                ctx.fillRect(x * tileSize, y * tileSize, tileSize, tileSize);
+                if (world[x][y] !== Blocks.AIR) {
+                    ctx.fillStyle = BlockColors[world[x][y]];
+                    ctx.fillRect(x * tileSize, y * tileSize, tileSize, tileSize);
+                    ctx.strokeStyle = 'rgba(0,0,0,0.05)';
+                    ctx.strokeRect(x * tileSize, y * tileSize, tileSize, tileSize);
+                }
             }
         }
 
-        // 繪製玩家 (史蒂夫)
-        ctx.fillStyle = '#2196F3';
-        ctx.fillRect(player.x, player.y, player.w, player.h);
+        // 畫角色
+        ctx.fillStyle = '#3AB09E'; ctx.fillRect(player.x, player.y + 10, player.w, player.h - 10);
+        ctx.fillStyle = '#E8BEAC'; ctx.fillRect(player.x + 4, player.y, player.w - 8, 12);
     }
 
-    function gameLoop() {
-        update();
-        draw();
-        requestAnimationFrame(gameLoop);
-    }
-
+    function gameLoop() { update(); draw(); requestAnimationFrame(gameLoop); }
+    
     initWorld();
     gameLoop();
 </script>
