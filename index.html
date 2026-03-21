@@ -1,37 +1,3 @@
-<!DOCTYPE html>
-<html lang="zh-TW">
-<head>
-    <meta charset="UTF-8">
-    <title>我的 2D Minecraft - 生存大更新</title>
-    <style>
-        body { margin: 0; overflow: hidden; font-family: 'Segoe UI', sans-serif; transition: background 2s; }
-        canvas { display: block; cursor: crosshair; }
-        #ui { position: absolute; top: 10px; left: 10px; background: rgba(0,0,0,0.6); color: white; padding: 12px; border-radius: 8px; pointer-events: none; }
-        #hotbar { position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%); display: flex; gap: 5px; background: rgba(0,0,0,0.5); padding: 5px; border: 2px solid #fff; }
-        .slot { width: 45px; height: 45px; border: 2px solid #555; display: flex; flex-direction: column; justify-content: center; align-items: center; background: #333; color: white; font-size: 11px; }
-        .selected { border-color: #FFFF00; background: #666; }
-        #hp-bar { color: #ff5252; font-weight: bold; font-size: 20px; }
-    </style>
-</head>
-<body>
-
-<div id="ui">
-    <div id="hp-bar">❤ HP: 10</div>
-    <b>生存模式</b><br>
-    • 1-5 切換方塊 | A,D 移動 | Space 跳<br>
-    • 晚上會有殭屍出現！
-</div>
-
-<div id="hotbar">
-    <div id="slot-1" class="slot selected"><div style="width:15px;height:15px;background:#4CAF50"></div>1</div>
-    <div id="slot-2" class="slot"><div style="width:15px;height:15px;background:#795548"></div>2</div>
-    <div id="slot-3" class="slot"><div style="width:15px;height:15px;background:#757575"></div>3</div>
-    <div id="slot-4" class="slot"><div style="width:15px;height:15px;background:#A1887F"></div>4</div>
-    <div id="slot-5" class="slot"><div style="width:15px;height:15px;background:#2E7D32"></div>5</div>
-</div>
-
-<canvas id="gameCanvas"></canvas>
-
 <script>
     const canvas = document.getElementById('gameCanvas');
     const ctx = canvas.getContext('2d');
@@ -39,106 +5,104 @@
     canvas.height = window.innerHeight;
 
     const tileSize = 32;
-    const gravity = 0.45;
+    const gravity = 0.5;
     let world = [];
     const cols = Math.ceil(canvas.width / tileSize);
     const rows = Math.ceil(canvas.height / tileSize);
+    
     const Blocks = { AIR: 0, GRASS: 1, DIRT: 2, STONE: 3, WOOD: 4, LEAF: 5 };
     const BlockColors = { 1: '#4CAF50', 2: '#795548', 3: '#757575', 4: '#A1887F', 5: '#2E7D32' };
 
-    let player = { x: 100, y: 100, w: 22, h: 30, vx: 0, vy: 0, hp: 10, invul: 0 };
+    let player = { x: 200, y: 50, w: 20, h: 30, vx: 0, vy: 0, hp: 10, invul: 0, grounded: false };
     let enemies = [];
-    let gameTime = 0; // 用於日夜循環
+    let gameTime = 0;
+    const keys = {};
 
-    // 初始化地圖
     function initWorld() {
         for (let x = 0; x < cols; x++) {
             world[x] = [];
             let ground = Math.floor(rows / 2 + Math.sin(x * 0.2) * 2);
             for (let y = 0; y < rows; y++) {
-                if (y > ground) world[x][y] = (y > ground + 3) ? Blocks.STONE : Blocks.DIRT;
+                if (y > ground + 4) world[x][y] = Blocks.STONE;
+                else if (y > ground) world[x][y] = Blocks.DIRT;
                 else if (y === ground) world[x][y] = Blocks.GRASS;
                 else world[x][y] = Blocks.AIR;
             }
         }
     }
 
-    // --- 核心：修補後的碰撞偵測 ---
-    function isSolid(px, py) {
+    // 核心碰撞檢查：回傳該位置是否有方塊
+    function getTile(px, py) {
         let gx = Math.floor(px / tileSize);
         let gy = Math.floor(py / tileSize);
-        if (gx < 0 || gx >= cols || gy < 0 || gy >= rows) return false;
-        return world[gx][gy] !== Blocks.AIR;
+        if (gx < 0 || gx >= cols || gy < 0 || gy >= rows) return Blocks.STONE; // 邊界視為牆
+        return world[gx][gy];
     }
 
-    function checkCollision(obj) {
-        // 垂直碰撞 (上下)
-        if (obj.vy > 0) { // 下落
-            if (isSolid(obj.x, obj.y + obj.h) || isSolid(obj.x + obj.w, obj.y + obj.h)) {
+    // --- 終極防穿牆物理引擎 ---
+    function checkPhysics(obj) {
+        // 1. 先處理水平 X 軸
+        obj.x += obj.vx;
+        // 檢查右側
+        if (getTile(obj.x + obj.w, obj.y + 2) || getTile(obj.x + obj.w, obj.y + obj.h - 2)) {
+            obj.x = Math.floor((obj.x + obj.w) / tileSize) * tileSize - obj.w - 0.01;
+            obj.vx = 0;
+        }
+        // 檢查左側
+        if (getTile(obj.x, obj.y + 2) || getTile(obj.x, obj.y + obj.h - 2)) {
+            obj.x = Math.ceil(obj.x / tileSize) * tileSize + 0.01;
+            obj.vx = 0;
+        }
+
+        // 2. 再處理垂直 Y 軸
+        obj.vy += gravity;
+        obj.y += obj.vy;
+        obj.grounded = false;
+
+        // 檢查下方 (落地)
+        if (obj.vy >= 0) {
+            if (getTile(obj.x + 2, obj.y + obj.h) || getTile(obj.x + obj.w - 2, obj.y + obj.h)) {
                 obj.y = Math.floor((obj.y + obj.h) / tileSize) * tileSize - obj.h;
                 obj.vy = 0;
                 obj.grounded = true;
-            } else { obj.grounded = false; }
-        } else if (obj.vy < 0) { // 上升
-            if (isSolid(obj.x, obj.y) || isSolid(obj.x + obj.w, obj.y)) {
-                obj.y = Math.ceil(obj.y / tileSize) * tileSize;
+            }
+        }
+        // 檢查上方 (撞頭)
+        else if (obj.vy < 0) {
+            if (getTile(obj.x + 2, obj.y) || getTile(obj.x + obj.w - 2, obj.y)) {
+                obj.y = Math.ceil(obj.y / tileSize) * tileSize + 0.01;
                 obj.vy = 0;
             }
         }
-        // 水平碰撞 (左右)
-        if (obj.vx > 0) { // 往右
-            if (isSolid(obj.x + obj.w, obj.y + 4) || isSolid(obj.x + obj.w, obj.y + obj.h - 4)) {
-                obj.x = Math.floor((obj.x + obj.w) / tileSize) * tileSize - obj.w - 1;
-            }
-        } else if (obj.vx < 0) { // 往左
-            if (isSolid(obj.x, obj.y + 4) || isSolid(obj.x, obj.y + obj.h - 4)) {
-                obj.x = Math.ceil(obj.x / tileSize) * tileSize + 1;
-            }
-        }
-    }
-
-    // 殭屍 AI
-    function updateEnemies() {
-        if (Math.random() < 0.005 && (gameTime % 2000 > 1000)) { // 晚上機率生成
-            enemies.push({ x: Math.random() * canvas.width, y: 0, w: 24, h: 30, vx: 1, vy: 0 });
-        }
-        enemies.forEach((en, index) => {
-            en.vy += gravity;
-            en.vx = (player.x > en.x) ? 1.5 : -1.5;
-            en.x += en.vx; en.y += en.vy;
-            checkCollision(en);
-            // 碰玩家扣血
-            let dx = player.x - en.x; let dy = player.y - en.y;
-            if (Math.abs(dx) < 20 && Math.abs(dy) < 20 && player.invul <= 0) {
-                player.hp--; player.invul = 60;
-                document.getElementById('hp-bar').innerText = "❤ HP: " + player.hp;
-            }
-        });
-        if (player.invul > 0) player.invul--;
     }
 
     function update() {
-        gameTime++;
-        // 天空顏色 (日夜)
-        let skyBrightness = Math.sin(gameTime * 0.002) * 50 + 50;
-        document.body.style.background = `hsl(200, 70%, ${skyBrightness}%)`;
+        gameTime += 0.01;
+        let light = Math.sin(gameTime * 0.5) * 40 + 50;
+        document.body.style.background = `hsl(200, 60%, ${light}%)`;
 
         player.vx = keys['KeyA'] ? -4 : (keys['KeyD'] ? 4 : 0);
-        if (keys['Space'] && player.grounded) player.vy = -9;
-        
-        player.vy += gravity;
-        player.x += player.vx;
-        player.y += player.vy;
-        
-        checkCollision(player);
-        updateEnemies();
+        if (keys['Space'] && player.grounded) {
+            player.vy = -10;
+            player.grounded = false;
+        }
 
-        if (player.hp <= 0) { alert("你被殭屍吃掉了！"); location.reload(); }
+        checkPhysics(player);
+
+        // 殭屍與傷害邏輯簡化
+        if (Math.random() < 0.002 && light < 40) {
+            enemies.push({ x: Math.random() * canvas.width, y: 0, w: 20, h: 30, vx: 0, vy: 0 });
+        }
+        enemies.forEach((en, i) => {
+            en.vx = (player.x > en.x) ? 1.5 : -1.5;
+            checkPhysics(en);
+            if (en.vx !== 0 && !en.grounded && Math.random() < 0.05) en.vy = -5; // 簡單跳躍 AI
+        });
     }
 
     function draw() {
         ctx.clearRect(0, 0, canvas.width, canvas.height);
-        // 畫世界
+        // 畫地圖
         for (let x = 0; x < cols; x++) {
             for (let y = 0; y < rows; y++) {
                 if (world[x][y] !== Blocks.AIR) {
@@ -147,101 +111,24 @@
                 }
             }
         }
-        // 畫殭屍 (綠色)
-        enemies.forEach(en => {
-            ctx.fillStyle = "#2E7D32"; ctx.fillRect(en.x, en.y, en.w, en.h);
-        });
-        // 畫玩家
-        ctx.fillStyle = (player.invul % 10 > 5) ? "white" : "#3AB09E";
-        ctx.fillRect(player.x, player.y, player.w, player.h);
+        // 畫玩家與怪物
+        ctx.fillStyle = "#3AB09E"; ctx.fillRect(player.x, player.y, player.w, player.h);
+        ctx.fillStyle = "#2E7D32"; enemies.forEach(en => ctx.fillRect(en.x, en.y, en.w, en.h));
     }
 
-    const keys = {};
     window.addEventListener('keydown', e => keys[e.code] = true);
     window.addEventListener('keyup', e => keys[e.code] = false);
+    
+    // 挖掘與放置
     canvas.addEventListener('mousedown', e => {
         const gx = Math.floor(e.clientX / tileSize);
         const gy = Math.floor(e.clientY / tileSize);
-        if (e.button === 0) world[gx][gy] = Blocks.AIR;
-        else world[gx][gy] = currentSelectedBlock;
+        if (e.button === 0) world[gx][gy] = 0;
+        else world[gx][gy] = 1; // 預設放草
     });
+    canvas.oncontextmenu = () => false;
 
-    let currentSelectedBlock = 1;
-    window.addEventListener('keydown', e => {
-        if (['1','2','3','4','5'].includes(e.key)) {
-            currentSelectedBlock = parseInt(e.key);
-            document.querySelectorAll('.slot').forEach(s => s.classList.remove('selected'));
-            document.getElementById('slot-'+e.key).classList.add('selected');
-        }
-    });
-
+    initWorld();
     function loop() { update(); draw(); requestAnimationFrame(loop); }
-    initWorld(); loop();
+    loop();
 </script>
-</body>
-</html>
-// 強化版：分軸碰撞偵測 (Axe-Separated Collision)
-    function checkPhysics(obj) {
-        // --- 1. 處理水平位移與碰撞 ---
-        obj.x += obj.vx; 
-        
-        // 檢查右側碰撞
-        if (obj.vx > 0) {
-            if (isSolid(obj.x + obj.w, obj.y + 2) || isSolid(obj.x + obj.w, obj.y + obj.h - 2)) {
-                obj.x = Math.floor((obj.x + obj.w) / tileSize) * tileSize - obj.w - 0.1;
-                if (obj !== player) obj.vy = -6; // 殭屍跳躍 AI
-            }
-        } 
-        // 檢查左側碰撞
-        else if (obj.vx < 0) {
-            if (isSolid(obj.x, obj.y + 2) || isSolid(obj.x, obj.y + obj.h - 2)) {
-                obj.x = Math.ceil(obj.x / tileSize) * tileSize + 0.1;
-                if (obj !== player) obj.vy = -6; // 殭屍跳躍 AI
-            }
-        }
-
-        // --- 2. 處理垂直位移與碰撞 ---
-        obj.vy += gravity;
-        obj.y += obj.vy;
-        obj.grounded = false;
-
-        // 檢查下方碰撞 (落地)
-        if (obj.vy > 0) {
-            if (isSolid(obj.x + 2, obj.y + obj.h) || isSolid(obj.x + obj.w - 2, obj.y + obj.h)) {
-                obj.y = Math.floor((obj.y + obj.h) / tileSize) * tileSize - obj.h;
-                obj.vy = 0;
-                obj.grounded = true;
-            }
-        } 
-        // 檢查上方碰撞 (撞頭)
-        else if (obj.vy < 0) {
-            if (isSolid(obj.x + 2, obj.y) || isSolid(obj.x + obj.w - 2, obj.y)) {
-                obj.y = Math.ceil(obj.y / tileSize) * tileSize;
-                obj.vy = 0;
-            }
-        }
-
-        // 邊界保護：防止掉出地圖外
-        if (obj.x < 0) obj.x = 0;
-        if (obj.x > canvas.width - obj.w) obj.x = canvas.width - obj.w;
-    }
-
-    // 更新繪製邏輯中的 update 呼叫
-    function update() {
-        gameTime += 0.01;
-        let light = Math.sin(gameTime * 0.5) * 40 + 50;
-        document.body.style.background = `hsl(200, 60%, ${light}%)`;
-
-        // 玩家控制量
-        player.vx = keys['KeyA'] ? -4.5 : (keys['KeyD'] ? 4.5 : 0);
-        if (keys['Space'] && player.grounded) {
-            player.vy = -9.5;
-            player.grounded = false;
-        }
-
-        // 執行強化版物理
-        checkPhysics(player);
-
-        // 殭屍更新
-        updateEnemies();
-    }
