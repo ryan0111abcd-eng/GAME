@@ -1,45 +1,190 @@
-function checkPhysics(obj) {
-        // --- 1. 先處理 X 軸 (水平) ---
-        obj.x += obj.vx;
-        
-        // 檢查右側
-        if (getTile(obj.x + obj.w, obj.y + 2) || getTile(obj.x + obj.w, obj.y + obj.h - 2)) {
-            // 撞到右邊，強制推回左邊緣外 0.1 像素
-            obj.x = Math.floor((obj.x + obj.w) / tileSize) * tileSize - obj.w - 0.1;
-            obj.vx = 0;
-        }
-        // 檢查左側
-        if (getTile(obj.x, obj.y + 2) || getTile(obj.x, obj.y + obj.h - 2)) {
-            // 撞到左邊，強制推回右邊緣外 0.1 像素
-            obj.x = Math.ceil(obj.x / tileSize) * tileSize + 0.1;
-            obj.vx = 0;
-        }
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <title>2D Minecraft Ultimate - Fixed Physics</title>
+    <style>
+        body { margin: 0; overflow: hidden; background: #87CEEB; font-family: 'Segoe UI', sans-serif; }
+        canvas { display: block; cursor: crosshair; }
+        #ui { position: absolute; top: 10px; left: 10px; background: rgba(0,0,0,0.7); color: white; padding: 15px; border-radius: 8px; pointer-events: none; border: 2px solid #444; }
+        #hotbar { position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%); display: flex; gap: 5px; background: rgba(0,0,0,0.8); padding: 8px; border: 2px solid #fff; }
+        .slot { width: 40px; height: 40px; border: 2px solid #555; display: flex; justify-content: center; align-items: center; color: #eee; font-size: 12px; }
+        .selected { border-color: #fbff00; background: #555; box-shadow: 0 0 10px #fbff00; }
+        #hp { color: #ff4d4d; font-size: 20px; font-weight: bold; }
+    </style>
+</head>
+<body>
 
-        // --- 2. 處理 Y 軸 (垂直) ---
-        obj.vy += gravity;
-        obj.y += obj.vy;
-        obj.grounded = false;
+<div id="ui">
+    <div id="hp">❤ HP: 10</div>
+    <b>[ 系統狀態 ]</b><br>
+    • A/D: 移動 | 空白鍵: 跳躍<br>
+    • 1~5: 切換方塊 | 左鍵: 挖 | 右鍵: 蓋<br>
+    <span style="color:#00ff00">• 物理引擎：已鎖定 (防穿牆模式)</span>
+</div>
 
-        // 落地判定 (往下掉)
-        if (obj.vy >= 0) {
-            // 我們檢查角色的左腳與右腳 (向內縮 4 像素避免卡牆)
-            if (getTile(obj.x + 4, obj.y + obj.h) || getTile(obj.x + obj.w - 4, obj.y + obj.h)) {
-                // 強制將 Y 座標設定在方塊表面
-                obj.y = Math.floor((obj.y + obj.h) / tileSize) * tileSize - obj.h;
-                obj.vy = 0;
-                obj.grounded = true;
-            }
-        }
-        // 撞頭判定 (往上跳)
-        else if (obj.vy < 0) {
-            if (getTile(obj.x + 4, obj.y) || getTile(obj.x + obj.w - 4, obj.y)) {
-                obj.y = Math.ceil(obj.y / tileSize) * tileSize + 0.1;
-                obj.vy = 0;
-            }
-        }
-        
-        // --- 3. 額外保險：如果角色還是嵌在土裡，強制彈出 ---
-        if (getTile(obj.x + obj.w/2, obj.y + obj.h - 2)) {
-            obj.y -= 2; // 微量向上彈出
+<div id="hotbar">
+    <div id="slot-1" class="slot selected">草</div>
+    <div id="slot-2" class="slot">土</div>
+    <div id="slot-3" class="slot">石</div>
+    <div id="slot-4" class="slot">木</div>
+    <div id="slot-5" class="slot">葉</div>
+</div>
+
+<canvas id="gameCanvas"></canvas>
+
+<script>
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+    
+    // 初始化畫布
+    function resize() {
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+    }
+    window.addEventListener('resize', resize);
+    resize();
+
+    const tileSize = 32;
+    const gravity = 0.5;
+    const world = [];
+    const cols = Math.ceil(3000 / tileSize); // 建立一個很大的世界
+    const rows = 100;
+
+    const Blocks = { AIR: 0, GRASS: 1, DIRT: 2, STONE: 3, WOOD: 4, LEAF: 5 };
+    const BlockColors = { 1: '#4CAF50', 2: '#795548', 3: '#757575', 4: '#A1887F', 5: '#2E7D32' };
+
+    // 玩家設定：縮小寬度(18)以減少碰撞誤差
+    let player = { 
+        x: 100, y: 0, w: 18, h: 30, 
+        vx: 0, vy: 0, 
+        speed: 4.5, jumpPower: -10, 
+        grounded: false 
+    };
+
+    // 1. 地型生成
+    for (let x = 0; x < cols; x++) {
+        world[x] = [];
+        let ground = Math.floor(20 + Math.sin(x * 0.15) * 3);
+        for (let y = 0; y < rows; y++) {
+            if (y > ground + 4) world[x][y] = Blocks.STONE;
+            else if (y > ground) world[x][y] = Blocks.DIRT;
+            else if (y === ground) world[x][y] = Blocks.GRASS;
+            else world[x][y] = Blocks.AIR;
         }
     }
+
+    // 2. 核心：高精度碰撞偵測
+    function isBlocked(px, py) {
+        let gx = Math.floor(px / tileSize);
+        let gy = Math.floor(py / tileSize);
+        if (gx < 0 || gx >= cols || gy < 0 || gy >= rows) return true;
+        return world[gx][gy] !== Blocks.AIR;
+    }
+
+    function movePlayer() {
+        // --- X 軸處理 ---
+        let nextX = player.x + player.vx;
+        // 檢查前方的四個點（頭部、中間、腳部）
+        if (player.vx > 0) { // 往右
+            if (isBlocked(nextX + player.w, player.y + 2) || 
+                isBlocked(nextX + player.w, player.y + player.h - 2)) {
+                player.x = Math.floor((nextX + player.w) / tileSize) * tileSize - player.w - 0.1;
+                player.vx = 0;
+            } else { player.x = nextX; }
+        } else if (player.vx < 0) { // 往左
+            if (isBlocked(nextX, player.y + 2) || 
+                isBlocked(nextX, player.y + player.h - 2)) {
+                player.x = Math.ceil(nextX / tileSize) * tileSize + 0.1;
+                player.vx = 0;
+            } else { player.x = nextX; }
+        }
+
+        // --- Y 軸處理 ---
+        player.vy += gravity;
+        let nextY = player.y + player.vy;
+        player.grounded = false;
+
+        if (player.vy >= 0) { // 往下掉
+            if (isBlocked(player.x + 2, nextY + player.h) || 
+                isBlocked(player.x + player.w - 2, nextY + player.h)) {
+                player.y = Math.floor((nextY + player.h) / tileSize) * tileSize - player.h;
+                player.vy = 0;
+                player.grounded = true;
+            } else { player.y = nextY; }
+        } else { // 往上跳
+            if (isBlocked(player.x + 2, nextY) || 
+                isBlocked(player.x + player.w - 2, nextY)) {
+                player.y = Math.ceil(nextY / tileSize) * tileSize + 0.1;
+                player.vy = 0;
+            } else { player.y = nextY; }
+        }
+    }
+
+    // 3. 輸入處理
+    const keys = {};
+    window.addEventListener('keydown', e => {
+        keys[e.code] = true;
+        if (e.key >= '1' && e.key <= '5') selectSlot(e.key);
+    });
+    window.addEventListener('keyup', e => keys[e.code] = false);
+
+    let currentBlock = 1;
+    function selectSlot(n) {
+        currentBlock = parseInt(n);
+        document.querySelectorAll('.slot').forEach((s, i) => {
+            s.classList.toggle('selected', i === currentBlock - 1);
+        });
+    }
+
+    canvas.addEventListener('mousedown', e => {
+        const rect = canvas.getBoundingClientRect();
+        const gx = Math.floor((e.clientX - rect.left) / tileSize);
+        const gy = Math.floor((e.clientY - rect.top) / tileSize);
+        if (e.button === 0) world[gx][gy] = 0; // 左鍵挖
+        else if (world[gx][gy] === 0) world[gx][gy] = currentBlock; // 右鍵蓋
+    });
+    canvas.oncontextmenu = e => e.preventDefault();
+
+    // 4. 主迴圈
+    function update() {
+        player.vx = 0;
+        if (keys['KeyA']) player.vx = -player.speed;
+        if (keys['KeyD']) player.vx = player.speed;
+        if (keys['Space'] && player.grounded) player.vy = player.jumpPower;
+
+        movePlayer();
+    }
+
+    function draw() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        
+        // 繪製世界 (加入簡單視角追隨，雖然目前只有一屏)
+        for (let x = 0; x < cols; x++) {
+            for (let y = 0; y < rows; y++) {
+                if (world[x][y] !== Blocks.AIR) {
+                    ctx.fillStyle = BlockColors[world[x][y]];
+                    ctx.fillRect(x * tileSize, y * tileSize, tileSize, tileSize);
+                    ctx.strokeStyle = "rgba(0,0,0,0.05)";
+                    ctx.strokeRect(x * tileSize, y * tileSize, tileSize, tileSize);
+                }
+            }
+        }
+
+        // 繪製玩家
+        ctx.fillStyle = "#3AB09E";
+        ctx.fillRect(player.x, player.y, player.w, player.h);
+        // 眼睛
+        ctx.fillStyle = "white";
+        ctx.fillRect(player.x + (player.vx >= 0 ? 12 : 2), player.y + 6, 4, 4);
+    }
+
+    function loop() {
+        update();
+        draw();
+        requestAnimationFrame(loop);
+    }
+    loop();
+</script>
+</body>
+</html>
