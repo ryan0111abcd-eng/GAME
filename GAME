@@ -1,4 +1,7 @@
-<!DOCTYPE html>
+你的專案根目錄/
+├── index.html  <-- 確保它在這裡
+├── style.css
+└── script.js<!DOCTYPE html>
 <html>
 <head>
     <title>My 2D Minecraft</title>
