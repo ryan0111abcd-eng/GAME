@@ -2,97 +2,121 @@
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
-    <title>未來的 Super Human - 物理修正版</title>
+    <title>未來的 Super Human - 修正版</title>
     <style>
-        body { margin: 0; overflow: hidden; background: #000; font-family: 'Courier New', monospace; user-select: none; }
+        body { margin: 0; overflow: hidden; background: #000; font-family: "Microsoft JhengHei", sans-serif; user-select: none; }
         canvas { display: block; }
         
-        .overlay {
+        /* 全螢幕遮罩選單 */
+        .screen-overlay {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
             display: flex; flex-direction: column; align-items: center; justify-content: center;
-            background: rgba(0,0,0,0.9); color: white; z-index: 100;
+            background: rgba(0,0,0,0.9); color: white; z-index: 1000;
         }
-        .menu-btn { padding: 15px 40px; margin: 10px; font-size: 20px; cursor: pointer; background: #4caf50; border: none; color: white; border-radius: 5px; transition: 0.2s; }
-        .menu-btn:hover { background: #66bb6a; transform: scale(1.05); }
+        h1 { font-size: 60px; color: #f1c40f; text-shadow: 0 0 20px #f1c40f; margin-bottom: 30px; }
+        .btn {
+            padding: 15px 50px; margin: 15px; font-size: 24px; cursor: pointer;
+            background: #f1c40f; border: none; color: #000; border-radius: 50px;
+            font-weight: bold; transition: 0.2s; pointer-events: auto;
+        }
+        .btn:hover { background: #fff; transform: scale(1.1); }
         
-        #game-ui { position: absolute; top: 10px; left: 10px; color: white; background: rgba(0,0,0,0.5); padding: 10px; border-radius: 5px; z-index: 10; }
-        #minimap-box { position: absolute; top: 20px; right: 20px; width: 140px; height: 140px; border-radius: 50%; border: 3px solid #f1c40f; overflow: hidden; background: rgba(0,0,0,0.3); z-index: 10; }
-        
+        /* 遊戲介面 */
+        #stats-ui { position: absolute; top: 20px; left: 20px; color: white; background: rgba(0,0,0,0.6); padding: 15px; border-radius: 10px; z-index: 10; border: 1px solid #f1c40f; }
         #hotbar {
             position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%);
-            display: flex; gap: 5px; background: rgba(0,0,0,0.8); padding: 8px; border: 2px solid #fff; z-index: 10;
+            display: flex; gap: 8px; background: rgba(0,0,0,0.8); padding: 10px; border: 2px solid #fff; z-index: 10;
         }
-        .slot { width: 45px; height: 45px; border: 2px solid #777; display: flex; align-items: center; justify-content: center; font-size: 12px; color: white; }
-        .slot.active { border-color: #ff0; box-shadow: 0 0 10px #ff0; }
+        .slot { width: 50px; height: 50px; border: 2px solid #555; display: flex; align-items: center; justify-content: center; color: white; font-size: 14px; }
+        .slot.active { border-color: #f1c40f; box-shadow: 0 0 10px #f1c40f; }
+        
+        /* 圓形小地圖 */
+        #radar {
+            position: absolute; top: 20px; right: 20px; width: 150px; height: 150px;
+            border-radius: 50%; border: 3px solid #f1c40f; overflow: hidden; background: rgba(0,0,0,0.4); z-index: 10;
+        }
     </style>
 </head>
 <body>
 
-<div id="start-screen" class="overlay">
-    <h1 style="font-size: 50px; color: #f1c40f;">未來的 Super Human</h1>
-    <button class="menu-btn" onclick="initGame(1)">開始遊戲</button>
-    <button class="menu-btn" style="background:#3498db" onclick="showMultiMenu()">多人連線</button>
-</div>
+    <div id="main-menu" class="screen-overlay">
+        <h1>未來的 Super Human</h1>
+        <button class="btn" onclick="startGame(1)">開始遊戲</button>
+        <button class="btn" style="background:#3498db; color:white;" onclick="openMultiMenu()">多人連線</button>
+    </div>
 
-<div id="multi-menu" class="overlay" style="display:none;">
-    <h2>多人連線模式</h2>
-    <p>設定隊友數量 (2-10人)：<input type="number" id="player-count" min="2" max="10" value="5" style="font-size: 20px; width: 60px;"></p>
-    <button class="menu-btn" onclick="initGame(document.getElementById('player-count').value)">進入世界</button>
-</div>
+    <div id="multi-menu" class="screen-overlay" style="display:none;">
+        <h1>設定連線人數</h1>
+        <p style="font-size:20px;">選擇人數 (2-10)：<input type="number" id="p-count" min="2" max="10" value="5" style="font-size:20px; width:60px;"></p>
+        <button class="btn" onclick="startGame(document.getElementById('p-count').value)">進入遊戲</button>
+        <button class="btn" style="background:#777; font-size:16px;" onclick="location.reload()">返回</button>
+    </div>
 
-<div id="esc-menu" class="overlay" style="display:none;">
-    <h1>遊戲暫停</h1>
-    <button class="menu-btn" style="background:#e74c3c" onclick="location.reload()">離開遊戲 (重新開始)</button>
-    <p>按 ESC 返回</p>
-</div>
+    <div id="esc-menu" class="screen-overlay" style="display:none;">
+        <h1>遊戲暫停</h1>
+        <button class="btn" style="background:#e74c3c; color:white;" onclick="location.reload()">離開遊戲 (重新開始)</button>
+        <p>按 ESC 鍵返回</p>
+    </div>
 
-<div id="game-ui">
-    🌍 時間: <span id="clock">07:00</span> | ❤️ 血量: <span id="hp">100</span><br>
-    📍 座標: <span id="pos">0,0</span>
-</div>
+    <div id="stats-ui" style="display:none;">
+        ❤️ 血量: <span id="hp">100</span> | 🕒 時間: <span id="clock">07:00</span><br>
+        📍 座標: <span id="pos">0, 0</span>
+    </div>
 
-<div id="minimap-box"><canvas id="minimapCanvas"></canvas></div>
+    <div id="radar" style="display:none;"><canvas id="radarCanvas"></canvas></div>
 
-<div id="hotbar">
-    <div id="slot1" class="slot active">草</div>
-    <div id="slot2" class="slot">土</div>
-    <div id="slot3" class="slot">石</div>
-</div>
+    <div id="hotbar" style="display:none;">
+        <div id="slot1" class="slot active">草</div>
+        <div id="slot2" class="slot">土</div>
+        <div id="slot3" class="slot">石</div>
+    </div>
 
-<canvas id="gameCanvas"></canvas>
+    <canvas id="gameCanvas"></canvas>
 
 <script>
 const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
-const mCanvas = document.getElementById('minimapCanvas');
-const mCtx = mCanvas.getContext('2d');
+const rCanvas = document.getElementById('radarCanvas');
+const rCtx = rCanvas.getContext('2d');
 
+// --- 遊戲狀態 ---
+let isPlaying = false, isPaused = false;
+let gameTicks = 420; // 07:00
+let cameraX = 0, worldData = {};
 const tileSize = 32;
-let cameraX = 0, worldData = {}, keys = {};
 const blocks = { AIR: 0, DIRT: 1, GRASS: 2, STONE: 3 };
 const colors = { 1: '#8B4513', 2: '#228B22', 3: '#666' };
-let selectedBlock = blocks.GRASS, gameActive = false, isPaused = false, gameTicks = 420;
+let selectedBlock = blocks.GRASS;
 
-let player = { x: 100, y: 0, w: 24, h: 44, vx: 0, vy: 0, hp: 100, grounded: false };
-let teammates = [], entities = [];
+let player = { x: 200, y: 0, w: 24, h: 44, vx: 0, vy: 0, hp: 100, grounded: false };
+let teammates = [], monsters = [];
 
-function showMultiMenu() {
-    document.getElementById('start-screen').style.display = 'none';
+// --- 選單控制 ---
+function openMultiMenu() {
+    document.getElementById('main-menu').style.display = 'none';
     document.getElementById('multi-menu').style.display = 'flex';
 }
 
-function initGame(count) {
-    document.querySelectorAll('.overlay').forEach(el => el.style.display = 'none');
-    gameActive = true;
+function startGame(count) {
+    document.querySelectorAll('.screen-overlay').forEach(s => s.style.display = 'none');
+    document.getElementById('stats-ui').style.display = 'block';
+    document.getElementById('hotbar').style.display = 'flex';
+    document.getElementById('radar').style.display = 'block';
+    
+    // 初始化隊友
     for(let i = 0; i < count - 1; i++) {
         teammates.push({
-            x: 100 + (Math.random() * 50), y: -100, w: 24, h: 44, vx: 0, vy: 0, 
-            hp: 100, color: '#f1c40f', offset: (Math.random() - 0.5) * 160, grounded: false
+            x: 200 + (Math.random()*100), y: -50, w: 24, h: 44,
+            vx: 0, vy: 0, offset: (Math.random()-0.5)*180, grounded: false
         });
     }
-    resize(); loop();
+    
+    isPlaying = true;
+    resize();
+    loop();
 }
 
+// --- 物理與碰撞 (解決穿牆) ---
 function getBlock(x, y) {
     const key = `${Math.floor(x)}_${Math.floor(y)}`;
     if (worldData[key] !== undefined) return worldData[key];
@@ -100,119 +124,114 @@ function getBlock(x, y) {
     return y < groundLevel ? blocks.AIR : (y === groundLevel ? blocks.GRASS : blocks.DIRT);
 }
 
-// 物理碰撞邏輯：解決穿牆問題
 function applyPhysics(obj) {
     obj.vy += 0.6; // 重力
-    
-    // X 軸移動碰撞
-    let nextX = obj.x + obj.vx;
-    let sideX = (obj.vx > 0) ? Math.floor((nextX + obj.w) / tileSize) : Math.floor(nextX / tileSize);
-    let topY = Math.floor(obj.y / tileSize);
-    let botY = Math.floor((obj.y + obj.h - 2) / tileSize);
 
-    if (getBlock(sideX, topY) === blocks.AIR && getBlock(sideX, botY) === blocks.AIR) {
+    // X 軸碰撞
+    let nextX = obj.x + obj.vx;
+    let gridX = (obj.vx > 0) ? Math.floor((nextX + obj.w) / tileSize) : Math.floor(nextX / tileSize);
+    let topY = Math.floor(obj.y / tileSize);
+    let midY = Math.floor((obj.y + obj.h/2) / tileSize);
+    let botY = Math.floor((obj.y + obj.h - 1) / tileSize);
+
+    if (getBlock(gridX, topY) === blocks.AIR && getBlock(gridX, botY) === blocks.AIR) {
         obj.x = nextX;
     } else {
         obj.vx = 0; // 撞牆
+        if (obj.grounded) obj.vy = -10; // 自動跳躍 AI
     }
 
-    // Y 軸移動碰撞
+    // Y 軸碰撞
     obj.y += obj.vy;
     obj.grounded = false;
-    let leftX = Math.floor(obj.x / tileSize);
-    let rightX = Math.floor((obj.x + obj.w - 1) / tileSize);
-    let footY = Math.floor((obj.y + obj.h) / tileSize);
+    let lX = Math.floor(obj.x / tileSize);
+    let rX = Math.floor((obj.x + obj.w - 1) / tileSize);
+    let fY = Math.floor((obj.y + obj.h) / tileSize);
 
-    if (getBlock(leftX, footY) !== blocks.AIR || getBlock(rightX, footY) !== blocks.AIR) {
-        obj.y = footY * tileSize - obj.h;
+    if (getBlock(lX, fY) !== blocks.AIR || getBlock(rX, fY) !== blocks.AIR) {
+        obj.y = fY * tileSize - obj.h;
         obj.vy = 0;
         obj.grounded = true;
     }
 }
 
+// --- 控制與輸入 ---
+let keys = {};
 window.onkeydown = (e) => {
-    if(e.code === 'Escape' && gameActive) {
+    if (e.code === 'Escape' && isPlaying) {
         isPaused = !isPaused;
         document.getElementById('esc-menu').style.display = isPaused ? 'flex' : 'none';
     }
     keys[e.code] = true;
-    if (e.key === '1') { selectedBlock = blocks.GRASS; updateUI(1); }
-    if (e.key === '2') { selectedBlock = blocks.DIRT; updateUI(2); }
-    if (e.key === '3') { selectedBlock = blocks.STONE; updateUI(3); }
+    if (e.key === '1') { selectedBlock = blocks.GRASS; updateHotbar(1); }
+    if (e.key === '2') { selectedBlock = blocks.DIRT; updateHotbar(2); }
+    if (e.key === '3') { selectedBlock = blocks.STONE; updateHotbar(3); }
 };
 window.onkeyup = (e) => keys[e.code] = false;
 
-function updateUI(n) {
+function updateHotbar(n) {
     document.querySelectorAll('.slot').forEach(s => s.classList.remove('active'));
     document.getElementById('slot' + n).classList.add('active');
 }
 
 canvas.onmousedown = (e) => {
-    if (!gameActive || isPaused) return;
+    if (!isPlaying || isPaused) return;
     const rect = canvas.getBoundingClientRect();
     const gx = Math.floor((e.clientX - rect.left + cameraX) / tileSize);
     const gy = Math.floor((e.clientY - rect.top) / tileSize);
     if (e.button === 0) worldData[`${gx}_${gy}`] = blocks.AIR;
     if (e.button === 2) worldData[`${gx}_${gy}`] = selectedBlock;
 };
-canvas.oncontextmenu = (e) => e.preventDefault();
+canvas.oncontextmenu = e => e.preventDefault();
 
+// --- 主循環 ---
 function loop() {
-    if (!gameActive) return;
-    if (!isPaused) updateGame();
+    if (!isPlaying) return;
+    if (!isPaused) {
+        gameTicks = (gameTicks + 0.5) % 1440;
+        
+        // 玩家控制
+        player.vx = (keys['KeyA'] ? -4.5 : keys['KeyD'] ? 4.5 : 0);
+        if (keys['Space'] && player.grounded) player.vy = -12;
+        applyPhysics(player);
+        cameraX = player.x - canvas.width / 2;
+
+        // 隊友 AI (不穿牆)
+        teammates.forEach(tm => {
+            let targetX = player.x + tm.offset;
+            tm.vx = (tm.x < targetX - 20) ? 3.5 : (tm.x > targetX + 20) ? -3.5 : 0;
+            applyPhysics(tm);
+        });
+
+        // 怪物與時間
+        let hour = Math.floor(gameTicks / 60);
+        if ((hour >= 18 || hour < 6) && Math.random() < 0.01) {
+            monsters.push({ x: player.x + 600, y: -50, w: 24, h: 44, vx: 0, vy: 0, hp: 20 });
+        }
+        monsters.forEach((m, i) => {
+            m.vx = (m.x < player.x) ? 2 : -2;
+            applyPhysics(m);
+            if (Math.abs(m.x - player.x) < 25 && Math.abs(m.y - player.y) < 30) player.hp -= 0.5;
+        });
+
+        // 死亡重啟
+        if (player.hp <= 0) {
+            alert("你失敗了！遊戲將重新開始。");
+            location.reload();
+        }
+    }
+
     render();
     requestAnimationFrame(loop);
 }
 
-function updateGame() {
-    gameTicks = (gameTicks + 0.4) % 1440;
-    
-    // 玩家控制
-    player.vx = (keys['KeyA'] ? -4.5 : keys['KeyD'] ? 4.5 : 0);
-    if (keys['Space'] && player.grounded) player.vy = -12;
-    applyPhysics(player);
-    cameraX = player.x - canvas.width / 2;
-
-    // 隊友 AI 與穿牆修正
-    teammates.forEach(tm => {
-        let targetX = player.x + tm.offset;
-        let dist = targetX - tm.x;
-        tm.vx = Math.abs(dist) > 20 ? (dist > 0 ? 3.5 : -3.5) : 0;
-
-        // 智慧跳躍：如果前方有方塊擋住，自動跳躍
-        let checkX = (tm.vx > 0) ? Math.floor((tm.x + tm.w + 5) / tileSize) : Math.floor((tm.x - 5) / tileSize);
-        let checkY = Math.floor((tm.y + tm.h - 5) / tileSize);
-        if (getBlock(checkX, checkY) !== blocks.AIR && tm.grounded) tm.vy = -10;
-
-        applyPhysics(tm);
-    });
-
-    // 怪物生成與死亡重啟判斷
-    if ((gameTicks > 1090 || gameTicks < 390) && Math.random() < 0.01) {
-        entities.push({ x: player.x + 600, y: -100, w: 24, h: 44, vx: -2, vy: 0, hp: 10, type: 'monster' });
-    }
-    
-    entities.forEach((en, i) => {
-        en.vx = (en.x < player.x) ? 2 : -2;
-        applyPhysics(en);
-        if (Math.abs(en.x - player.x) < 25 && Math.abs(en.y - player.y) < 30) player.hp -= 0.5;
-    });
-
-    if (player.hp <= 0) {
-        gameActive = false;
-        alert("你死了！遊戲將重新開始。");
-        location.reload(); 
-    }
-
-    document.getElementById('hp').innerText = Math.ceil(player.hp);
-    document.getElementById('pos').innerText = `${Math.floor(player.x/32)}, ${Math.floor(player.y/32)}`;
-}
-
 function render() {
-    let hour = Math.floor(gameTicks / 60);
-    ctx.fillStyle = (hour >= 18 || hour < 6) ? "#050510" : (hour >= 17 ? "#ff7832" : "#87ceeb");
+    // 晝夜背景
+    let h = Math.floor(gameTicks / 60);
+    ctx.fillStyle = (h >= 18 || h < 6) ? "#050515" : (h >= 17 ? "#ff7832" : "#87ceeb");
     ctx.fillRect(0, 0, canvas.width, canvas.height);
 
+    // 繪製地圖
     let startX = Math.floor(cameraX / tileSize);
     let endX = startX + Math.ceil(canvas.width / tileSize) + 1;
     for (let x = startX; x < endX; x++) {
@@ -225,6 +244,29 @@ function render() {
         }
     }
 
-    ctx.fillStyle = '#FF5733'; ctx.fillRect(player.x - cameraX, player.y, player.w, player.h);
-    teammates.forEach(tm => { ctx.fillStyle = tm.color; ctx.fillRect(tm.x - cameraX, tm.y, tm.w, tm.h); });
-    entities.forEach(en => { ctx.fillStyle = '#2ecc71'; ctx.fillRect(en.x - cameraX, en.y, en.w, en.
+    // 繪製人物
+    ctx.fillStyle = "#FF5733"; ctx.fillRect(player.x - cameraX, player.y, player.w, player.h); // 玩家
+    ctx.fillStyle = "#f1c40f"; teammates.forEach(tm => ctx.fillRect(tm.x - cameraX, tm.y, tm.w, tm.h)); // 隊友
+    ctx.fillStyle = "#2ecc71"; monsters.forEach(m => ctx.fillRect(m.x - cameraX, m.y, m.w, m.h)); // 怪物
+
+    // UI 更新
+    document.getElementById('clock').innerText = `${h.toString().padStart(2,'0')}:${Math.floor(gameTicks%60).toString().padStart(2,'0')}`;
+    document.getElementById('hp').innerText = Math.ceil(player.hp);
+    document.getElementById('pos').innerText = `${Math.floor(player.x/32)}, ${Math.floor(player.y/32)}`;
+
+    // 雷達地圖
+    rCanvas.width = 150; rCanvas.height = 150;
+    rCtx.fillStyle = "rgba(0,0,0,0.5)"; rCtx.fillRect(0,0,150,150);
+    rCtx.save();
+    rCtx.translate(75, 75); rCtx.scale(0.1, 0.1);
+    rCtx.fillStyle = "red"; rCtx.fillRect(-10, -10, 20, 20);
+    rCtx.fillStyle = "yellow"; teammates.forEach(tm => rCtx.fillRect(tm.x - player.x, tm.y - player.y, 15, 15));
+    rCtx.fillStyle = "#2ecc71"; monsters.forEach(m => rCtx.fillRect(m.x - player.x, m.y - player.y, 15, 15));
+    rCtx.restore();
+}
+
+function resize() { canvas.width = window.innerWidth; canvas.height = window.innerHeight; }
+window.onresize = resize;
+</script>
+</body>
+</html>
