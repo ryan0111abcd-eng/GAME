@@ -2,75 +2,190 @@
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
-    <title>我的無限 2D Minecraft 最終版</title>
+    <title>2D Minecraft: 怪物生存版</title>
     <style>
-        body { margin: 0; overflow: hidden; background: #000; font-family: 'Courier New', Courier, monospace; }
+        body { margin: 0; overflow: hidden; background: #000; font-family: 'Courier New', monospace; }
         canvas { display: block; background: #87CEEB; }
         #ui { 
             position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%); 
-            display: flex; gap: 10px; background: rgba(0,0,0,0.7); padding: 12px; border-radius: 8px; border: 2px solid #fff;
+            display: flex; gap: 10px; background: rgba(0,0,0,0.8); padding: 10px; border-radius: 5px; border: 2px solid #fff;
         }
-        .slot { 
-            width: 45px; height: 45px; border: 2px solid #777; 
-            display: flex; flex-direction: column; align-items: center; justify-content: center; color: white; font-size: 10px;
-        }
-        .slot.active { border-color: yellow; box-shadow: 0 0 10px yellow; background: rgba(255,255,0,0.2); }
-        #info { position: absolute; top: 10px; left: 10px; color: white; background: rgba(0,0,0,0.5); padding: 8px; border-radius: 5px; pointer-events: none; }
+        .slot { width: 50px; height: 50px; border: 2px solid #777; display: flex; align-items: center; justify-content: center; color: white; font-size: 10px; }
+        .slot.active { border-color: #ff0; box-shadow: 0 0 10px #ff0; }
+        #stats { position: absolute; top: 10px; left: 10px; color: white; background: rgba(0,0,0,0.5); padding: 10px; line-height: 1.5; }
     </style>
 </head>
 <body>
 
-    <div id="info">座標: <span id="pos">0,0</span> | 1-3 切換方塊 | A/D 移動 | 空白 跳躍 | 左鍵 挖 / 右鍵 蓋</div>
-    <div id="ui">
-        <div id="slot1" class="slot active"><div style="width:15px;height:15px;background:#228B22"></div>草</div>
-        <div id="slot2" class="slot"><div style="width:15px;height:15px;background:#8B4513"></div>土</div>
-        <div id="slot3" class="slot"><div style="width:15px;height:15px;background:#666"></div>石</div>
-    </div>
-    <canvas id="gameCanvas"></canvas>
+<div id="stats">
+    血量: <span id="hp" style="color: #f00;">100</span> | 座標: <span id="pos">0,0</span><br>
+    左鍵: 挖 | 右鍵: 蓋 | 1-3: 切換 | A/D: 移動 | 空白: 跳
+</div>
+
+<div id="ui">
+    <div id="slot1" class="slot active">草</div>
+    <div id="slot2" class="slot">土</div>
+    <div id="slot3" class="slot">石</div>
+</div>
+
+<canvas id="gameCanvas"></canvas>
 
 <script>
-    const canvas = document.getElementById('gameCanvas');
-    const ctx = canvas.getContext('2d');
+const canvas = document.getElementById('gameCanvas');
+const ctx = canvas.getContext('2d');
 
-    // --- 1. 遊戲核心設定 ---
-    const tileSize = 32;
-    let cameraX = 0;
-    let worldData = JSON.parse(localStorage.getItem('my_mc_save')) || {};
-    const blocks = { AIR: 0, DIRT: 1, GRASS: 2, STONE: 3 };
-    const colors = { 1: '#8B4513', 2: '#228B22', 3: '#666' };
-    let selectedBlock = blocks.GRASS;
-    let keys = {};
+// --- 設定 ---
+const tileSize = 32;
+let cameraX = 0;
+let worldData = JSON.parse(localStorage.getItem('mc_full_save')) || {};
+const blocks = { AIR: 0, DIRT: 1, GRASS: 2, STONE: 3 };
+const colors = { 1: '#8B4513', 2: '#228B22', 3: '#666' };
+let selectedBlock = blocks.GRASS;
+let keys = {};
 
-    let player = {
-        x: 100, y: 0, w: 24, h: 46, vx: 0, vy: 0, 
-        speed: 5, jump: -12, grounded: false
-    };
+// --- 玩家與怪物 ---
+let player = {
+    x: 100, y: 0, w: 24, h: 44, vx: 0, vy: 0, hp: 100,
+    speed: 4.5, jump: -12, grounded: false
+};
 
-    // 簡單的 AI 小羊群
-    let mobs = [];
-    for(let i=0; i<5; i++) mobs.push({ x: 400 + i*600, y: 0, w: 32, h: 24, vx: 0, vy: 0, timer: 0 });
+let enemies = []; // 存儲怪物（殭屍）
 
-    // --- 2. 無限地形生成函式 ---
-    function getBlock(x, y) {
-        const key = `${x}_${y}`;
-        if (worldData[key] !== undefined) return worldData[key];
-        
-        // 使用正弦波產生連續起伏的地形 (關鍵：依賴傳入的 x)
-        let groundLevel = Math.floor(12 + Math.sin(x * 0.1) * 4 + Math.sin(x * 0.5) * 1);
-        
-        if (y < groundLevel) return blocks.AIR;
-        if (y === groundLevel) return blocks.GRASS;
-        if (y > groundLevel + 4) return blocks.STONE;
-        return blocks.DIRT;
+// 生成怪物的函式
+function spawnEnemy(x) {
+    enemies.push({ x: x, y: 0, w: 24, h: 44, vx: 0, vy: 0, hp: 20, type: 'zombie' });
+}
+
+// 初始生成幾隻怪物
+for(let i=0; i<3; i++) spawnEnemy(600 + i*800);
+
+// --- 地形生成 ---
+function getBlock(x, y) {
+    const key = `${Math.floor(x)}_${Math.floor(y)}`;
+    if (worldData[key] !== undefined) return worldData[key];
+    let groundLevel = Math.floor(12 + Math.sin(x * 0.1) * 4);
+    if (y < groundLevel) return blocks.AIR;
+    if (y === groundLevel) return blocks.GRASS;
+    return blocks.DIRT;
+}
+
+// --- 物理碰撞 ---
+function applyPhysics(obj) {
+    obj.vy += 0.6; // 重力
+    obj.x += obj.vx;
+    obj.y += obj.vy;
+    obj.grounded = false;
+
+    let left = Math.floor(obj.x / tileSize);
+    let right = Math.floor((obj.x + obj.w) / tileSize);
+    let top = Math.floor(obj.y / tileSize);
+    let bottom = Math.floor((obj.y + obj.h) / tileSize);
+
+    for (let x = left; x <= right; x++) {
+        for (let y = top; y <= bottom; y++) {
+            if (getBlock(x, y) !== blocks.AIR) {
+                if (obj.vy > 0 && obj.y + obj.h > y * tileSize) {
+                    obj.y = y * tileSize - obj.h;
+                    obj.vy = 0;
+                    obj.grounded = true;
+                }
+            }
+        }
+    }
+}
+
+// --- 互動 ---
+window.onkeydown = (e) => {
+    keys[e.code] = true;
+    if (e.key === '1') { selectedBlock = blocks.GRASS; updateUI(1); }
+    if (e.key === '2') { selectedBlock = blocks.DIRT; updateUI(2); }
+    if (e.key === '3') { selectedBlock = blocks.STONE; updateUI(3); }
+};
+window.onkeyup = (e) => keys[e.code] = false;
+
+function updateUI(n) {
+    document.querySelectorAll('.slot').forEach(s => s.classList.remove('active'));
+    document.getElementById('slot' + n).classList.add('active');
+}
+
+canvas.onmousedown = (e) => {
+    const rect = canvas.getBoundingClientRect();
+    const gx = Math.floor((e.clientX - rect.left + cameraX) / tileSize);
+    const gy = Math.floor((e.clientY - rect.top) / tileSize);
+    if (e.button === 0) worldData[`${gx}_${gy}`] = blocks.AIR;
+    if (e.button === 2) worldData[`${gx}_${gy}`] = selectedBlock;
+    localStorage.setItem('mc_full_save', JSON.stringify(worldData));
+};
+canvas.oncontextmenu = (e) => e.preventDefault();
+
+// --- 遊戲主循環 ---
+function loop() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    // 1. 玩家移動
+    if (keys['KeyA']) player.vx = -player.speed;
+    else if (keys['KeyD']) player.vx = player.speed;
+    else player.vx *= 0.8;
+    if (keys['Space'] && player.grounded) player.vy = player.jump;
+    applyPhysics(player);
+    cameraX = player.x - canvas.width / 2;
+
+    // 2. 渲染地圖（無限延伸）
+    let startX = Math.floor(cameraX / tileSize);
+    let endX = startX + Math.ceil(canvas.width / tileSize) + 1;
+    for (let x = startX; x < endX; x++) {
+        for (let y = 0; y < 25; y++) {
+            let b = getBlock(x, y);
+            if (b !== blocks.AIR) {
+                ctx.fillStyle = colors[b];
+                ctx.fillRect(x * tileSize - cameraX, y * tileSize, tileSize, tileSize);
+            }
+        }
     }
 
-    // --- 3. 物理碰撞系統 ---
-    function checkCollision(obj) {
-        obj.grounded = false;
-        let left = Math.floor(obj.x / tileSize);
-        let right = Math.floor((obj.x + obj.w) / tileSize);
-        let top = Math.floor(obj.y / tileSize);
-        let bottom = Math.floor((obj.y + obj.h) / tileSize);
+    // 3. 怪物 AI 邏輯
+    enemies.forEach((en, index) => {
+        // 簡單追蹤玩家
+        if (en.x < player.x) en.vx = 2;
+        else en.vx = -2;
 
-        for (let x = left; x <= right; x++) {
-            for
+        applyPhysics(en);
+
+        // 碰撞玩家傷害
+        let dx = en.x - player.x;
+        let dy = en.y - player.y;
+        let dist = Math.sqrt(dx*dx + dy*dy);
+        if (dist < 30) {
+            player.hp -= 0.5; // 接觸扣血
+            player.vx = (en.x < player.x) ? 10 : -10; // 擊退效果
+        }
+
+        // 渲染怪物（綠色殭屍）
+        ctx.fillStyle = '#2d5a27';
+        ctx.fillRect(en.x - cameraX, en.y, en.w, en.h);
+        ctx.fillStyle = '#f00'; // 怪物眼睛
+        ctx.fillRect(en.x - cameraX + (en.vx > 0 ? 18 : 2), en.y + 10, 4, 4);
+    });
+
+    // 4. 渲染玩家
+    ctx.fillStyle = '#FF5733';
+    ctx.fillRect(player.x - cameraX, player.y, player.w, player.h);
+
+    // 5. 更新 UI
+    document.getElementById('hp').innerText = Math.ceil(player.hp);
+    document.getElementById('pos').innerText = `${Math.floor(player.x/tileSize)}, ${Math.floor(player.y/tileSize)}`;
+
+    if (player.hp <= 0) {
+        alert("你被殭屍吃掉了！遊戲重啟");
+        location.reload();
+    } else {
+        requestAnimationFrame(loop);
+    }
+}
+
+window.onresize = () => { canvas.width = window.innerWidth; canvas.height = window.innerHeight; };
+window.onresize();
+loop();
+</script>
+</body>
+</html>
