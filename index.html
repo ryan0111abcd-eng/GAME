@@ -7,7 +7,7 @@
         body { margin: 0; overflow: hidden; background: #000; font-family: "Microsoft JhengHei", sans-serif; }
         canvas { display: block; }
         
-        /* 選單畫面 */
+        /* 共通全螢幕樣式 */
         .screen {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
             display: flex; flex-direction: column; align-items: center; justify-content: center;
@@ -20,7 +20,9 @@
         }
         .btn:hover { transform: scale(1.1); background: #fff; color: #000; }
         
-        /* 遊戲 UI */
+        /* ESC 暫停選單 (預設隱藏) */
+        #esc-menu { background: rgba(0,0,0,0.8); display: none; }
+        
         #ui { 
             position: absolute; top: 20px; left: 20px; color: #fff; 
             background: rgba(0,0,0,0.7); padding: 15px; border-radius: 10px; 
@@ -44,9 +46,15 @@
         <button class="btn" onclick="initGame(document.getElementById('p-slider').value)">開始</button>
     </div>
 
+    <div id="esc-menu" class="screen">
+        <h1>遊戲暫停</h1>
+        <button class="btn" style="background:#e74c3c; color:white;" onclick="location.reload()">離開遊戲 (重新開始)</button>
+        <p style="font-size:18px; color:#aaa; margin-top:20px;">按 ESC 回到遊戲</p>
+    </div>
+
     <div id="ui">
         <b>🌍 時間：<span id="clock" style="color:#f1c40f">07:00</span></b><br>
-        ❤️ 生命：<span id="hp">100</span> | 👥 隊伍人數：<span id="p-count">1</span>
+        ❤️ 生命：<span id="hp">100</span> | 👥 隊伍：<span id="p-count">1</span>
     </div>
 
     <canvas id="gameCanvas"></canvas>
@@ -55,7 +63,9 @@
     const canvas = document.getElementById('gameCanvas');
     const ctx = canvas.getContext('2d');
     
-    let isPlaying = false, cameraX = 0, gameTime = 420; // 從 07:00 開始
+    let isPlaying = false;
+    let isPaused = false; // 暫停狀態
+    let cameraX = 0, gameTime = 420; 
     let keys = {}, teammates = [], villagers = [], animals = [], enemies = [];
 
     const PHYSICS = { gravity: 0.6, jump: -11, speed: 4 };
@@ -67,14 +77,13 @@
             this.type = type; this.grounded = false; this.hp = 100;
         }
         update(inputX, wantJump) {
+            if (isPaused) return; // 暫停時不更新物理
             this.vx = inputX;
             let nx = this.x + this.vx;
-            // 碰撞與自動爬坡
             if (checkCol(nx, this.y, this.w, this.h)) {
                 if (!checkCol(nx, this.y - 32, this.w, this.h)) { this.x = nx; this.y -= 8; }
                 else { this.vx = 0; }
             } else { this.x = nx; }
-            // 重力
             this.vy += PHYSICS.gravity;
             if (wantJump && this.grounded) { this.vy = PHYSICS.jump; this.grounded = false; }
             if (!checkCol(this.x, this.y + this.vy, this.w, this.h)) { this.y += this.vy; this.grounded = false; }
@@ -97,13 +106,9 @@
         document.querySelectorAll('.screen').forEach(s => s.style.display = 'none');
         document.getElementById('ui').style.display = 'block';
         document.getElementById('p-count').innerText = count;
-
-        // 生成電腦隊友 (黃色)
         for(let i=0; i < count - 1; i++) teammates.push(new Entity(350 + i*50, -500, '#f1c40f', 'teammate'));
-        // 生成村民 (藍色) 與 動物 (白色)
-        for(let i=0; i<4; i++) villagers.push(new Entity(1200 + i*300, -500, '#3498db', 'villager'));
+        for(let i=0; i<4; i++) villagers.push(new Entity(1500 + i*300, -500, '#3498db', 'villager'));
         for(let i=0; i<6; i++) animals.push({x: 800 + i*600, y:-500, w:20, h:15, vx:1, vy:0});
-
         isPlaying = true;
         resize();
         loop();
@@ -119,84 +124,13 @@
         return false;
     }
 
+    // --- ESC 與 攻擊 按鍵監聽 ---
     window.addEventListener('keydown', (e) => {
+        if (e.code === 'Escape' && isPlaying) {
+            isPaused = !isPaused;
+            document.getElementById('esc-menu').style.display = isPaused ? 'flex' : 'none';
+            return;
+        }
         keys[e.code] = true;
-        if (isPlaying && e.code !== 'KeyA' && e.code !== 'KeyD' && e.code !== 'Space') attack();
-    });
-    window.addEventListener('keyup', (e) => keys[e.code] = false);
-    canvas.addEventListener('mousedown', () => attack());
-
-    function attack() {
-        enemies.forEach(en => { if(Math.hypot(en.x - player.x, en.y - player.y) < 80) en.hp -= 40; });
-    }
-
-    function resize() { canvas.width = window.innerWidth; canvas.height = window.innerHeight; }
-    window.onresize = resize;
-
-    function loop() {
-        if (!isPlaying) return;
-
-        // --- 時間控制 ---
-        gameTime = (gameTime + 0.3) % 1440; 
-        let sky = "#87ceeb"; // 白天 07:00-17:00
-        if (gameTime >= 1050 && gameTime < 1080) sky = "#ff7832"; // 17:30-18:00 傍晚
-        else if (gameTime >= 1090 || gameTime < 390) sky = "#050510"; // 18:10-06:30 晚上
-
-        ctx.fillStyle = sky; ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-        // 晚上生怪物 (綠色)
-        if (sky === "#050510" && Math.random() < 0.012 && enemies.length < 8) {
-            enemies.push(new Entity(player.x + (Math.random() > 0.5 ? 500 : -500), -500, '#2ecc71', 'enemy'));
-        }
-
-        // 玩家更新
-        let pMove = (keys['KeyA'] ? -1 : keys['KeyD'] ? 1 : 0) * PHYSICS.speed;
-        player.update(pMove, keys['Space']);
-        cameraX += (player.x - canvas.width / 2 - cameraX) * 0.1;
-        player.draw();
-
-        // 地形繪製
-        let sx = Math.floor(cameraX / 32), ex = sx + Math.ceil(canvas.width / 32) + 1;
-        for (let x = sx; x < ex; x++) {
-            let gr = Math.floor(15 + Math.sin(x * 0.1) * 3);
-            for (let y = gr; y < gr + 8; y++) {
-                ctx.fillStyle = (y === gr) ? '#4caf50' : '#6d4c41';
-                ctx.fillRect(x * 32 - cameraX, y * 32, 32, 32);
-            }
-        }
-
-        // 隊友/村民/怪物 AI
-        [...teammates, ...villagers, ...enemies].forEach(ent => {
-            let mv = 0, jump = false;
-            if (ent.type === 'teammate') {
-                let d = player.x - ent.x;
-                if (Math.abs(d) > 60) mv = (d > 0 ? 1 : -1) * PHYSICS.speed;
-                jump = checkCol(ent.x + mv, ent.y, ent.w, ent.h);
-            } else if (ent.type === 'enemy') {
-                let d = player.x - ent.x; mv = (d > 0 ? 1 : -1) * 2;
-                jump = checkCol(ent.x + mv, ent.y, ent.w, ent.h);
-                if(Math.abs(ent.x - player.x) < 20) player.hp -= 0.1;
-            } else { mv = (Math.random()-0.5)*1.5; }
-            ent.update(mv, jump);
-            ent.draw();
-        });
-        enemies = enemies.filter(en => en.hp > 0);
-
-        // 動物
-        animals.forEach(an => {
-            an.vy += 0.5;
-            if(!checkCol(an.x + an.vx, an.y, an.w, an.h)) an.x += an.vx; else an.vx *= -1;
-            if(!checkCol(an.x, an.y + an.vy, an.w, an.h)) an.y += an.vy; else an.vy = 0;
-            ctx.fillStyle = '#fff'; ctx.fillRect(an.x - cameraX, an.y, an.w, an.h);
-        });
-
-        // 更新 UI
-        let h = Math.floor(gameTime / 60), m = Math.floor(gameTime % 60);
-        document.getElementById('clock').innerText = `${h.toString().padStart(2,'0')}:${m.toString().padStart(2,'0')}`;
-        document.getElementById('hp').innerText = Math.max(0, Math.floor(player.hp));
-
-        requestAnimationFrame(loop);
-    }
-</script>
-</body>
-</html>
+        // 攻擊判斷
+        if (isPlaying && !isPaused && e.code !== '
