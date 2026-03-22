@@ -5,8 +5,9 @@ const ctx = canvas.getContext('2d');
 let isStarted = false, ticks = 420; 
 let camX = 0, world = {}, selBlock = 2;
 const tileSize = 32;
+
 // --- 圓形地圖設定 ---
-const WORLD_COLS = 150; // 世界總寬度 (格)
+const WORLD_COLS = 120; // 世界寬度 120 格
 const WORLD_PX = WORLD_COLS * tileSize; // 世界總像素寬度
 const colors = { 1: '#8B4513', 2: '#228B22', 3: '#666' };
 
@@ -30,39 +31,44 @@ function preStart(n) {
     isStarted = true; resize(); loop();
 }
 
-// 核心：環狀地圖塊獲取 (處理負數與溢出)
+// 核心：環狀地圖塊獲取 (支援圓形循環)
 function getB(gx, gy) {
+    // 讓 X 座標永遠在 0 到 WORLD_COLS 之間循環
     let wrapX = ((gx % WORLD_COLS) + WORLD_COLS) % WORLD_COLS;
     const key = `${wrapX}_${gy}`;
     if (world[key] !== undefined) return world[key];
-    let g = Math.floor(12 + Math.sin(wrapX * 0.15) * 3);
+    let g = Math.floor(12 + Math.sin(wrapX * 0.15) * 2.5); // 地形起伏
     return gy < g ? 0 : (gy === g ? 2 : 1);
 }
 
-// 核心：環狀物理系統
+// 核心：防穿牆物理系統 (圓形循環版)
 function physics(o) {
     o.vy += 0.6;
-    o.x += o.vx;
     
-    // 讓 X 座標在 0 與 WORLD_PX 之間循環
-    o.x = ((o.x % WORLD_PX) + WORLD_PX) % WORLD_PX;
+    // 1. 水平移動與碰撞
+    let nextX = o.x + o.vx;
+    // 讓座標循環
+    nextX = ((nextX % WORLD_PX) + WORLD_PX) % WORLD_PX;
 
-    // 水平碰撞預判
-    let checkX = (o.vx > 0) ? o.x + o.w : o.x;
+    let checkX = (o.vx > 0) ? nextX + o.w : nextX;
     let gX = Math.floor(checkX / tileSize);
     let tY = Math.floor(o.y / tileSize), bY = Math.floor((o.y + o.h - 4) / tileSize);
 
-    if (getB(gX, tY) !== 0 || getB(gX, bY) !== 0) {
-        o.x -= o.vx; // 撞牆退回
-        if (o.grounded && Math.random() < 0.3) o.vy = -8; // AI 自動跳躍
+    if (getB(gX, tY) === 0 && getB(gX, bY) === 0) {
+        o.x = nextX;
+    } else if (o.grounded && Math.abs(o.vx) > 0) {
+        o.vy = -9; // 遇障礙物自動跳躍
     }
 
-    // 垂直碰撞
+    // 2. 垂直移動與碰撞
     o.y += o.vy;
     o.grounded = false;
     let lX = Math.floor(o.x / tileSize), rX = Math.floor((o.x + o.w - 1) / tileSize), fY = Math.floor((o.y + o.h) / tileSize);
+    
     if (getB(lX, fY) !== 0 || getB(rX, fY) !== 0) {
-        o.y = fY * tileSize - o.h; o.vy = 0; o.grounded = true;
+        o.y = fY * tileSize - o.h;
+        o.vy = 0;
+        o.grounded = true;
     }
 }
 
@@ -83,6 +89,7 @@ function updateSlot(idx) {
 canvas.onmousedown = (e) => {
     if (!isStarted) return;
     const rect = canvas.getBoundingClientRect();
+    // 點擊座標也要計算循環偏移
     const realX = ((e.clientX - rect.left + camX) % WORLD_PX + WORLD_PX) % WORLD_PX;
     const gx = Math.floor(realX / tileSize);
     const gy = Math.floor((e.clientY - rect.top) / tileSize);
@@ -96,93 +103,5 @@ function loop() {
     ticks = (ticks + 0.4) % 1440;
     let hr = Math.floor(ticks / 60);
 
-    p.vx = (keys['KeyA'] ? -5 : keys['KeyD'] ? 5 : 0);
-    if (keys['Space'] && p.grounded) p.vy = -12;
-    
-    // 攻擊判定
-    if (keys['KeyK'] && p.atk <= 0) {
-        p.atk = 15;
-        mobs.forEach(m => {
-            let dx = Math.abs(m.x - p.x);
-            if (dx > WORLD_PX/2) dx = WORLD_PX - dx; // 處理圓形邊界距離
-            if(dx < 70) { m.hp -= 10; m.vx = (m.x > p.x ? 10 : -10); } 
-        });
-    }
-    if (p.atk > 0) p.atk--;
-
-    physics(p);
-    camX = p.x - canvas.width/2;
-
-    // AI 邏輯
-    [...teams, ...vils, ...anis].forEach(tm => {
-        if (Math.random() < 0.01) tm.vx = (Math.random()-0.5)*3;
-        physics(tm);
-    });
-
-    if ((hr >= 18 || hr < 6) && Math.random() < 0.015) {
-        let spawnX = (p.x + (Math.random() > 0.5 ? 600 : -600)) % WORLD_PX;
-        mobs.push({ x: spawnX, y: -50, w: 24, h: 44, vx: 0, vy: 0, hp: 20 });
-    }
-
-    mobs.forEach((m, i) => {
-        let dx = p.x - m.x;
-        if (Math.abs(dx) > WORLD_PX/2) dx = (dx > 0) ? dx - WORLD_PX : dx + WORLD_PX;
-        m.vx = dx > 0 ? 2.5 : -2.5;
-        physics(m);
-        if (Math.abs(dx) < 25 && Math.abs(m.y - p.y) < 30) p.hp -= 0.5;
-        if (m.hp <= 0) mobs.splice(i, 1);
-    });
-
-    if (p.hp <= 0) { alert("你失敗了！"); location.reload(); }
-    render();
-    requestAnimationFrame(loop);
-}
-
-function render() {
-    let hr = Math.floor(ticks / 60);
-    let bg = "#87ceeb"; 
-    if (ticks >= 1050 && ticks < 1080) bg = "#ff7832"; 
-    else if (ticks >= 1080 || ticks < 390) bg = "#050515"; 
-    ctx.fillStyle = bg;
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-    // 渲染世界塊 (支援環狀無縫渲染)
-    let sX = Math.floor(camX / tileSize);
-    let eX = sX + Math.ceil(canvas.width / tileSize) + 1;
-
-    for (let x = sX; x < eX; x++) {
-        for (let y = 0; y < 25; y++) {
-            let b = getB(x, y);
-            if (b !== 0) {
-                ctx.fillStyle = colors[b];
-                ctx.fillRect(x * tileSize - camX, y * tileSize, tileSize, tileSize);
-            }
-        }
-    }
-
-    // 渲染實體 (處理邊界鏡像)
-    const drawEnt = (list, col) => list.forEach(e => {
-        let dx = e.x - camX;
-        // 如果實體跑出視窗左邊太遠，把它畫到右邊鏡像，反之亦然
-        if (dx < -WORLD_PX/2) dx += WORLD_PX;
-        if (dx > WORLD_PX*1.5) dx -= WORLD_PX;
-        ctx.fillStyle = col;
-        ctx.fillRect(dx, e.y, e.w, e.h);
-    });
-
-    drawEnt(teams, "#f1c40f"); drawEnt(vils, "#3498db"); 
-    drawEnt(anis, "#ffffff"); drawEnt(mobs, "#2ecc71");
-    
-    // 畫玩家
-    ctx.fillStyle = "#FF5733";
-    ctx.fillRect(p.x - camX, p.y, p.w, p.h);
-    if (p.atk > 5) { ctx.fillStyle = "white"; ctx.fillRect(p.x-camX + (p.vx>=0?25:-25), p.y+10, 25, 8); }
-
-    document.getElementById('time-val').innerText = `${hr.toString().padStart(2,'0')}:${Math.floor(ticks%60).toString().padStart(2,'0')}`;
-    document.getElementById('hp-val').innerText = Math.ceil(p.hp);
-    document.getElementById('pos-val').innerText = `${Math.floor(p.x/tileSize)}, ${Math.floor(p.y/tileSize)}`;
-}
-
-function resize() { canvas.width = window.innerWidth; canvas.height = window.innerHeight; }
-window.onresize = resize;
-</script>
+    // 玩家控制
+    p.vx = (keys['KeyA'] ?
