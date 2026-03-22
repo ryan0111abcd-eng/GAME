@@ -7,7 +7,7 @@
         body { margin: 0; overflow: hidden; background: #000; font-family: "Microsoft JhengHei", sans-serif; }
         canvas { display: block; }
         
-        /* 選單介面 */
+        /* 選單介面樣式 */
         .screen {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
             display: flex; flex-direction: column; align-items: center; justify-content: center;
@@ -20,15 +20,16 @@
         }
         .btn:hover { transform: scale(1.1); background: #fff; color: #000; }
         
-        #multi-menu { display: none; }
-        input[type=range] { width: 300px; margin: 25px; cursor: pointer; }
-
+        /* 暫停選單 (預設隱藏) */
+        #esc-menu { display: none; background: rgba(0,0,0,0.85); }
+        
         /* 遊戲內 UI */
-        #ui-bar { 
-            position: absolute; top: 20px; left: 20px; color: white; 
+        #ui-overlay { 
+            position: absolute; top: 20px; left: 20px; color: #fff; 
             background: rgba(0,0,0,0.7); padding: 15px; border-radius: 10px; 
-            display: none; border: 2px solid #f1c40f; pointer-events: none;
+            display: none; border: 2px solid #f1c40f; pointer-events: none; z-index: 10;
         }
+        input[type=range] { width: 300px; margin: 25px; cursor: pointer; }
     </style>
 </head>
 <body>
@@ -36,177 +37,199 @@
     <div id="main-menu" class="screen">
         <h1>未來的 Super Human</h1>
         <button class="btn" onclick="initGame(1)">開始遊戲</button>
-        <button class="btn" style="background:#3498db; color:white;" onclick="openMultiMenu()">多人連線</button>
+        <button class="btn" style="background:#3498db; color:white;" onclick="toggleScreen('multi-menu', true)">多人連線</button>
     </div>
 
-    <div id="multi-menu" class="screen">
+    <div id="multi-menu" class="screen" style="display:none;">
         <h1>多人連線設定</h1>
-        <div style="font-size:24px;">選擇總人數 (2-10): <span id="p-label" style="color:#f1c40f">5</span></div>
+        <div style="font-size:24px;">設定遊戲人數 (2-10): <span id="p-label" style="color:#f1c40f">5</span></div>
         <input type="range" id="p-slider" min="2" max="10" value="5" oninput="document.getElementById('p-label').innerText=this.value">
         <button class="btn" onclick="initGame(document.getElementById('p-slider').value)">開始</button>
     </div>
 
-    <div id="ui-bar">
+    <div id="esc-menu" class="screen">
+        <h1>選單</h1>
+        <button class="btn" style="background:#e74c3c; color:white;" onclick="location.reload()">離開遊戲 (重新開始)</button>
+        <p style="font-size:18px; color:#aaa; margin-top:20px;">再次按下 ESC 返回遊戲</p>
+    </div>
+
+    <div id="ui-overlay">
         <b>🌍 時間：<span id="clock" style="color:#f1c40f">07:00</span></b><br>
-        ❤️ 生命：<span id="hp">100</span> | 👥 隊員：<span id="p-count">1</span>
+        📍 座標：<span id="pos">0, 0</span><br>
+        ❤️ 生命：<span id="hp">100</span> | 👥 隊伍：<span id="p-count">1</span>
     </div>
 
     <canvas id="gameCanvas"></canvas>
 
 <script>
-const canvas = document.getElementById('gameCanvas');
-const ctx = canvas.getContext('2d');
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+    
+    let isPlaying = false, isPaused = false;
+    let cameraX = 0, gameTime = 420; // 07:00
+    let keys = {}, entities = [], teammates = [];
+    const PHYSICS = { gravity: 0.6, jump: -11, speed: 4.5 };
 
-let isPlaying = false, cameraX = 0, gameTime = 420; // 從 07:00 開始
-let keys = {}, entities = [], teammates = [];
-const PHYSICS = { gravity: 0.6, jump: -11, speed: 4.5 };
+    class Character {
+        constructor(x, y, color, type) {
+            this.x = x; this.y = y; this.w = 24; this.h = 44;
+            this.vx = 0; this.vy = 0; this.hp = 100;
+            this.color = color; this.type = type; this.grounded = false;
+        }
+        update(moveX = 0, jump = false) {
+            if (isPaused) return;
+            this.vx = moveX;
+            let nx = this.x + this.vx;
+            // 碰撞與自動爬坡
+            if (checkMapCol(nx, this.y, this.w, this.h)) {
+                if (!checkMapCol(nx, this.y - 32, this.w, this.h)) { this.x = nx; this.y -= 8; }
+                else { this.vx = 0; }
+            } else { this.x = nx; }
 
-class Character {
-    constructor(x, y, color, type) {
-        this.x = x; this.y = y; this.w = 24; this.h = 44;
-        this.vx = 0; this.vy = 0; this.hp = 100;
-        this.color = color; this.type = type; this.grounded = false;
-    }
-    update(moveX = 0, jump = false) {
-        this.vx = moveX;
-        let nx = this.x + this.vx;
-        // 簡單碰撞檢測與爬坡
-        if (checkMapCol(nx, this.y, this.w, this.h)) {
-            if (!checkMapCol(nx, this.y - 32, this.w, this.h)) { this.x = nx; this.y -= 8; }
-            else { this.vx = 0; }
-        } else { this.x = nx; }
-
-        this.vy += PHYSICS.gravity;
-        if (jump && this.grounded) { this.vy = PHYSICS.jump; this.grounded = false; }
-        if (!checkMapCol(this.x, this.y + this.vy, this.w, this.h)) {
-            this.y += this.vy; this.grounded = false;
-        } else {
-            if (this.vy > 0) this.grounded = true;
-            this.vy = 0;
+            this.vy += PHYSICS.gravity;
+            if (jump && this.grounded) { this.vy = PHYSICS.jump; this.grounded = false; }
+            if (!checkMapCol(this.x, this.y + this.vy, this.w, this.h)) {
+                this.y += this.vy; this.grounded = false;
+            } else {
+                if (this.vy > 0) this.grounded = true;
+                this.vy = 0;
+            }
+        }
+        draw() {
+            ctx.fillStyle = this.color;
+            ctx.fillRect(this.x - cameraX, this.y, this.w, this.h);
+            if (this.type === 'enemy') {
+                ctx.fillStyle = 'red'; ctx.fillRect(this.x - cameraX, this.y - 10, (this.hp/100)*this.w, 4);
+            }
         }
     }
-    draw() {
-        ctx.fillStyle = this.color;
-        ctx.fillRect(this.x - cameraX, this.y, this.w, this.h);
-        if (this.type === 'enemy') {
-            ctx.fillStyle = 'red'; ctx.fillRect(this.x - cameraX, this.y - 10, (this.hp/100)*this.w, 4);
-        }
+
+    let player = new Character(300, -500, '#FF5733', 'player');
+
+    function toggleScreen(id, show) {
+        document.getElementById(id).style.display = show ? 'flex' : 'none';
+        if (show) document.getElementById('main-menu').style.display = 'none';
     }
-}
 
-let player = new Character(300, -500, '#FF5733', 'player');
+    function initGame(count) {
+        document.querySelectorAll('.screen').forEach(s => s.style.display = 'none');
+        document.getElementById('ui-overlay').style.display = 'block';
+        document.getElementById('p-count').innerText = count;
 
-function openMultiMenu() {
-    document.getElementById('main-menu').style.display = 'none';
-    document.getElementById('multi-menu').style.display = 'flex';
-}
+        // 生成電腦隊友 (黃色)
+        for(let i=0; i < count - 1; i++) teammates.push(new Character(350 + i*60, -500, '#f1c40f', 'teammate'));
+        // 生成村民 (藍色) 與 動物 (白色)
+        for(let i=0; i<4; i++) entities.push(new Character(1500 + i*400, -500, '#3498db', 'villager'));
+        for(let i=0; i<6; i++) entities.push(new Character(800 + i*300, -500, '#fff', 'animal'));
 
-function initGame(count) {
-    document.querySelectorAll('.screen').forEach(s => s.style.display = 'none');
-    document.getElementById('ui-bar').style.display = 'block';
-    document.getElementById('p-count').innerText = count;
-
-    // 電腦隊友 (黃色)
-    for(let i=0; i < count - 1; i++) teammates.push(new Character(350 + i*60, -500, '#f1c40f', 'teammate'));
-    // 村民 (藍色) 與 動物 (白色)
-    for(let i=0; i<4; i++) entities.push(new Character(1200 + i*400, -500, '#3498db', 'villager'));
-    for(let i=0; i<6; i++) entities.push(new Character(1000 + i*300, -500, '#fff', 'animal'));
-
-    isPlaying = true;
-    window.onresize();
-    loop();
-}
-
-function checkMapCol(nx, ny, w, h) {
-    let x1 = Math.floor(nx / 32), x2 = Math.floor((nx + w) / 32);
-    let y1 = Math.floor(ny / 32), y2 = Math.floor((ny + h) / 32);
-    for (let x = x1; x <= x2; x++) for (let y = y1; y <= y2; y++) {
-        let ground = Math.floor(15 + Math.sin(x * 0.1) * 3);
-        if (y >= ground) return true;
+        isPlaying = true;
+        resize();
+        loop();
     }
-    return false;
-}
 
-window.onkeydown = (e) => keys[e.code] = true;
-window.onkeyup = (e) => keys[e.code] = false;
-
-// 攻擊系統
-canvas.onmousedown = () => {
-    entities.forEach(en => {
-        if (en.type === 'enemy' && Math.hypot(en.x - player.x, en.y - player.y) < 80) {
-            en.hp -= 35;
-            en.vx = (en.x > player.x) ? 15 : -15; // 擊退
+    function checkMapCol(nx, ny, w, h) {
+        let x1 = Math.floor(nx / 32), x2 = Math.floor((nx + w) / 32);
+        let y1 = Math.floor(ny / 32), y2 = Math.floor((ny + h) / 32);
+        for (let x = x1; x <= x2; x++) for (let y = y1; y <= y2; y++) {
+            let ground = Math.floor(15 + Math.sin(x * 0.1) * 3);
+            if (y >= ground) return true;
         }
+        return false;
+    }
+
+    // --- 事件監聽 ---
+    window.addEventListener('keydown', (e) => {
+        if (e.code === 'Escape' && isPlaying) {
+            isPaused = !isPaused;
+            document.getElementById('esc-menu').style.display = isPaused ? 'flex' : 'none';
+            return;
+        }
+        keys[e.code] = true;
     });
-};
+    window.addEventListener('keyup', (e) => keys[e.code] = false);
 
-function loop() {
-    if (!isPlaying) return;
-
-    // 1. 時間系統
-    gameTime = (gameTime + 0.4) % 1440;
-    let sky = "#87ceeb"; // 07:00 - 17:00
-    if (gameTime >= 1050 && gameTime < 1080) sky = "#ff7832"; // 17:30 - 18:00
-    else if (gameTime >= 1090 || gameTime < 390) sky = "#050510"; // 18:10 - 06:30
-
-    ctx.fillStyle = sky; ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-    // 2. 怪物生成 (晚上)
-    if (sky === "#050510" && Math.random() < 0.012 && entities.filter(e => e.type === 'enemy').length < 8) {
-        entities.push(new Character(player.x + (Math.random() > 0.5 ? 600 : -600), -500, '#2ecc71', 'enemy'));
-    }
-
-    // 3. 玩家更新
-    let pDir = (keys['KeyA'] ? -1 : keys['KeyD'] ? 1 : 0) * PHYSICS.speed;
-    player.update(pDir, keys['Space']);
-    cameraX += (player.x - canvas.width / 2 - cameraX) * 0.1;
-    player.draw();
-
-    // 4. 地形渲染 (沿用原本的正弦波地形)
-    let sx = Math.floor(cameraX / 32), ex = sx + Math.ceil(canvas.width / 32) + 1;
-    for (let x = sx; x < ex; x++) {
-        let gr = Math.floor(15 + Math.sin(x * 0.1) * 3);
-        for (let y = gr; y < gr + 8; y++) {
-            ctx.fillStyle = (y === gr) ? '#4caf50' : '#6d4c41';
-            ctx.fillRect(x * 32 - cameraX, y * 32, 32, 32);
-        }
-    }
-
-    // 5. 隊友 AI
-    teammates.forEach(tm => {
-        let dist = player.x - tm.x;
-        let mv = Math.abs(dist) > 60 ? (dist > 0 ? 1 : -1) * PHYSICS.speed : 0;
-        let jmp = checkMapCol(tm.x + (mv*5), tm.y, tm.w, tm.h);
-        tm.update(mv, jmp);
-        tm.draw();
+    canvas.addEventListener('mousedown', () => {
+        if (isPaused) return;
+        entities.forEach(en => {
+            if (en.type === 'enemy' && Math.hypot(en.x - player.x, en.y - player.y) < 100) {
+                en.hp -= 40;
+                en.vx = (en.x > player.x) ? 15 : -15; // 擊退
+            }
+        });
     });
 
-    // 6. 實體(村民/動物/怪物) AI
-    entities = entities.filter(e => e.hp > 0);
-    entities.forEach(ent => {
-        let mv = 0, jmp = false;
-        if (ent.type === 'enemy') {
-            let dist = player.x - ent.x;
-            mv = (dist > 0 ? 1 : -1) * 2.5;
-            jmp = checkMapCol(ent.x + (mv*5), ent.y, ent.w, ent.h);
-            if (Math.abs(dist) < 25) player.hp -= 0.2; // 接觸傷害
-        } else {
-            mv = (Math.random() - 0.5) * 2;
+    function resize() { canvas.width = window.innerWidth; canvas.height = window.innerHeight; }
+    window.onresize = resize;
+
+    function loop() {
+        if (!isPlaying) return;
+
+        if (!isPaused) {
+            // 1. 時間系統
+            gameTime = (gameTime + 0.4) % 1440;
+            // 怪物生成 (18:10 - 06:30)
+            if (gameTime >= 1090 || gameTime < 390) {
+                if (Math.random() < 0.015 && entities.filter(e => e.type === 'enemy').length < 8) {
+                    entities.push(new Character(player.x + (Math.random() > 0.5 ? 600 : -600), -500, '#2ecc71', 'enemy'));
+                }
+            }
         }
-        ent.update(mv, jmp);
-        ent.draw();
-    });
 
-    // 7. UI 更新
-    let h = Math.floor(gameTime / 60), m = Math.floor(gameTime % 60);
-    document.getElementById('clock').innerText = `${h.toString().padStart(2,'0')}:${m.toString().padStart(2,'0')}`;
-    document.getElementById('hp').innerText = Math.max(0, Math.floor(player.hp));
+        // 2. 背景顏色控制
+        let sky = "#87ceeb"; // 白天
+        if (gameTime >= 1050 && gameTime < 1080) sky = "#ff7832"; // 傍晚
+        else if (gameTime >= 1090 || gameTime < 390) sky = "#050510"; // 晚上
+        ctx.fillStyle = sky; ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-    if (player.hp <= 0) { alert("你失敗了！"); location.reload(); }
-    else requestAnimationFrame(loop);
-}
+        // 3. 玩家更新
+        let pDir = isPaused ? 0 : (keys['KeyA'] ? -1 : keys['KeyD'] ? 1 : 0) * PHYSICS.speed;
+        player.update(pDir, isPaused ? false : keys['Space']);
+        cameraX += (player.x - canvas.width / 2 - cameraX) * 0.1;
+        player.draw();
 
-window.onresize = () => { canvas.width = window.innerWidth; canvas.height = window.innerHeight; };
+        // 4. 地形渲染
+        let sx = Math.floor(cameraX / 32), ex = sx + Math.ceil(canvas.width / 32) + 1;
+        for (let x = sx; x < ex; x++) {
+            let gr = Math.floor(15 + Math.sin(x * 0.1) * 3);
+            for (let y = gr; y < gr + 10; y++) {
+                ctx.fillStyle = (y === gr) ? '#4caf50' : '#6d4c41';
+                ctx.fillRect(x * 32 - cameraX, y * 32, 32, 32);
+            }
+        }
+
+        // 5. 隊友 AI
+        teammates.forEach(tm => {
+            let dist = player.x - tm.x;
+            let mv = !isPaused && Math.abs(dist) > 70 ? (dist > 0 ? 1 : -1) * PHYSICS.speed : 0;
+            let jmp = !isPaused && checkMapCol(tm.x + (mv*5), tm.y, tm.w, tm.h);
+            tm.update(mv, jmp);
+            tm.draw();
+        });
+
+        // 6. 實體 AI
+        entities = entities.filter(e => e.hp > 0);
+        entities.forEach(ent => {
+            let mv = 0, jmp = false;
+            if (!isPaused) {
+                if (ent.type === 'enemy') {
+                    let d = player.x - ent.x; mv = (d > 0 ? 1 : -1) * 2.5;
+                    jmp = checkMapCol(ent.x + (mv*5), ent.y, ent.w, ent.h);
+                    if (Math.abs(d) < 25) player.hp -= 0.2;
+                } else { mv = (Math.random() - 0.5) * 2; }
+            }
+            ent.update(mv, jmp);
+            ent.draw();
+        });
+
+        // 7. UI 更新
+        let h = Math.floor(gameTime / 60), m = Math.floor(gameTime % 60);
+        document.getElementById('clock').innerText = `${h.toString().padStart(2,'0')}:${m.toString().padStart(2,'0')}`;
+        document.getElementById('hp').innerText = Math.max(0, Math.floor(player.hp));
+        document.getElementById('pos').innerText = `${Math.floor(player.x/32)}, ${Math.floor(player.y/32)}`;
+
+        if (player.hp <= 0) { alert("你被擊敗了！"); location.reload(); }
+        else requestAnimationFrame(loop);
+    }
 </script>
 </body>
 </html>
