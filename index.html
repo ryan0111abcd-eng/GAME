@@ -2,15 +2,15 @@
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
-    <title>2D Minecraft: 穩定操作版</title>
+    <title>2D Minecraft: 物理修正完成版</title>
     <style>
-        body { margin: 0; overflow: hidden; background: #000; font-family: monospace; }
-        canvas { display: block; background: #87CEEB; }
-        #ui { position: absolute; top: 10px; left: 10px; color: white; background: rgba(0,0,0,0.5); padding: 10px; border-radius: 5px; pointer-events: none; }
+        body { margin: 0; overflow: hidden; background: #87CEEB; font-family: monospace; }
+        canvas { display: block; }
+        #ui { position: absolute; top: 10px; left: 10px; background: rgba(0,0,0,0.5); color: white; padding: 10px; border-radius: 5px; pointer-events: none; }
     </style>
 </head>
 <body>
-    <div id="ui">❤️ HP: <span id="hp">100</span> | A 往左, D 往右 | 空白 跳躍</div>
+    <div id="ui">❤️ HP: <span id="hp">100</span> | A/D 移動 | 空白 跳躍 | 左鍵 挖 | 右鍵 蓋</div>
     <canvas id="gameCanvas"></canvas>
 
 <script>
@@ -22,13 +22,13 @@
 
     const tileSize = 32;
     let cameraX = 0;
-    let worldData = JSON.parse(localStorage.getItem('mc_stable_save')) || {};
+    let worldData = JSON.parse(localStorage.getItem('mc_final_save')) || {};
     let keys = {};
+    let selectedBlock = 2;
 
     let player = { 
-        x: 100, y: 100, w: 22, h: 44, 
-        vx: 0, vy: 0, 
-        speed: 5, jump: -12, 
+        x: 100, y: 100, w: 20, h: 40, 
+        vx: 0, vy: 0, speed: 4, jump: -12, 
         grounded: false, hp: 100 
     };
 
@@ -39,68 +39,64 @@
         return (y < ground) ? 0 : (y === ground ? 2 : 1);
     }
 
-    // --- 改良版：分離軸碰撞偵測 ---
-    function checkXCollision(obj) {
-        let left = Math.floor(obj.x / tileSize);
-        let right = Math.floor((obj.x + obj.w) / tileSize);
-        let top = Math.floor(obj.y / tileSize);
-        let bottom = Math.floor((obj.y + obj.h) / tileSize);
+    // --- 核心：精準碰撞檢查 ---
+    function isColliding(nx, ny) {
+        let x1 = Math.floor(nx / tileSize);
+        let x2 = Math.floor((nx + player.w) / tileSize);
+        let y1 = Math.floor(ny / tileSize);
+        let y2 = Math.floor((ny + player.h) / tileSize);
 
-        for (let y = top; y <= bottom; y++) {
-            if (getBlock(left, y) > 0 || getBlock(right, y) > 0) return true;
+        for (let x = x1; x <= x2; x++) {
+            for (let y = y1; y <= y2; y++) {
+                if (getBlock(x, y) > 0) return true;
+            }
         }
         return false;
     }
 
-    function checkYCollision(obj) {
-        let left = Math.floor(obj.x / tileSize);
-        let right = Math.floor((obj.x + obj.w) / tileSize);
-        let top = Math.floor(obj.y / tileSize);
-        let bottom = Math.floor((obj.y + obj.h) / tileSize);
-
-        for (let x = left; x <= right; x++) {
-            if (getBlock(x, top) > 0 || getBlock(x, bottom) > 0) return true;
-        }
-        return false;
-    }
-
-    // --- 鍵盤監聽 ---
     window.onkeydown = (e) => keys[e.code] = true;
     window.onkeyup = (e) => keys[e.code] = false;
 
-    function loop() {
-        // --- 1. 處理輸入 (關鍵修正處) ---
-        player.vx = 0; // 每一幀先歸零，避免持續滑行
-        if (keys['KeyA']) player.vx = -player.speed; // A 是負向 (左)
-        if (keys['KeyD']) player.vx = player.speed;  // D 是正向 (右)
+    canvas.onmousedown = (e) => {
+        const gx = Math.floor((e.clientX + cameraX) / tileSize);
+        const gy = Math.floor(e.clientY / tileSize);
+        if (e.button === 0) worldData[`${gx}_${gy}`] = 0;
+        if (e.button === 2) worldData[`${gx}_${gy}`] = selectedBlock;
+        localStorage.setItem('mc_final_save', JSON.stringify(worldData));
+    };
+    canvas.oncontextmenu = (e) => e.preventDefault();
 
-        // --- 2. 物理位移 ---
-        // X 軸處理
-        player.x += player.vx;
-        if (checkXCollision(player)) {
-            player.x -= player.vx; // 撞到就退回
-            player.vx = 0;
+    function loop() {
+        // 1. 處理水平移動
+        player.vx = 0;
+        if (keys['KeyA']) player.vx = -player.speed;
+        if (keys['KeyD']) player.vx = player.speed;
+
+        // X 軸碰撞：先試著走，撞到就退回
+        if (!isColliding(player.x + player.vx, player.y)) {
+            player.x += player.vx;
         }
 
-        // Y 軸處理
-        player.vy += 0.7; // 重力
-        player.y += player.vy;
-        player.grounded = false;
-        if (checkYCollision(player)) {
-            if (player.vy > 0) { // 落地
-                player.y = Math.floor((player.y + player.h) / tileSize) * tileSize - player.h;
-                player.grounded = true;
-            } else { // 撞頭
-                player.y = Math.floor(player.y / tileSize) * tileSize + tileSize;
-            }
+        // 2. 處理垂直移動 (重力與跳躍)
+        player.vy += 0.8; // 重力
+        if (keys['Space'] && player.grounded) {
+            player.vy = player.jump;
+            player.grounded = false;
+        }
+
+        // Y 軸碰撞
+        if (!isColliding(player.x, player.y + player.vy)) {
+            player.y += player.vy;
+            player.grounded = false;
+        } else {
+            if (player.vy > 0) player.grounded = true; // 往下撞到地了
             player.vy = 0;
         }
 
-        if (keys['Space'] && player.grounded) player.vy = player.jump;
-
+        // 3. 相機跟隨
         cameraX = player.x - canvas.width / 2;
 
-        // --- 3. 繪製 ---
+        // 4. 繪製
         ctx.clearRect(0, 0, canvas.width, canvas.height);
         
         let startX = Math.floor(cameraX / tileSize);
@@ -115,7 +111,7 @@
             }
         }
 
-        // 玩家繪製
+        // 畫玩家
         ctx.fillStyle = '#FF5733';
         ctx.fillRect(player.x - cameraX, player.y, player.w, player.h);
 
