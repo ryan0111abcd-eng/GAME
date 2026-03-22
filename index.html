@@ -2,25 +2,26 @@
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
-    <title>我的無限 2D Minecraft - 自動爬坡版</title>
+    <title>2D Minecraft: 極速戰鬥版</title>
     <style>
-        body { margin: 0; overflow: hidden; background: #87CEEB; font-family: 'Courier New', monospace; }
+        body { margin: 0; overflow: hidden; background: #4682B4; font-family: 'Courier New', monospace; }
         canvas { display: block; }
         #ui { 
-            position: absolute; top: 10px; left: 10px; background: rgba(0,0,0,0.6); 
-            color: white; padding: 12px; border-radius: 8px; border: 1px solid #fff;
-            pointer-events: none; line-height: 1.6;
+            position: absolute; top: 15px; left: 15px; background: rgba(0,0,0,0.7); 
+            color: white; padding: 15px; border-radius: 10px; border: 2px solid #fff;
+            pointer-events: none; min-width: 200px;
         }
-        .key { background: #444; padding: 2px 6px; border-radius: 4px; border: 1px solid #888; }
+        #hp-bar { width: 100%; height: 18px; background: #333; border: 2px solid #fff; margin-top: 8px; overflow: hidden; }
+        #hp-fill { width: 100%; height: 100%; background: #ff4444; transition: width 0.1s; }
+        .hint { color: #ffeb3b; font-size: 12px; margin-top: 5px; }
     </style>
 </head>
 <body>
 
     <div id="ui">
-        <b>遊戲控制：</b><br>
-        <span class="key">A</span> <span class="key">D</span> 左右移動 (遇 1 格高會<b>自動爬坡</b>)<br>
-        <span class="key">Space</span> 跳躍 | <span class="key">1</span><span class="key">2</span><span class="key">3</span> 切換方塊<br>
-        左鍵：<b>挖礦</b> | 右鍵：<b>建造</b>
+        <b>⚡ 忍者生存模式</b><br>
+        ❤️ 血量：<div id="hp-bar"><div id="hp-fill"></div></div>
+        <div class="hint">左鍵：攻擊/挖礦 | 右鍵：建造 | A/D：極速移動</div>
     </div>
 
     <canvas id="gameCanvas"></canvas>
@@ -29,137 +30,166 @@
     const canvas = document.getElementById('gameCanvas');
     const ctx = canvas.getContext('2d');
 
-    // 視窗自適應
-    function resize() {
-        canvas.width = window.innerWidth;
-        canvas.height = window.innerHeight;
-    }
-    window.addEventListener('resize', resize);
-    resize();
+    function resize() { canvas.width = window.innerWidth; canvas.height = window.innerHeight; }
+    window.onresize = resize; resize();
 
-    // --- 遊戲設定 ---
+    // --- 遊戲核心參數 ---
     const tileSize = 32;
     let cameraX = 0;
-    let worldData = JSON.parse(localStorage.getItem('mc_final_v3')) || {};
+    let worldData = JSON.parse(localStorage.getItem('mc_ninja_v4')) || {};
     let keys = {};
-    let selectedBlock = 2; // 預設草
+    let selectedBlock = 3; // 預設石頭
 
+    // 強化玩家屬性
     let player = { 
-        x: 100, y: 100, w: 20, h: 42, 
-        vx: 0, vy: 0, speed: 4.5, jump: -11, 
-        grounded: false 
+        x: 100, y: 100, w: 22, h: 42, 
+        vx: 0, vy: 0, speed: 8.5, jump: -14, 
+        grounded: false, hp: 100, atkTimer: 0 
     };
 
-    // --- 地形系統 ---
+    // 怪物陣列
+    let enemies = [];
+    function spawnEnemy() {
+        if (enemies.length < 5) { // 限制畫面上怪物數量
+            let spawnX = player.x + (Math.random() > 0.5 ? 600 : -600);
+            enemies.push({ x: spawnX, y: 0, w: 24, h: 44, vx: 0, vy: 0, hp: 50 });
+        }
+    }
+    setInterval(spawnEnemy, 3000); // 每 3 秒出一隻怪
+
     function getBlock(x, y) {
-        const key = `${x}_${y}`;
+        const key = `${Math.floor(x)}_${Math.floor(y)}`;
         if (worldData[key] !== undefined) return worldData[key];
-        // 無限地形公式
-        let ground = Math.floor(12 + Math.sin(x * 0.1) * 3 + Math.sin(x * 0.5) * 1);
-        if (y < ground) return 0; // 空氣
-        if (y === ground) return 2; // 草地
-        return 1; // 泥土
+        let ground = Math.floor(12 + Math.sin(x * 0.15) * 3);
+        return (y < ground) ? 0 : (y === ground ? 2 : 1);
     }
 
-    // --- 核心：精準碰撞檢查 ---
-    function isColliding(nx, ny) {
-        let x1 = Math.floor(nx / tileSize);
-        let x2 = Math.floor((nx + player.w) / tileSize);
-        let y1 = Math.floor(ny / tileSize);
-        let y2 = Math.floor((ny + player.h) / tileSize);
-
+    function isColliding(nx, ny, objW, objH) {
+        let x1 = Math.floor(nx / tileSize), x2 = Math.floor((nx + objW) / tileSize);
+        let y1 = Math.floor(ny / tileSize), y2 = Math.floor((ny + objH) / tileSize);
         for (let x = x1; x <= x2; x++) {
-            for (let y = y1; y <= y2; y++) {
-                if (getBlock(x, y) > 0) return true;
-            }
+            for (let y = y1; y <= y2; y++) { if (getBlock(x, y) > 0) return true; }
         }
         return false;
     }
 
-    // --- 輸入監聽 ---
-    window.onkeydown = (e) => {
-        keys[e.code] = true;
-        if(e.key === '1') selectedBlock = 2;
-        if(e.key === '2') selectedBlock = 1;
-        if(e.key === '3') selectedBlock = 3; // 石頭
-    };
+    // --- 事件監聽 ---
+    window.onkeydown = (e) => keys[e.code] = true;
     window.onkeyup = (e) => keys[e.code] = false;
 
     canvas.onmousedown = (e) => {
         const gx = Math.floor((e.clientX + cameraX) / tileSize);
         const gy = Math.floor(e.clientY / tileSize);
-        if (e.button === 0) worldData[`${gx}_${gy}`] = 0; // 挖
-        if (e.button === 2) worldData[`${gx}_${gy}`] = selectedBlock; // 蓋
-        localStorage.setItem('mc_final_v3', JSON.stringify(worldData));
+        
+        if (e.button === 0) { // 左鍵攻擊
+            player.atkTimer = 10;
+            // 攻擊判定
+            enemies.forEach(en => {
+                let dx = en.x - player.x;
+                let dy = en.y - player.y;
+                let dist = Math.sqrt(dx*dx + dy*dy);
+                if (dist < 80) { // 攻擊範圍
+                    en.hp -= 25; 
+                    en.vx = (player.x < en.x ? 18 : -18); // 強力擊退
+                    en.vy = -6; // 擊飛
+                }
+            });
+            worldData[`${gx}_${gy}`] = 0; // 挖礦
+        }
+        if (e.button === 2) worldData[`${gx}_${gy}`] = selectedBlock; // 蓋房子
+        localStorage.setItem('mc_ninja_v4', JSON.stringify(worldData));
     };
     canvas.oncontextmenu = (e) => e.preventDefault();
 
-    // --- 遊戲主循環 ---
+    // --- 主迴圈 ---
     function loop() {
-        // 1. 處理水平移動與自動爬坡 (Step-up)
-        player.vx = 0;
-        if (keys['KeyA']) player.vx = -player.speed;
-        if (keys['KeyD']) player.vx = player.speed;
-
-        if (player.vx !== 0) {
-            let nextX = player.x + player.vx;
-            // 撞牆檢查
-            if (isColliding(nextX, player.y)) {
-                // 自動爬坡：試著往上抬一格高度 (tileSize)
-                if (!isColliding(nextX, player.y - tileSize)) {
-                    player.x = nextX;
-                    player.y -= tileSize; // 爬上去
-                }
-            } else {
-                player.x = nextX; // 沒撞牆，正常走
+        // 1. 玩家水平移動 + 自動爬坡
+        player.vx = keys['KeyA'] ? -player.speed : (keys['KeyD'] ? player.speed : 0);
+        
+        let nextX = player.x + player.vx;
+        if (isColliding(nextX, player.y, player.w, player.h)) {
+            // 自動爬坡 (Step-up)
+            if (!isColliding(nextX, player.y - tileSize, player.w, player.h)) {
+                player.x = nextX; player.y -= tileSize;
             }
-        }
+        } else { player.x = nextX; }
 
-        // 2. 處理垂直移動 (重力與跳躍)
-        player.vy += 0.7; // 重力加速
-        if (keys['Space'] && player.grounded) {
-            player.vy = player.jump;
-            player.grounded = false;
-        }
+        // 2. 玩家垂直重力
+        player.vy += 0.8;
+        if (keys['Space'] && player.grounded) { player.vy = player.jump; player.grounded = false; }
 
-        // Y 軸碰撞
-        if (!isColliding(player.x, player.y + player.vy)) {
-            player.y += player.vy;
-            player.grounded = false;
+        if (!isColliding(player.x, player.y + player.vy, player.w, player.h)) {
+            player.y += player.vy; player.grounded = false;
         } else {
-            if (player.vy > 0) player.grounded = true; // 往下撞到地
+            if (player.vy > 0) player.grounded = true;
             player.vy = 0;
         }
 
-        // 3. 相機平滑跟隨
-        cameraX += (player.x - canvas.width / 2 - cameraX) * 0.1;
+        // 3. 相機高速鎖定
+        cameraX += (player.x - canvas.width / 2 - cameraX) * 0.2;
 
-        // 4. 繪製畫面
+        // 4. 渲染畫面
         ctx.clearRect(0, 0, canvas.width, canvas.height);
         
-        // 繪製地形
+        // 繪製地圖
         let startX = Math.floor(cameraX / tileSize);
         let endX = startX + Math.ceil(canvas.width / tileSize) + 1;
         for (let x = startX; x < endX; x++) {
             for (let y = 0; y < 25; y++) {
                 let b = getBlock(x, y);
                 if (b > 0) {
-                    ctx.fillStyle = b === 2 ? '#228B22' : (b === 1 ? '#8B4513' : '#666');
+                    ctx.fillStyle = b === 2 ? '#32CD32' : (b === 1 ? '#8B4513' : '#666');
                     ctx.fillRect(x * tileSize - cameraX, y * tileSize, tileSize, tileSize);
-                    // 方塊邊框
-                    ctx.strokeStyle = 'rgba(0,0,0,0.05)';
-                    ctx.strokeRect(x * tileSize - cameraX, y * tileSize, tileSize, tileSize);
                 }
             }
         }
 
-        // 繪製角色
-        ctx.fillStyle = '#FF5733';
+        // 5. 處理怪物 AI (殭屍)
+        enemies = enemies.filter(en => en.hp > 0);
+        enemies.forEach(en => {
+            en.vx = (player.x > en.x) ? 3 : -3; // 怪物速度也調快
+            en.vy += 0.8;
+            
+            // 怪物物理移動
+            if (!isColliding(en.x + en.vx, en.y, en.w, en.h)) en.x += en.vx;
+            if (!isColliding(en.x, en.y + en.vy, en.w, en.h)) en.y += en.vy; else en.vy = 0;
+
+            // 接觸傷害判定
+            if (Math.abs(en.x - player.x) < 25 && Math.abs(en.y - player.y) < 25) {
+                player.hp -= 0.6;
+            }
+
+            // 畫怪物
+            ctx.fillStyle = '#1b3d17'; // 深綠色
+            ctx.fillRect(en.x - cameraX, en.y, en.w, en.h);
+            ctx.fillStyle = '#f00'; // 紅眼睛
+            ctx.fillRect(en.x - cameraX + (en.vx > 0 ? 18 : 2), en.y + 10, 4, 4);
+        });
+
+        // 6. 畫玩家與攻擊弧光
+        ctx.fillStyle = '#FF4500'; // 亮橘色
         ctx.fillRect(player.x - cameraX, player.y, player.w, player.h);
+        
+        if (player.atkTimer > 0) {
+            ctx.strokeStyle = "rgba(255, 255, 255, 0.8)"; 
+            ctx.lineWidth = 5; 
+            ctx.beginPath();
+            let lookDir = (keys['KeyA']) ? -1 : 1;
+            ctx.arc(player.x - cameraX + player.w/2 + (lookDir*20), player.y + player.h/2, 35, -1, 1);
+            ctx.stroke(); 
+            player.atkTimer--;
+        }
+
+        // 7. 更新 UI
+        document.getElementById('hp-fill').style.width = Math.max(0, player.hp) + "%";
+        if (player.hp <= 0) { 
+            alert("你被殭屍圍攻致死了！"); 
+            player.hp = 100; player.x = 100; player.y = 100; 
+            enemies = [];
+        }
 
         requestAnimationFrame(loop);
     }
-
     loop();
 </script>
 </body>
