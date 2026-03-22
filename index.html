@@ -259,3 +259,17 @@
 </script>
 </body>
 </html>
+// 玩家物理
+player.vx = keys['KeyA'] ? -player.speed : (keys['KeyD'] ? player.speed : 0);
+let nx = player.x + player.vx;
+
+// 1. 水平碰撞與自動爬坡
+if (!collision(nx, player.y, player.w, player.h)) player.x = nx;
+else if (!collision(nx, player.y - 32, player.w, player.h)) { 
+    player.x = nx; 
+    player.y -= 32; 
+}
+
+// 2. 跳躍與重力
+player.vy += 0.6;
+if (keys['Space'] && player.grounded) { ... }
