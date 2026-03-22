@@ -1,106 +1,91 @@
-const canvas = document.getElementById('gameCanvas');
-const ctx = canvas.getContext('2d');
-const mCanvas = document.getElementById('minimap-canvas');
-const mCtx = mCanvas.getContext('2d');
-
-let isPlaying = false;
-let cameraX = 0;
-let gameTime = 420; 
-let worldData = {}; 
-let keys = {};
-let teammates = [], enemies = [], villagers = [], animals = [];
-
-// --- 1. 定義通用常數 ---
-const PHYSICS = {
-    gravity: 0.6,
-    jumpForce: -11,
-    speed: 3.5,
-    tile: 32
-};
-
-let player = { x: 300, y: -500, w: 22, h: 42, vx: 0, vy: 0, grounded: false, hp: 100 };
-
-// --- 2. 核心：通用物理函式 ---
-// 只要呼叫這個，角色就會自動處理：走路、撞牆爬坡、重力、碰撞
-function applyPhysics(obj, inputVx, wantJump) {
-    obj.vx = inputVx;
-
-    // 水平移動 + 自動爬坡 🧗
-    let nextX = obj.x + obj.vx;
-    if (collision(nextX, obj.y, obj.w, obj.h)) {
-        // 如果撞牆，檢查上方一格是不是空的（自動爬坡）
-        if (!collision(nextX, obj.y - PHYSICS.tile, obj.w, obj.h)) {
-            obj.x = nextX;
-            obj.y -= 10; // 平滑向上滑動
-        } else {
-            // 真的撞死牆了，如果在地面就嘗試跳躍
-            if (wantJump && obj.grounded) {
-                obj.vy = PHYSICS.jumpForce;
-                obj.grounded = false;
-            }
-            obj.vx = 0; 
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <title>Super Human - 終極同調版</title>
+    <style>
+        body { margin: 0; overflow: hidden; background: #000; font-family: "Microsoft JhengHei", sans-serif; }
+        canvas { display: block; }
+        .screen {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            z-index: 1000; color: white; background: rgba(0,0,0,0.9);
         }
-    } else {
-        obj.x = nextX;
+        .btn { padding: 15px 50px; font-size: 22px; background: #f1c40f; border: none; border-radius: 30px; cursor: pointer; font-weight: bold; margin: 10px; }
+        #ui { position: absolute; top: 20px; left: 20px; color: #fff; background: rgba(0,0,0,0.7); padding: 10px; border-radius: 8px; display: none; border: 1px solid #f1c40f; }
+    </style>
+</head>
+<body>
+
+    <div id="menu" class="screen">
+        <h1>未來的 Super Human</h1>
+        <button class="btn" onclick="startGame(5)">進入世界 (含 4 名隊友)</button>
+    </div>
+
+    <div id="ui">❤️ 生命: <span id="hp">100</span> | 👥 隊伍人數: <span id="p-count">1</span></div>
+    <canvas id="gameCanvas"></canvas>
+
+<script>
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+    let isPlaying = false;
+    let cameraX = 0;
+    let worldData = {};
+    let keys = {};
+
+    // 核心物理參數 ⚙️
+    const PHYSICS = { gravity: 0.6, jump: -11, speed: 4, tile: 32 };
+
+    // 實體類別：玩家與隊友都用這一套 🧠
+    class Entity {
+        constructor(x, y, color) {
+            this.x = x; this.y = y; this.w = 22; this.h = 42;
+            this.vx = 0; this.vy = 0; this.color = color;
+            this.grounded = false;
+        }
+
+        update(inputX, wantJump) {
+            this.vx = inputX;
+            let nx = this.x + this.vx;
+
+            // 1. 水平碰撞 + 自動爬坡 🧗
+            if (checkCollision(nx, this.y, this.w, this.h)) {
+                if (!checkCollision(nx, this.y - PHYSICS.tile, this.w, this.h)) {
+                    this.x = nx; this.y -= 8; // 走上一格
+                } else {
+                    this.vx = 0; // 撞死牆
+                }
+            } else {
+                this.x = nx;
+            }
+
+            // 2. 垂直重力 🍎
+            this.vy += PHYSICS.gravity;
+            if (wantJump && this.grounded) {
+                this.vy = PHYSICS.jump;
+                this.grounded = false;
+            }
+
+            if (!checkCollision(this.x, this.y + this.vy, this.w, this.h)) {
+                this.y += this.vy;
+                this.grounded = false;
+            } else {
+                if (this.vy > 0) this.grounded = true;
+                this.vy = 0;
+            }
+        }
+
+        draw() {
+            ctx.fillStyle = this.color;
+            ctx.fillRect(this.x - cameraX, this.y, this.w, this.h);
+        }
     }
 
-    // 垂直移動 + 重力 🍎
-    obj.vy += PHYSICS.gravity;
-    let nextY = obj.y + obj.vy;
-    if (!collision(obj.x, nextY, obj.w, obj.h)) {
-        obj.y = nextY;
-        obj.grounded = false;
-    } else {
-        if (obj.vy > 0) obj.grounded = true;
-        obj.vy = 0;
-    }
-}
+    let player = new Entity(300, -500, '#e67e22'); // 橘色玩家
+    let teammates = [];
 
-// --- 3. 遊戲邏輯更新 ---
-function update() {
-    if (!isPlaying) return requestAnimationFrame(update);
-
-    gameTime = (gameTime + 0.3) % 1440;
-    let sky = (gameTime >= 420 && gameTime < 1020) ? "#87ceeb" : "#000";
-
-    // A. 玩家控制：按鍵輸入傳給物理函式
-    let pMove = (keys['KeyA'] ? -1 : (keys['KeyD'] ? 1 : 0)) * PHYSICS.speed;
-    applyPhysics(player, pMove, keys['Space']);
-    
-    cameraX += (player.x - canvas.width / 2 - cameraX) * 0.1;
-
-    // B. 繪製背景與地形 (getBlock 邏輯維持你原本的)
-    ctx.fillStyle = sky; ctx.fillRect(0, 0, canvas.width, canvas.height);
-    let sx = Math.floor(cameraX / 32), ex = sx + Math.ceil(canvas.width / 32) + 1;
-    for (let x = sx; x < ex; x++) for (let y = 0; y < 25; y++) {
-        let b = getBlock(x, y); if (b === 0) continue;
-        ctx.fillStyle = (b===1)?'#6d4c41':(b===2)?'#4caf50':'#5d4037';
-        ctx.fillRect(x * 32 - cameraX, y * 32, 32, 32);
-    }
-
-    // C. 隊友 AI：你到哪，他們就到哪 👣
-    teammates.forEach(t => {
-        let dist = player.x - t.x;
-        let moveDir = 0;
-
-        // 跟隨邏輯：離玩家超過 40 像素就開始跑
-        if (Math.abs(dist) > 40) moveDir = dist > 0 ? 1 : -1;
-
-        // 偵測前方是否有障礙，有的話就「想跳躍」
-        let nextX = t.x + (moveDir * PHYSICS.speed);
-        let needsJump = collision(nextX, t.y, t.w, t.h);
-
-        // 使用跟玩家一模一樣的物理規則
-        applyPhysics(t, moveDir * PHYSICS.speed, needsJump);
-
-        ctx.fillStyle = '#f1c40f'; // 隊友顏色
-        ctx.fillRect(t.x - cameraX, t.y, t.w, t.h);
-    });
-
-    // 繪製玩家
-    ctx.fillStyle = '#e67e22'; 
-    ctx.fillRect(player.x - cameraX, player.y, player.w, player.h);
-
-    drawMinimap();
-    requestAnimationFrame(update);
-}
+    function startGame(count) {
+        document.getElementById('menu').style.display = 'none';
+        document.getElementById('ui').style.display = 'block';
+        document.getElementById('p-count').innerText = count;
+        for(let i=0; i<count-1; i++) teammates.push(new Entity(300 + (i+1)*40, -5
