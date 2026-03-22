@@ -7,7 +7,6 @@
         body { margin: 0; overflow: hidden; background: #000; font-family: "Microsoft JhengHei", sans-serif; }
         canvas { display: block; }
         
-        /* 全螢幕選單樣式 */
         .screen {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
             display: flex; flex-direction: column; align-items: center; justify-content: center;
@@ -20,35 +19,33 @@
         }
         .btn:hover { transform: scale(1.1); background: #fff; color: #000; }
         
-        /* 遊戲內 UI */
         #ui { 
             position: absolute; top: 20px; left: 20px; color: #fff; 
             background: rgba(0,0,0,0.7); padding: 15px; border-radius: 10px; 
             display: none; border: 2px solid #f1c40f; pointer-events: none; z-index: 10;
         }
         input[type=range] { width: 300px; margin: 25px; cursor: pointer; }
-        .label-text { font-size: 24px; margin-bottom: 10px; }
     </style>
 </head>
 <body>
 
     <div id="main-menu" class="screen">
         <h1>未來的 Super Human</h1>
+        <p>按下 [任意鍵] 或點擊按鈕開始</p>
         <button class="btn" onclick="initGame(1)">開始遊戲</button>
         <button class="btn" style="background:#3498db; color:white;" onclick="showMultiMenu()">多人連線</button>
     </div>
 
     <div id="multi-menu" class="screen" style="display:none;">
         <h1>多人連線設定</h1>
-        <div class="label-text">選擇總人數 (含自己): <span id="p-label" style="color:#f1c40f">5</span></div>
+        <div style="font-size:24px;">選擇總人數 (含自己): <span id="p-label" style="color:#f1c40f">5</span></div>
         <input type="range" id="p-slider" min="2" max="10" value="5" oninput="document.getElementById('p-label').innerText=this.value">
-        <button class="btn" onclick="initGame(document.getElementById('p-slider').value)">開始</button>
-        <p onclick="location.reload()" style="cursor:pointer; color:#777; margin-top:20px;">返回首頁</p>
+        <button id="multi-start-btn" class="btn" onclick="initGame(document.getElementById('p-slider').value)">開始</button>
     </div>
 
     <div id="ui">
-        <b>🌍 時間：<span id="clock" style="color:#f1c40f">07:00</span></b><br>
-        ❤️ 生命：<span id="hp">100</span> | 👥 隊伍：<span id="p-count">1</span>
+        <b>🌍 時間：<span id="clock">07:00</span></b><br>
+        ❤️ 生命：<span id="hp">100</span> | 👥 隊員：<span id="p-count">1</span>
     </div>
 
     <canvas id="gameCanvas"></canvas>
@@ -58,7 +55,85 @@
     const ctx = canvas.getContext('2d');
     
     let isPlaying = false;
+    let isMultiSetting = false;
     let cameraX = 0;
-    let gameTime = 420; // 07:00 (分鐘計)
+    let gameTime = 420; 
     let keys = {};
-    const PHYSICS = { gravity: 0.6, jump: -11
+    const PHYSICS = { gravity: 0.6, jump: -11, speed: 4 };
+
+    class Entity {
+        constructor(x, y, color, type = 'npc') {
+            this.x = x; this.y = y; this.w = 22; this.h = 42;
+            this.vx = 0; this.vy = 0; this.color = color;
+            this.type = type; this.grounded = false; this.hp = 100;
+        }
+        update(inputX, wantJump) {
+            this.vx = inputX;
+            let nx = this.x + this.vx;
+            if (checkCol(nx, this.y, this.w, this.h)) {
+                if (!checkCol(nx, this.y - 32, this.w, this.h)) { this.x = nx; this.y -= 8; }
+                else { this.vx = 0; }
+            } else { this.x = nx; }
+            this.vy += PHYSICS.gravity;
+            if (wantJump && this.grounded) { this.vy = PHYSICS.jump; this.grounded = false; }
+            if (!checkCol(this.x, this.y + this.vy, this.w, this.h)) { this.y += this.vy; this.grounded = false; }
+            else { if (this.vy > 0) this.grounded = true; this.vy = 0; }
+        }
+        draw() {
+            ctx.fillStyle = this.color;
+            ctx.fillRect(this.x - cameraX, this.y, this.w, this.h);
+        }
+    }
+
+    let player = new Entity(300, -500, '#e67e22', 'player');
+    let teammates = [], villagers = [], animals = [], enemies = [];
+
+    function showMultiMenu() {
+        document.getElementById('main-menu').style.display = 'none';
+        document.getElementById('multi-menu').style.display = 'flex';
+        isMultiSetting = true;
+    }
+
+    function initGame(count) {
+        document.getElementById('main-menu').style.display = 'none';
+        document.getElementById('multi-menu').style.display = 'none';
+        document.getElementById('ui').style.display = 'block';
+        document.getElementById('p-count').innerText = count;
+        for(let i=0; i < count - 1; i++) teammates.push(new Entity(350 + i*50, -500, '#f1c40f', 'teammate'));
+        for(let i=0; i<4; i++) villagers.push(new Entity(1500 + i*300, -500, '#3498db', 'villager'));
+        for(let i=0; i<6; i++) animals.push({x: 800 + i*700, y:-500, w:24, h:18, vx:1, vy:0});
+        isPlaying = true;
+        resize();
+        loop();
+    }
+
+    function checkCol(nx, ny, w, h) {
+        let x1 = Math.floor(nx / 32), x2 = Math.floor((nx + w) / 32);
+        let y1 = Math.floor(ny / 32), y2 = Math.floor((ny + h) / 32);
+        for (let x = x1; x <= x2; x++) for (let y = y1; y <= y2; y++) {
+            let ground = Math.floor(15 + Math.sin(x * 0.1) * 3);
+            if (y >= ground) return true;
+        }
+        return false;
+    }
+
+    // --- 全按鍵偵測邏輯 ---
+    window.onkeydown = (e) => {
+        keys[e.code] = true;
+        
+        // 1. 如果在選單畫面按任意鍵
+        if (!isPlaying) {
+            if (!isMultiSetting) initGame(1); // 主畫面按鍵 -> 開始單人
+            else if (e.code === 'Enter') initGame(document.getElementById('p-slider').value); // 多人畫面按 Enter -> 開始多人
+        } else {
+            // 2. 遊戲中按任意鍵 (除了 A, D, Space) 都觸發攻擊
+            if (e.code !== 'KeyA' && e.code !== 'KeyD' && e.code !== 'Space') {
+                attack();
+            }
+        }
+    };
+    window.onkeyup = (e) => keys[e.code] = false;
+    canvas.onmousedown = () => attack();
+
+    function attack() {
+        enemies
