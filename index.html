@@ -2,23 +2,26 @@
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
-    <title>2D Minecraft: 日夜生存版</title>
+    <title>2D Minecraft: 精確日夜生存戰鬥版</title>
     <style>
-        body { margin: 0; overflow: hidden; background: #000; font-family: sans-serif; }
+        body { margin: 0; overflow: hidden; background: #000; font-family: 'Courier New', monospace; }
         canvas { display: block; }
         #ui { 
             position: absolute; top: 15px; left: 15px; background: rgba(0,0,0,0.8); 
-            color: white; padding: 12px; border-radius: 8px; pointer-events: none; border: 1px solid #555;
+            color: #fff; padding: 15px; border-radius: 10px; border: 2px solid #555;
+            pointer-events: none; min-width: 250px;
         }
-        .night-alert { color: #ff4444; font-weight: bold; display: none; }
+        .status { color: #f1c40f; font-weight: bold; }
+        .danger { color: #ff4444; font-weight: bold; animation: blink 1s infinite; }
+        @keyframes blink { 50% { opacity: 0; } }
     </style>
 </head>
 <body>
     <div id="ui">
-        <b>🌑 生存模式</b><br>
-        時間：<span id="clock">12:00</span> <span id="alert" class="night-alert">⚠️ 怪物出現！</span><br>
-        ❤️ 生命：<span id="hp">100</span><br>
-        <small>左鍵：挖礦/攻擊 | 右鍵：建造 | 1, 2 切換方塊</small>
+        <b>🌍 世界時間：<span id="clock" class="status">07:00</span></b><br>
+        ❤️ 玩家生命：<span id="hp" class="status">100</span><br>
+        ⚔️ 攻擊範圍：近戰圓弧<br>
+        <div id="warn" class="danger" style="display:none;">⚠️ 警告：夜晚降臨，怪物出沒！</div>
     </div>
     <canvas id="gameCanvas"></canvas>
 
@@ -30,46 +33,59 @@
 
     const tileSize = 32;
     let cameraX = 0;
-    let worldData = JSON.parse(localStorage.getItem('mc_survival_save')) || {};
+    let worldData = JSON.parse(localStorage.getItem('mc_final_v1')) || {};
     let keys = {};
-    let gameTime = 1200; // 0~2400 (1200是中午)
-    let selectedBlock = 4; // 預設木頭
+    let gameTime = 420; // 從 07:00 (420分鐘) 開始
+    let atkTimer = 0;
 
-    let player = { x: 300, y: -100, w: 20, h: 40, vx: 0, vy: 0, speed: 4, jump: -10, grounded: false, hp: 100 };
-    let animals = [];
+    let player = { x: 300, y: -100, w: 22, h: 42, vx: 0, vy: 0, speed: 4, jump: -11, grounded: false, hp: 100 };
     let enemies = [];
+    let animals = [];
 
-    // --- 核心：地圖讀取與生成 ---
     function getBlock(x, y) {
         const key = `${x}_${y}`;
         if (worldData[key] !== undefined) return worldData[key];
-        let groundLevel = Math.floor(14 + Math.sin(x * 0.1) * 3);
-        if (y < groundLevel) return 0;
-        return (y === groundLevel) ? 2 : 1; // 2:草, 1:土
+        let groundLevel = Math.floor(15 + Math.sin(x * 0.1) * 3);
+        if (y < groundLevel) {
+            // 自動生成樹與村莊
+            if (y === groundLevel - 1 && x % 45 === 0) {
+                for(let i=0; i<4; i++) for(let j=0; j<3; j++) if(i===0||i===3||j===2) worldData[`${x+i}_${y-j}`] = 4;
+            }
+            if (y === groundLevel - 1 && Math.abs(Math.sin(x)) > 0.98) return 4;
+            return 0;
+        }
+        return (y === groundLevel) ? 2 : 1; 
     }
 
-    // --- 滑鼠互動：挖掘與建造 ---
+    // --- 攻擊與挖掘系統 ---
     canvas.onmousedown = (e) => {
         const gx = Math.floor((e.clientX + cameraX) / tileSize);
         const gy = Math.floor(e.clientY / tileSize);
-        const key = `${gx}_${gy}`;
-
-        if (e.button === 0) { // 左鍵：挖掘或攻擊
-            let hitEnemy = false;
+        
+        if (e.button === 0) { // 左鍵：攻擊 + 挖掘
+            atkTimer = 10; // 顯示攻擊特效
+            let hitAny = false;
+            // 檢查是否砍到怪物
             enemies.forEach(en => {
-                if (Math.hypot(en.x - (gx*tileSize), en.y - (gy*tileSize)) < 50) {
-                    en.hp -= 20; hitEnemy = true;
+                let dx = en.x - player.x;
+                let dy = en.y - player.y;
+                let dist = Math.sqrt(dx*dx + dy*dy);
+                if (dist < 80) { // 攻擊半徑 80
+                    en.hp -= 20;
+                    en.vx = (player.x < en.x ? 15 : -15); // 擊退效果
+                    en.vy = -5;
+                    hitAny = true;
                 }
             });
-            if (!hitEnemy) worldData[key] = 0; // 沒打到怪就挖地
+            // 如果沒砍到怪，則嘗試挖掘
+            if (!hitAny) worldData[`${gx}_${gy}`] = 0;
         } else if (e.button === 2) { // 右鍵：建築
-            if (getBlock(gx, gy) === 0) worldData[key] = selectedBlock;
+            if (getBlock(gx, gy) === 0) worldData[`${gx}_${gy}`] = 4;
         }
-        localStorage.setItem('mc_survival_save', JSON.stringify(worldData));
+        localStorage.setItem('mc_final_v1', JSON.stringify(worldData));
     };
     canvas.oncontextmenu = (e) => e.preventDefault();
 
-    // 碰撞偵測
     function isColliding(nx, ny, w, h) {
         let x1 = Math.floor(nx / tileSize), x2 = Math.floor((nx + w) / tileSize);
         let y1 = Math.floor(ny / tileSize), y2 = Math.floor((ny + h) / tileSize);
@@ -79,20 +95,43 @@
         return false;
     }
 
-    window.onkeydown = (e) => {
-        keys[e.code] = true;
-        if (e.key === '1') selectedBlock = 4; // 木頭
-        if (e.key === '2') selectedBlock = 3; // 石頭
-    };
+    window.onkeydown = (e) => keys[e.code] = true;
     window.onkeyup = (e) => keys[e.code] = false;
 
-    function loop() {
-        // 時間流速：2400 幀一個循環 (原本更快，現在調慢)
-        gameTime = (gameTime + 0.5) % 2400; 
-        let isNight = (gameTime < 600 || gameTime > 1800);
-        document.getElementById('alert').style.display = isNight ? 'inline' : 'none';
+    // 初始化羊
+    for(let i=0; i<3; i++) animals.push({x: 500 + i*900, y: 0, w: 24, h: 20, vx: 0.5, hp: 100});
 
-        // 1. 玩家物理 (速度 1.0 節奏)
+    function loop() {
+        // --- 精確時間系統邏輯 ---
+        gameTime = (gameTime + 0.3) % 1440; // 1440分鐘一圈
+        let h = Math.floor(gameTime / 60);
+        let m = Math.floor(gameTime % 60);
+        let totalMin = h * 60 + m;
+
+        let skyColor = "rgb(15, 15, 30)"; // 深夜顏色
+        let spawnMonster = false;
+
+        // 7:00 ~ 17:00 亮天
+        if (totalMin >= 420 && totalMin < 1020) {
+            skyColor = "rgb(135, 206, 235)";
+        } 
+        // 17:00 ~ 17:30 (過渡)
+        else if (totalMin >= 1020 && totalMin < 1050) {
+            skyColor = "rgb(100, 160, 200)";
+        }
+        // 17:30 ~ 18:00 傍晚 (橘紅)
+        else if (totalMin >= 1050 && totalMin < 1080) {
+            skyColor = "rgb(255, 120, 50)";
+        }
+        // 18:10 ~ 06:30 晚上 (有怪物)
+        if (totalMin >= 1090 || totalMin < 390) {
+            spawnMonster = true;
+            document.getElementById('warn').style.display = 'block';
+        } else {
+            document.getElementById('warn').style.display = 'none';
+        }
+
+        // 1. 玩家運動
         player.vx = keys['KeyA'] ? -player.speed : (keys['KeyD'] ? player.speed : 0);
         let nextX = player.x + player.vx;
         if (isColliding(nextX, player.y, player.w, player.h)) {
@@ -109,33 +148,30 @@
 
         cameraX += (player.x - canvas.width / 2 - cameraX) * 0.1;
 
-        // 2. 怪物生成 (夜晚機率生成)
-        if (isNight && Math.random() < 0.01 && enemies.length < 5) {
-            enemies.push({ x: player.x + (Math.random() > 0.5 ? 400 : -400), y: 0, w: 20, h: 40, hp: 40 });
+        // 2. 怪物生成與 AI
+        if (spawnMonster && Math.random() < 0.01 && enemies.length < 5) {
+            enemies.push({ x: player.x + (Math.random() > 0.5 ? 500 : -500), y: 0, w: 20, h: 40, vx: 0, vy: 0, hp: 50 });
         }
 
-        // 3. 背景 (日夜顏色轉換)
-        let dayRatio = Math.cos((gameTime / 2400) * Math.PI * 2);
-        let r = 10 + (dayRatio + 1) * 50, g = 15 + (dayRatio + 1) * 80, b = 40 + (dayRatio + 1) * 100;
-        ctx.fillStyle = `rgb(${r},${g},${b})`;
+        // 3. 繪製
+        ctx.fillStyle = skyColor;
         ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-        // 4. 繪製方塊
         let startX = Math.floor(cameraX / tileSize);
         let endX = startX + Math.ceil(canvas.width / tileSize) + 1;
         for (let x = startX; x < endX; x++) {
             for (let y = 0; y < 25; y++) {
                 let b = getBlock(x, y);
                 if (b === 0) continue;
-                ctx.fillStyle = (b===1)?'#6d4c41' : (b===2)?'#4caf50' : (b===3)?'#7f8c8d':'#5d4037';
+                ctx.fillStyle = (b===1)?'#6d4c41':(b===2)?'#4caf50':'#5d4037';
                 ctx.fillRect(x * tileSize - cameraX, y * tileSize, tileSize, tileSize);
             }
         }
 
-        // 5. 怪物 AI
+        // 處理怪物
         enemies = enemies.filter(en => en.hp > 0);
         enemies.forEach(en => {
-            en.vx = (player.x > en.x) ? 1.5 : -1.5;
+            en.vx = (player.x > en.x) ? 1.8 : -1.8;
             en.vy += 0.6;
             if (!isColliding(en.x + en.vx, en.y, en.w, en.h)) en.x += en.vx;
             if (!isColliding(en.x, en.y + en.vy, en.w, en.h)) en.y += en.vy; else en.vy = 0;
@@ -144,14 +180,29 @@
             ctx.fillRect(en.x - cameraX, en.y, en.w, en.h);
         });
 
-        // 6. 玩家
+        // 動物
+        animals.forEach(an => {
+            an.vy += 0.5;
+            if (!isColliding(an.x + an.vx, an.y, an.w, an.h)) an.x += an.vx; else an.vx *= -1;
+            if (!isColliding(an.x, an.y + an.vy, an.w, an.h)) an.y += an.vy; else an.vy = 0;
+            ctx.fillStyle = '#ffffff'; ctx.fillRect(an.x - cameraX, an.y, an.w, an.h);
+        });
+
+        // 畫玩家與攻擊特效
         ctx.fillStyle = '#ff5722';
         ctx.fillRect(player.x - cameraX, player.y, player.w, player.h);
+        if (atkTimer > 0) {
+            ctx.strokeStyle = "rgba(255, 255, 255, "+(atkTimer/10)+")";
+            ctx.lineWidth = 3;
+            ctx.beginPath();
+            ctx.arc(player.x - cameraX + 10, player.y + 20, 50, 0, Math.PI * 2);
+            ctx.stroke();
+            atkTimer--;
+        }
 
-        // UI 更新
-        document.getElementById('clock').innerText = `${Math.floor(gameTime/100).toString().padStart(2,'0')}:00`;
+        document.getElementById('clock').innerText = `${h.toString().padStart(2,'0')}:${m.toString().padStart(2,'0')}`;
         document.getElementById('hp').innerText = Math.floor(player.hp);
-        if (player.hp <= 0) { alert("你被殭屍吃掉了！"); location.reload(); }
+        if (player.hp <= 0) { alert("戰死沙場！"); location.reload(); }
 
         requestAnimationFrame(loop);
     }
