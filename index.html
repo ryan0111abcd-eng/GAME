@@ -2,91 +2,258 @@
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
-    <title>未來的 Super Human - 穩定進入版</title>
+    <title>未來的 Super Human - 自由探險版</title>
     <style>
         body { margin: 0; overflow: hidden; background: #000; font-family: "Microsoft JhengHei", sans-serif; }
         canvas { display: block; }
         
-        /* 核心遮罩層 */
-        .overlay {
+        .screen {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
             display: flex; flex-direction: column; align-items: center; justify-content: center;
-            z-index: 9999; color: white; background: rgba(0,0,0,0.9);
+            z-index: 1000; color: white; background: rgba(0,0,0,0.95);
         }
         
         h1 { color: #f1c40f; font-size: 50px; text-shadow: 0 0 20px #f1c40f; margin-bottom: 40px; }
         .btn {
-            padding: 18px 60px; font-size: 26px; background: #f1c40f; color: #000;
+            padding: 18px 60px; font-size: 24px; background: #f1c40f; color: #000;
             border: none; border-radius: 50px; cursor: pointer; font-weight: bold;
-            margin: 15px; transition: 0.2s; box-shadow: 0 5px 15px rgba(241,196,15,0.4);
+            margin: 15px; transition: 0.3s;
         }
-        .btn:hover { background: #fff; transform: scale(1.05); }
+        .btn:hover { background: #fff; transform: scale(1.1); }
         
         #ui { 
-            position: absolute; top: 20px; left: 20px; background: rgba(0,0,0,0.85); 
+            position: absolute; top: 20px; left: 20px; background: rgba(0,0,0,0.8); 
             color: #fff; padding: 15px; border-radius: 10px; display: none;
-            border: 2px solid #f1c40f; pointer-events: none; z-index: 100;
+            border: 2px solid #f1c40f; pointer-events: none; z-index: 10;
         }
 
-        /* 圓形雷達 */
-        #radar {
-            position: absolute; top: 20px; right: 20px; width: 150px; height: 150px;
-            background: rgba(0,20,0,0.6); border: 3px solid #fff; border-radius: 50%;
-            display: none; z-index: 100; overflow: hidden;
+        /* 圓形小地圖容器 */
+        #minimap-container {
+            position: absolute; top: 20px; right: 20px; 
+            width: 150px; height: 150px;
+            background: rgba(0,0,0,0.6); 
+            border: 3px solid rgba(255,255,255,0.8);
+            border-radius: 50%; /* 變成圓形 */
+            overflow: hidden; display: none; z-index: 10;
+            box-shadow: 0 0 15px rgba(0,0,0,0.5);
         }
-        #radar-canvas { width: 100%; height: 100%; }
+        #minimap-canvas { width: 100%; height: 100%; }
 
-        input[type=range] { width: 300px; height: 20px; cursor: pointer; margin: 25px; }
+        input[type=range] { width: 300px; margin: 25px; cursor: pointer; }
     </style>
 </head>
 <body>
 
-    <div id="main-menu" class="overlay">
+    <div id="main-menu" class="screen">
         <h1>未來的 Super Human</h1>
-        <button id="btn-single" class="btn">開始遊戲</button>
-        <button id="btn-multi-setup" class="btn" style="background:#3498db; color:white;">多人連線</button>
+        <button class="btn" id="start-btn">開始遊戲</button>
+        <button class="btn" style="background:#3498db; color:white;" id="multi-btn">多人連線</button>
     </div>
 
-    <div id="multi-menu" class="overlay" style="display:none;">
+    <div id="multi-menu" class="screen" style="display:none;">
         <h1>多人連線設定</h1>
-        <p style="font-size:24px;">世界總人數: <span id="num-label" style="color:#f1c40f">5</span></p>
-        <input type="range" id="p-slider" min="2" max="10" value="5">
-        <button id="btn-start-game" class="btn">進入世界</button>
-        <p id="btn-back" style="cursor:pointer; color:#777; margin-top:20px;">返回首頁</p>
+        <p style="font-size:24px;">選擇世界人數: <span id="num-label" style="color:#f1c40f">5</span></p>
+        <input type="range" id="player-slider" min="2" max="10" value="5">
+        <button class="btn" id="start-multi-btn">進入世界</button>
+        <p onclick="location.reload()" style="cursor:pointer; color:#777; margin-top:20px;">返回</p>
     </div>
 
     <div id="ui">
         <b>🌍 時間：<span id="clock" style="color:#f1c40f">07:00</span></b><br>
-        ❤️ 生命：<span id="hp">100</span> | 👥 線上：<span id="p-count">1</span>
+        ❤️ 生命：<span id="hp">100</span> | 👥 存活：<span id="p-count">1</span>
     </div>
 
-    <div id="radar"><canvas id="radar-canvas"></canvas></div>
+    <div id="minimap-container">
+        <canvas id="minimap-canvas"></canvas>
+    </div>
+    
     <canvas id="gameCanvas"></canvas>
 
 <script>
-    // --- 確保 DOM 載入後才執行監聽 ---
-    window.onload = () => {
-        const mainMenu = document.getElementById('main-menu');
-        const multiMenu = document.getElementById('multi-menu');
-        const slider = document.getElementById('p-slider');
-        const numLabel = document.getElementById('num-label');
-
-        // 按鈕事件綁定
-        document.getElementById('btn-single').addEventListener('click', () => initGame(1));
-        
-        document.getElementById('btn-multi-setup').addEventListener('click', () => {
-            mainMenu.style.display = 'none';
-            multiMenu.style.display = 'flex';
-        });
-
-        slider.oninput = () => numLabel.innerText = slider.value;
-
-        document.getElementById('btn-start-game').addEventListener('click', () => {
-            initGame(parseInt(slider.value));
-        });
-
-        document.getElementById('btn-back').addEventListener('click', () => location.reload());
+    document.getElementById('start-btn').onclick = () => initWorld(1);
+    document.getElementById('multi-btn').onclick = () => {
+        document.getElementById('main-menu').style.display = 'none';
+        document.getElementById('multi-menu').style.display = 'flex';
     };
+    document.getElementById('player-slider').oninput = function() {
+        document.getElementById('num-label').innerText = this.value;
+    };
+    document.getElementById('start-multi-btn').onclick = () => initWorld(parseInt(document.getElementById('player-slider').value));
 
     const canvas = document.getElementById('gameCanvas');
-    const ctx = canvas.
+    const ctx = canvas.getContext('2d');
+    const mCanvas = document.getElementById('minimap-canvas');
+    const mCtx = mCanvas.getContext('2d');
+
+    let isPlaying = false;
+    let cameraX = 0;
+    let gameTime = 420; 
+    let player = { x: 200, y: -400, w: 22, h: 42, vx: 0, vy: 0, speed: 4, jump: -11, grounded: false, hp: 100 };
+    let teammates = [], enemies = [], animals = [], villagers = [];
+    let worldData = {}; 
+    let keys = {};
+
+    function initWorld(count) {
+        document.querySelectorAll('.screen').forEach(s => s.style.display = 'none');
+        document.getElementById('ui').style.display = 'block';
+        document.getElementById('minimap-container').style.display = 'block';
+        document.getElementById('p-count').innerText = count;
+        
+        for(let i=0; i < count - 1; i++) {
+            teammates.push({ 
+                x: 300 + Math.random() * 400, y: -200, w: 20, h: 40, vx: 0, vy: 0, 
+                targetVx: 0, moveTimer: 0 // 自由行動專用
+            });
+        }
+        resize();
+        isPlaying = true;
+    }
+
+    function resize() { 
+        canvas.width = window.innerWidth; canvas.height = window.innerHeight;
+        mCanvas.width = 150; mCanvas.height = 150;
+    }
+    window.onresize = resize;
+
+    function getBlock(x, y) {
+        const key = `${x}_${y}`;
+        if (worldData[key] !== undefined) return worldData[key];
+        let ground = Math.floor(15 + Math.sin(x * 0.1) * 3);
+        if (y < ground) {
+            if (y === ground - 1 && x % 50 === 0) {
+                for(let i=0; i<4; i++) for(let j=0; j<3; j++) if(i===0||i===3||j===2) worldData[`${x+i}_${y-j}`] = 4;
+                villagers.push({ x: (x+2)*32, y: (y-1)*32, w: 20, h: 40, vx: 0.3 });
+            }
+            return 0;
+        }
+        return (y === ground) ? 2 : 1;
+    }
+
+    function collision(nx, ny, w, h) {
+        let x1 = Math.floor(nx / 32), x2 = Math.floor((nx + w) / 32);
+        let y1 = Math.floor(ny / 32), y2 = Math.floor((ny + h) / 32);
+        for (let x = x1; x <= x2; x++) for (let y = y1; y <= y2; y++) if (getBlock(x, y) > 0) return true;
+        return false;
+    }
+
+    window.onkeydown = (e) => keys[e.code] = true;
+    window.onkeyup = (e) => keys[e.code] = false;
+
+    // --- 圓形小地圖渲染 ---
+    function drawMinimap() {
+        mCtx.clearRect(0,0,150,150);
+        mCtx.save();
+        mCtx.beginPath(); mCtx.arc(75, 75, 75, 0, Math.PI*2); mCtx.clip(); // 圓形剪裁
+
+        let zoom = 0.15; 
+        let centerX = 75, centerY = 75;
+
+        // 畫地形
+        mCtx.fillStyle = "#2d5a27";
+        for(let x = -20; x < 20; x++) {
+            let gx = Math.floor(player.x / 32) + x;
+            let ground = Math.floor(15 + Math.sin(gx * 0.1) * 3);
+            mCtx.fillRect(centerX + x*6, ground*4 + 20, 6, 100);
+        }
+
+        // 隊友 (黃點)
+        mCtx.fillStyle = "#f1c40f";
+        teammates.forEach(t => {
+            let dx = (t.x - player.x) * zoom;
+            let dy = (t.y - player.y) * zoom;
+            mCtx.beginPath(); mCtx.arc(centerX + dx, centerY + dy, 3, 0, Math.PI*2); mCtx.fill();
+        });
+
+        // 怪物 (綠點)
+        mCtx.fillStyle = "#2ecc71";
+        enemies.forEach(en => {
+            let dx = (en.x - player.x) * zoom;
+            let dy = (en.y - player.y) * zoom;
+            mCtx.beginPath(); mCtx.arc(centerX + dx, centerY + dy, 3, 0, Math.PI*2); mCtx.fill();
+        });
+
+        // 玩家 (中心橘點)
+        mCtx.fillStyle = "#e67e22";
+        mCtx.beginPath(); mCtx.arc(centerX, centerY, 4, 0, Math.PI*2); mCtx.fill();
+        
+        mCtx.restore();
+        // 加上瞄準線
+        mCtx.strokeStyle = "rgba(255,255,255,0.2)";
+        mCtx.beginPath(); mCtx.moveTo(75,0); mCtx.lineTo(75,150); mCtx.moveTo(0,75); mCtx.lineTo(150,75); mCtx.stroke();
+    }
+
+    function update() {
+        if (!isPlaying) return requestAnimationFrame(update);
+
+        gameTime = (gameTime + 0.3) % 1440;
+        let h = Math.floor(gameTime / 60), m = Math.floor(gameTime % 60);
+        let sky = (gameTime >= 420 && gameTime < 1020) ? "#87ceeb" : (gameTime >= 1050 && gameTime < 1080) ? "#ff7832" : "#000";
+
+        // 玩家物理
+        player.vx = keys['KeyA'] ? -player.speed : (keys['KeyD'] ? player.speed : 0);
+        if (!collision(player.x + player.vx, player.y, player.w, player.h)) player.x += player.vx;
+        player.vy += 0.6;
+        if (keys['Space'] && player.grounded) { player.vy = player.jump; player.grounded = false; }
+        if (!collision(player.x, player.y + player.vy, player.w, player.h)) {
+            player.y += player.vy; player.grounded = false;
+        } else { if (player.vy > 0) player.grounded = true; player.vy = 0; }
+        
+        cameraX += (player.x - canvas.width / 2 - cameraX) * 0.1;
+
+        // 繪製世界
+        ctx.fillStyle = sky; ctx.fillRect(0, 0, canvas.width, canvas.height);
+        let sx = Math.floor(cameraX / 32), ex = sx + Math.ceil(canvas.width / 32) + 1;
+        for (let x = sx; x < ex; x++) for (let y = 0; y < 25; y++) {
+            let b = getBlock(x, y); if (b === 0) continue;
+            ctx.fillStyle = (b===1)?'#6d4c41':(b===2)?'#4caf50':'#5d4037';
+            ctx.fillRect(x * 32 - cameraX, y * 32, 32, 32);
+        }
+
+        // --- 隊友自由行動 AI ---
+        teammates.forEach(t => {
+            t.moveTimer--;
+            if (t.moveTimer <= 0) {
+                // 離玩家太遠(>800)會往玩家走，否則隨機
+                let dist = Math.abs(player.x - t.x);
+                if (dist > 800) {
+                    t.targetVx = (player.x > t.x) ? 2 : -2;
+                } else {
+                    t.targetVx = (Math.random() - 0.5) * 3; // 隨機速度
+                }
+                t.moveTimer = 60 + Math.random() * 120; // 決定下一次行動前持續多久
+            }
+            t.vy += 0.6;
+            if (!collision(t.x + t.targetVx, t.y, t.w, t.h)) t.x += t.targetVx; else t.targetVx *= -1;
+            if (!collision(t.x, t.y + t.vy, t.w, t.h)) t.y += t.vy; else t.vy = 0;
+            ctx.fillStyle = '#f1c40f'; ctx.fillRect(t.x - cameraX, t.y, t.w, t.h);
+        });
+
+        // 怪物、村民、動物 (維持原樣)
+        if ((gameTime >= 1090 || gameTime < 390) && Math.random() < 0.01 && enemies.length < 5) enemies.push({ x: player.x+600, y: 0, w: 20, h: 40, hp: 50 });
+        enemies.forEach(en => {
+            en.vx = (player.x > en.x) ? 1.5 : -1.5; en.vy += 0.6;
+            if (!collision(en.x+en.vx, en.y, en.w, en.h)) en.x += en.vx;
+            if (!collision(en.x, en.y+en.vy, en.w, en.h)) en.y += en.vy; else en.vy = 0;
+            if (Math.abs(en.x-player.x)<20 && Math.abs(en.y-player.y)<20) player.hp -= 0.3;
+            ctx.fillStyle = '#2ecc71'; ctx.fillRect(en.x-cameraX, en.y, en.w, en.h);
+        });
+        villagers.forEach(v => { v.vy+=0.6; if(Math.random()<0.01) v.vx*=-1; if(!collision(v.x+v.vx,v.y,v.w,v.h)) v.x+=v.vx; if(!collision(v.x,v.y+v.vy,v.w,v.h)) v.y+=v.vy; else v.vy=0; ctx.fillStyle='#3498db'; ctx.fillRect(v.x-cameraX,v.y,v.w,v.h);});
+        animals.forEach(an => { an.vy+=0.5; if(!collision(an.x+an.vx,an.y,an.w,an.h)) an.x+=an.vx; else an.vx*=-1; if(!collision(an.x,an.y+an.vy,an.w,an.h)) an.y+=an.vy; else an.vy=0; ctx.fillStyle='#fff'; ctx.fillRect(an.x-cameraX,an.y,an.w,an.h);});
+
+        // 玩家繪製 (18:10 後的光源)
+        if (gameTime < 420 || gameTime > 1080) {
+            let grd = ctx.createRadialGradient(player.x-cameraX+10, player.y+20, 10, player.x-cameraX+10, player.y+20, 200);
+            grd.addColorStop(0, "rgba(255,255,255,0.4)"); grd.addColorStop(1, "transparent");
+            ctx.fillStyle = grd; ctx.fillRect(0,0,canvas.width,canvas.height);
+        }
+        ctx.fillStyle = '#e67e22'; ctx.fillRect(player.x-cameraX, player.y, player.w, player.h);
+
+        document.getElementById('clock').innerText = `${h.toString().padStart(2,'0')}:${m.toString().padStart(2,'0')}`;
+        document.getElementById('hp').innerText = Math.floor(player.hp);
+        drawMinimap();
+        requestAnimationFrame(update);
+    }
+    update();
+</script>
+</body>
+</html>
