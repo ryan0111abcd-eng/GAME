@@ -2,25 +2,26 @@
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
-    <title>2D Minecraft: 穩定音效版</title>
+    <title>2D Minecraft: 黃潮來襲穩定版</title>
     <style>
-        body { margin: 0; overflow: hidden; background: #2c3e50; font-family: sans-serif; }
+        body { margin: 0; overflow: hidden; background: #2c3e50; font-family: 'Arial', sans-serif; }
         canvas { display: block; }
         #ui { 
             position: absolute; top: 15px; left: 15px; background: rgba(0,0,0,0.8); 
             color: #f1c40f; padding: 15px; border-radius: 10px; border: 2px solid #f1c40f;
-            pointer-events: none;
+            pointer-events: none; min-width: 220px;
         }
-        #hp-bar { width: 200px; height: 15px; background: #333; border: 1px solid #f1c40f; margin-top: 5px; }
-        #hp-fill { width: 100%; height: 100%; background: #ff4444; }
+        #hp-bar { width: 100%; height: 18px; background: #333; border: 1px solid #f1c40f; margin-top: 8px; }
+        #hp-fill { width: 100%; height: 100%; background: #ff4444; transition: width 0.2s; }
+        #msg { color: #fff; font-size: 12px; margin-top: 8px; }
     </style>
 </head>
 <body>
 
     <div id="ui">
-        <b>🦁 黃潮來襲：穩定模式</b><br>
+        <div style="font-size: 18px; font-weight: bold;">🦁 中信兄弟：黃潮來襲</div>
         ❤️ 生命值：<div id="hp-bar"><div id="hp-fill"></div></div>
-        <div id="music-status" style="font-size:12px; color:white; margin-top:5px;">⚠️ 請點擊畫面啟動音樂</div>
+        <div id="msg">🎵 點擊畫面啟動應援曲！</div>
     </div>
 
     <canvas id="gameCanvas"></canvas>
@@ -30,16 +31,19 @@
     const ctx = canvas.getContext('2d');
 
     // --- 音訊處理 ---
-    // 建議將檔名改為 bgm.mp3 避免中文亂碼問題
     const bgm = new Audio('bgm.mp3'); 
     bgm.loop = true;
+    let isPlaying = false;
 
-    function playMusic() {
-        bgm.play().then(() => {
-            document.getElementById('music-status').innerText = "🎵 音樂播放中...";
-        }).catch(e => {
-            console.log("播放失敗，請確認檔名是否為 bgm.mp3 並已上傳");
-        });
+    function startMusic() {
+        if (!isPlaying) {
+            bgm.play().then(() => {
+                isPlaying = true;
+                document.getElementById('msg').innerText = "🎶 音樂強勢播放中！";
+            }).catch(err => {
+                document.getElementById('msg').innerText = "❌ 找不到 bgm.mp3 檔案";
+            });
+        }
     }
 
     function resize() { canvas.width = window.innerWidth; canvas.height = window.innerHeight; }
@@ -47,25 +51,26 @@
 
     const tileSize = 32;
     let cameraX = 0;
-    let worldData = JSON.parse(localStorage.getItem('mc_slow_v1')) || {};
+    let worldData = JSON.parse(localStorage.getItem('mc_music_save')) || {};
     let keys = {};
 
-    // --- 速度調降至 1.0 節奏 (平穩走路) ---
+    // --- 穩定 1.0 節奏數值 ---
     let player = { 
         x: 100, y: 100, w: 22, h: 42, 
         vx: 0, vy: 0, 
-        speed: 4,      // 正常行走速度
-        jump: -10,     // 正常跳躍
+        speed: 4,      // 穩定行走速度
+        jump: -10,     // 舒適跳躍高度
         grounded: false, hp: 100, atkTimer: 0 
     };
 
     let enemies = [];
     function spawnEnemy() {
-        if (enemies.length < 3) {
-            enemies.push({ x: player.x + 500, y: 0, w: 24, h: 44, vx: 0, vy: 0, hp: 50 });
+        if (enemies.length < 4) {
+            let side = Math.random() > 0.5 ? 600 : -600;
+            enemies.push({ x: player.x + side, y: 0, w: 24, h: 44, vx: 0, vy: 0, hp: 50 });
         }
     }
-    setInterval(spawnEnemy, 5000);
+    setInterval(spawnEnemy, 4000);
 
     function getBlock(x, y) {
         const key = `${Math.floor(x)}_${Math.floor(y)}`;
@@ -87,73 +92,23 @@
     window.onkeyup = (e) => keys[e.code] = false;
 
     canvas.onmousedown = (e) => {
-        playMusic(); // 點擊時嘗試播放音樂
+        startMusic(); // 點擊時啟動音樂
         const gx = Math.floor((e.clientX + cameraX) / tileSize);
         const gy = Math.floor(e.clientY / tileSize);
-        if (e.button === 0) {
+        
+        if (e.button === 0) { // 左鍵：挖礦 + 攻擊
             player.atkTimer = 10;
             enemies.forEach(en => {
-                if (Math.hypot(en.x - player.x, en.y - player.y) < 60) {
-                    en.hp -= 25; en.vx = (player.x < en.x ? 10 : -10);
+                if (Math.hypot(en.x - player.x, en.y - player.y) < 70) {
+                    en.hp -= 25; en.vx = (player.x < en.x ? 12 : -12); en.vy = -5;
                 }
             });
             worldData[`${gx}_${gy}`] = 0;
         }
-        if (e.button === 2) worldData[`${gx}_${gy}`] = 3;
-        localStorage.setItem('mc_slow_v1', JSON.stringify(worldData));
+        if (e.button === 2) worldData[`${gx}_${gy}`] = 3; // 右鍵：蓋石頭
+        localStorage.setItem('mc_music_save', JSON.stringify(worldData));
     };
 
     function loop() {
-        player.vx = keys['KeyA'] ? -player.speed : (keys['KeyD'] ? player.speed : 0);
-        
-        let nextX = player.x + player.vx;
-        if (isColliding(nextX, player.y)) {
-            if (!isColliding(nextX, player.y - tileSize)) { player.x = nextX; player.y -= tileSize; }
-        } else { player.x = nextX; }
-
-        player.vy += 0.6;
-        if (keys['Space'] && player.grounded) { player.vy = player.jump; player.grounded = false; }
-
-        if (!isColliding(player.x, player.y + player.vy)) {
-            player.y += player.vy; player.grounded = false;
-        } else {
-            if (player.vy > 0) player.grounded = true;
-            player.vy = 0;
-        }
-
-        cameraX += (player.x - canvas.width / 2 - cameraX) * 0.1;
-
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-        let startX = Math.floor(cameraX / tileSize);
-        let endX = startX + Math.ceil(canvas.width / tileSize) + 1;
-        for (let x = startX; x < endX; x++) {
-            for (let y = 0; y < 25; y++) {
-                let b = getBlock(x, y);
-                if (b > 0) {
-                    ctx.fillStyle = b === 2 ? '#f1c40f' : (b === 1 ? '#8b4513' : '#7f8c8d');
-                    ctx.fillRect(x * tileSize - cameraX, y * tileSize, tileSize, tileSize);
-                }
-            }
-        }
-
-        enemies = enemies.filter(en => en.hp > 0);
-        enemies.forEach(en => {
-            en.vx = (player.x > en.x) ? 1.5 : -1.5;
-            en.vy += 0.6;
-            if (!isColliding(en.x + en.vx, en.y)) en.x += en.vx;
-            if (!isColliding(en.x, en.y + en.vy)) en.y += en.vy; else en.vy = 0;
-            if (Math.abs(en.x - player.x) < 20) player.hp -= 0.1;
-            ctx.fillStyle = '#27ae60';
-            ctx.fillRect(en.x - cameraX, en.y, en.w, en.h);
-        });
-
-        ctx.fillStyle = '#f39c12';
-        ctx.fillRect(player.x - cameraX, player.y, player.w, player.h);
-        
-        document.getElementById('hp-fill').style.width = player.hp + "%";
-        requestAnimationFrame(loop);
-    }
-    loop();
-</script>
-</body>
-</html>
+        // 1. 移動與自動爬坡
+        player.vx
