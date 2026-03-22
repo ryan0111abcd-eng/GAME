@@ -2,7 +2,7 @@
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
-    <title>2D Minecraft: 生態系版</title>
+    <title>2D Minecraft: 生態修復版</title>
     <style>
         body { margin: 0; overflow: hidden; background: #000; font-family: sans-serif; }
         canvas { display: block; }
@@ -10,14 +10,13 @@
             position: absolute; top: 15px; left: 15px; background: rgba(0,0,0,0.7); 
             color: white; padding: 12px; border-radius: 8px; pointer-events: none;
         }
-        .time-info { color: #f1c40f; font-weight: bold; }
     </style>
 </head>
 <body>
     <div id="ui">
-        <b>🌳 生態生存模式</b><br>
-        時間：<span id="clock" class="time-info">00:00</span><br>
-        ❤️ 生命：<span id="hp">100</span> | A/D 移動 | 空白 跳躍
+        <b>🌍 生態生存世界</b><br>
+        時間：<span id="clock">12:00</span> | ❤️ HP: <span id="hp">100</span><br>
+        <small>A/D 移動 | 空白 跳躍 | 遇坡自動爬行</small>
     </div>
     <canvas id="gameCanvas"></canvas>
 
@@ -29,53 +28,47 @@
 
     const tileSize = 32;
     let cameraX = 0;
-    let worldData = JSON.parse(localStorage.getItem('mc_eco_v1')) || {};
+    let worldData = {}; // 重新開始以確保不卡死
     let keys = {};
-    let gameTime = 0; // 0 ~ 2400
+    let gameTime = 1200; // 從中午開始
 
-    let player = { x: 100, y: 100, w: 20, h: 40, vx: 0, vy: 0, speed: 4, jump: -10, grounded: false, hp: 100 };
+    // 玩家設定：起始高度設高一點 (y: 0)，確保不會出生在土裡
+    let player = { x: 300, y: 0, w: 20, h: 40, vx: 0, vy: 0, speed: 4, jump: -10, grounded: false, hp: 100 };
     let animals = [];
-    let enemies = [];
 
-    // --- 地形與物件生成 ---
+    // --- 地形生成邏輯 ---
     function getBlock(x, y) {
         const key = `${x}_${y}`;
         if (worldData[key] !== undefined) return worldData[key];
         
-        let ground = Math.floor(14 + Math.sin(x * 0.1) * 3);
-        if (y < ground) {
-            // 隨機生成村莊 (每隔 50 格機率出現)
-            if (y === ground - 1 && x % 60 === 0) { generateHouse(x, ground - 1); }
-            // 隨機生成樹
-            if (y === ground - 1 && Math.abs(Math.sin(x)) > 0.92 && x % 5 !== 0) { generateTree(x, ground - 1); }
-            return 0; 
+        let groundLevel = Math.floor(14 + Math.sin(x * 0.1) * 3);
+        
+        // 生成樹與房子
+        if (y === groundLevel - 1) {
+            if (x % 50 === 0) { // 每 50 格一間屋
+                for(let hx=0; hx<5; hx++) for(let hy=0; hy<4; hy++) {
+                    if(hx===0 || hx===4 || hy===3) worldData[`${x+hx}_${y-hy}`] = 4;
+                }
+            } else if (Math.random() > 0.95 && x % 7 === 0) { // 隨機樹
+                worldData[`${x}_${y}`] = 4; worldData[`${x}_${y-1}`] = 4;
+                for(let i=-1; i<=1; i++) for(let j=-3; j<=-2; j++) worldData[`${x+i}_${y+j}`] = 5;
+            }
         }
-        return (y === ground) ? 2 : 1; // 2:草, 1:土
+        
+        if (y < groundLevel) return 0;
+        return (y === groundLevel) ? 2 : 1; // 2:草, 1:土
     }
 
-    function generateTree(x, y) {
-        worldData[`${x}_${y}`] = 4; // 木頭
-        worldData[`${x}_${y-1}`] = 4;
-        worldData[`${x}_${y-2}`] = 4;
-        for(let i=-1; i<=1; i++) for(let j=-3; j<=-1; j++) {
-            if (!worldData[`${x+i}_${y+j}`]) worldData[`${x+i}_${y+j}`] = 5; // 樹葉
-        }
-    }
-
-    function generateHouse(x, y) {
-        for(let i=0; i<5; i++) for(let j=0; j<4; j++) {
-            if (i===0 || i===4 || j===0) worldData[`${x+i}_${y-j}`] = 4; // 木牆
-        }
-    }
-
-    // 初始化動物
-    for(let i=0; i<5; i++) animals.push({ x: 200 + i*300, y: 0, w: 20, h: 20, vx: 1, type: 'sheep' });
+    // 初始化幾隻羊
+    for(let i=0; i<8; i++) animals.push({ x: 500 + i*400, y: 0, w: 24, h: 18, vx: 1 });
 
     function isColliding(nx, ny, w, h) {
         let x1 = Math.floor(nx / tileSize), x2 = Math.floor((nx + w) / tileSize);
         let y1 = Math.floor(ny / tileSize), y2 = Math.floor((ny + h) / tileSize);
         for (let x = x1; x <= x2; x++) {
-            for (let y = y1; y <= y2; y++) { if (getBlock(x, y) > 0) return true; }
+            for (let y = y1; y <= y2; y++) {
+                if (getBlock(x, y) > 0) return true;
+            }
         }
         return false;
     }
@@ -85,26 +78,34 @@
 
     function loop() {
         gameTime = (gameTime + 1) % 2400;
-        let dayRatio = Math.sin((gameTime / 2400) * Math.PI * 2); // -1 ~ 1
+        let dayRatio = Math.cos((gameTime / 2400) * Math.PI * 2); // 1 為中午, -1 為深夜
 
-        // 1. 玩家邏輯
+        // 1. 玩家物理
         player.vx = keys['KeyA'] ? -player.speed : (keys['KeyD'] ? player.speed : 0);
         let nextX = player.x + player.vx;
+        
+        // 自動爬坡偵測
         if (isColliding(nextX, player.y, player.w, player.h)) {
-            if (!isColliding(nextX, player.y - tileSize, player.w, player.h)) { player.x = nextX; player.y -= tileSize; }
+            if (!isColliding(nextX, player.y - tileSize, player.w, player.h)) {
+                player.x = nextX; player.y -= tileSize;
+            }
         } else { player.x = nextX; }
 
         player.vy += 0.6;
         if (keys['Space'] && player.grounded) { player.vy = player.jump; player.grounded = false; }
+        
         if (!isColliding(player.x, player.y + player.vy, player.w, player.h)) {
             player.y += player.vy; player.grounded = false;
-        } else { if (player.vy > 0) player.grounded = true; player.vy = 0; }
+        } else {
+            if (player.vy > 0) player.grounded = true;
+            player.vy = 0;
+        }
 
         cameraX += (player.x - canvas.width / 2 - cameraX) * 0.1;
 
-        // 2. 渲染背景 (日夜循環)
-        let skyR = 135 + dayRatio * 100, skyG = 206 + dayRatio * 100, skyB = 235 + dayRatio * 100;
-        ctx.fillStyle = `rgb(${skyR},${skyG},${skyB})`;
+        // 2. 渲染背景 (日夜顏色轉換)
+        let r = 20 + (dayRatio + 1) * 60, g = 30 + (dayRatio + 1) * 90, b = 50 + (dayRatio + 1) * 100;
+        ctx.fillStyle = `rgb(${r},${g},${b})`;
         ctx.fillRect(0, 0, canvas.width, canvas.height);
 
         // 3. 繪製方塊
@@ -113,6 +114,34 @@
         for (let x = startX; x < endX; x++) {
             for (let y = 0; y < 25; y++) {
                 let b = getBlock(x, y);
-                if (b > 0) {
-                    if (b === 1) ctx.fillStyle = '#8b4513'; // 土
-                    if (b === 2
+                if (b === 1) ctx.fillStyle = '#6d4c41'; // 土
+                else if (b === 2) ctx.fillStyle = '#4caf50'; // 草
+                else if (b === 4) ctx.fillStyle = '#5d4037'; // 木頭
+                else if (b === 5) ctx.fillStyle = '#2e7d32'; // 樹葉
+                else continue;
+                ctx.fillRect(x * tileSize - cameraX, y * tileSize, tileSize, tileSize);
+            }
+        }
+
+        // 4. 動物 (羊)
+        animals.forEach(an => {
+            an.vy += 0.5;
+            if (Math.random() < 0.01) an.vx *= -1;
+            if (!isColliding(an.x + an.vx, an.y, an.w, an.h)) an.x += an.vx;
+            if (!isColliding(an.x, an.y + an.vy, an.w, an.h)) an.y += an.vy; else an.vy = 0;
+            ctx.fillStyle = '#ffffff'; // 羊是白色的
+            ctx.fillRect(an.x - cameraX, an.y, an.w, an.h);
+        });
+
+        // 5. 畫玩家
+        ctx.fillStyle = '#ff5722';
+        ctx.fillRect(player.x - cameraX, player.y, player.w, player.h);
+
+        // 更新 UI
+        document.getElementById('clock').innerText = `${Math.floor(gameTime/100).toString().padStart(2,'0')}:00`;
+        requestAnimationFrame(loop);
+    }
+    loop();
+</script>
+</body>
+</html>
