@@ -2,211 +2,201 @@
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
-    <title>2D Minecraft: 精確日夜生存戰鬥版</title>
+    <title>未來的 Super Human</title>
     <style>
-        body { margin: 0; overflow: hidden; background: #000; font-family: 'Courier New', monospace; }
+        body { margin: 0; overflow: hidden; background: #000; font-family: "Microsoft JhengHei", sans-serif; }
         canvas { display: block; }
-        #ui { 
-            position: absolute; top: 15px; left: 15px; background: rgba(0,0,0,0.8); 
-            color: #fff; padding: 15px; border-radius: 10px; border: 2px solid #555;
-            pointer-events: none; min-width: 250px;
+        
+        /* 選單畫面 */
+        .screen {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            z-index: 1000; color: white; background: rgba(0,0,0,0.95);
         }
-        .status { color: #f1c40f; font-weight: bold; }
-        .danger { color: #ff4444; font-weight: bold; animation: blink 1s infinite; }
-        @keyframes blink { 50% { opacity: 0; } }
+        h1 { color: #f1c40f; font-size: 60px; text-shadow: 0 0 20px #f1c40f; margin-bottom: 40px; }
+        .btn {
+            padding: 15px 60px; font-size: 26px; background: #f1c40f; border: none;
+            border-radius: 50px; cursor: pointer; font-weight: bold; margin: 15px; transition: 0.2s;
+        }
+        .btn:hover { transform: scale(1.1); background: #fff; color: #000; }
+        
+        /* 遊戲 UI */
+        #ui { 
+            position: absolute; top: 20px; left: 20px; color: #fff; 
+            background: rgba(0,0,0,0.7); padding: 15px; border-radius: 10px; 
+            display: none; border: 2px solid #f1c40f; pointer-events: none; z-index: 10;
+        }
+        input[type=range] { width: 300px; margin: 25px; cursor: pointer; }
     </style>
 </head>
 <body>
-    <div id="ui">
-        <b>🌍 世界時間：<span id="clock" class="status">07:00</span></b><br>
-        ❤️ 玩家生命：<span id="hp" class="status">100</span><br>
-        ⚔️ 攻擊範圍：近戰圓弧<br>
-        <div id="warn" class="danger" style="display:none;">⚠️ 警告：夜晚降臨，怪物出沒！</div>
+
+    <div id="main-menu" class="screen">
+        <h1>未來的 Super Human</h1>
+        <button class="btn" onclick="initGame(1)">開始遊戲</button>
+        <button class="btn" style="background:#3498db; color:white;" onclick="showMulti()">多人連線</button>
     </div>
+
+    <div id="multi-menu" class="screen" style="display:none;">
+        <h1>選擇遊戲人數</h1>
+        <div style="font-size:24px;">總人數 (含自己): <span id="p-label" style="color:#f1c40f">5</span> 人</div>
+        <input type="range" id="p-slider" min="2" max="10" value="5" oninput="document.getElementById('p-label').innerText=this.value">
+        <button class="btn" onclick="initGame(document.getElementById('p-slider').value)">開始</button>
+    </div>
+
+    <div id="ui">
+        <b>🌍 時間：<span id="clock" style="color:#f1c40f">07:00</span></b><br>
+        ❤️ 生命：<span id="hp">100</span> | 👥 隊伍人數：<span id="p-count">1</span>
+    </div>
+
     <canvas id="gameCanvas"></canvas>
 
 <script>
     const canvas = document.getElementById('gameCanvas');
     const ctx = canvas.getContext('2d');
-    function resize() { canvas.width = window.innerWidth; canvas.height = window.innerHeight; }
-    window.onresize = resize; resize();
+    
+    let isPlaying = false, cameraX = 0, gameTime = 420; // 從 07:00 開始
+    let keys = {}, teammates = [], villagers = [], animals = [], enemies = [];
 
-    const tileSize = 32;
-    let cameraX = 0;
-    let worldData = JSON.parse(localStorage.getItem('mc_final_v1')) || {};
-    let keys = {};
-    let gameTime = 420; // 從 07:00 (420分鐘) 開始
-    let atkTimer = 0;
+    const PHYSICS = { gravity: 0.6, jump: -11, speed: 4 };
 
-    let player = { x: 300, y: -100, w: 22, h: 42, vx: 0, vy: 0, speed: 4, jump: -11, grounded: false, hp: 100 };
-    let enemies = [];
-    let animals = [];
-
-    function getBlock(x, y) {
-        const key = `${x}_${y}`;
-        if (worldData[key] !== undefined) return worldData[key];
-        let groundLevel = Math.floor(15 + Math.sin(x * 0.1) * 3);
-        if (y < groundLevel) {
-            // 自動生成樹與村莊
-            if (y === groundLevel - 1 && x % 45 === 0) {
-                for(let i=0; i<4; i++) for(let j=0; j<3; j++) if(i===0||i===3||j===2) worldData[`${x+i}_${y-j}`] = 4;
-            }
-            if (y === groundLevel - 1 && Math.abs(Math.sin(x)) > 0.98) return 4;
-            return 0;
+    class Entity {
+        constructor(x, y, color, type = 'npc') {
+            this.x = x; this.y = y; this.w = 22; this.h = 42;
+            this.vx = 0; this.vy = 0; this.color = color;
+            this.type = type; this.grounded = false; this.hp = 100;
         }
-        return (y === groundLevel) ? 2 : 1; 
+        update(inputX, wantJump) {
+            this.vx = inputX;
+            let nx = this.x + this.vx;
+            // 碰撞與自動爬坡
+            if (checkCol(nx, this.y, this.w, this.h)) {
+                if (!checkCol(nx, this.y - 32, this.w, this.h)) { this.x = nx; this.y -= 8; }
+                else { this.vx = 0; }
+            } else { this.x = nx; }
+            // 重力
+            this.vy += PHYSICS.gravity;
+            if (wantJump && this.grounded) { this.vy = PHYSICS.jump; this.grounded = false; }
+            if (!checkCol(this.x, this.y + this.vy, this.w, this.h)) { this.y += this.vy; this.grounded = false; }
+            else { if (this.vy > 0) this.grounded = true; this.vy = 0; }
+        }
+        draw() {
+            ctx.fillStyle = this.color;
+            ctx.fillRect(this.x - cameraX, this.y, this.w, this.h);
+        }
     }
 
-    // --- 攻擊與挖掘系統 ---
-    canvas.onmousedown = (e) => {
-        const gx = Math.floor((e.clientX + cameraX) / tileSize);
-        const gy = Math.floor(e.clientY / tileSize);
-        
-        if (e.button === 0) { // 左鍵：攻擊 + 挖掘
-            atkTimer = 10; // 顯示攻擊特效
-            let hitAny = false;
-            // 檢查是否砍到怪物
-            enemies.forEach(en => {
-                let dx = en.x - player.x;
-                let dy = en.y - player.y;
-                let dist = Math.sqrt(dx*dx + dy*dy);
-                if (dist < 80) { // 攻擊半徑 80
-                    en.hp -= 20;
-                    en.vx = (player.x < en.x ? 15 : -15); // 擊退效果
-                    en.vy = -5;
-                    hitAny = true;
-                }
-            });
-            // 如果沒砍到怪，則嘗試挖掘
-            if (!hitAny) worldData[`${gx}_${gy}`] = 0;
-        } else if (e.button === 2) { // 右鍵：建築
-            if (getBlock(gx, gy) === 0) worldData[`${gx}_${gy}`] = 4;
-        }
-        localStorage.setItem('mc_final_v1', JSON.stringify(worldData));
-    };
-    canvas.oncontextmenu = (e) => e.preventDefault();
+    let player = new Entity(300, -500, '#e67e22', 'player');
 
-    function isColliding(nx, ny, w, h) {
-        let x1 = Math.floor(nx / tileSize), x2 = Math.floor((nx + w) / tileSize);
-        let y1 = Math.floor(ny / tileSize), y2 = Math.floor((ny + h) / tileSize);
-        for (let x = x1; x <= x2; x++) {
-            for (let y = y1; y <= y2; y++) { if (getBlock(x, y) > 0) return true; }
+    function showMulti() {
+        document.getElementById('main-menu').style.display = 'none';
+        document.getElementById('multi-menu').style.display = 'flex';
+    }
+
+    function initGame(count) {
+        document.querySelectorAll('.screen').forEach(s => s.style.display = 'none');
+        document.getElementById('ui').style.display = 'block';
+        document.getElementById('p-count').innerText = count;
+
+        // 生成電腦隊友 (黃色)
+        for(let i=0; i < count - 1; i++) teammates.push(new Entity(350 + i*50, -500, '#f1c40f', 'teammate'));
+        // 生成村民 (藍色) 與 動物 (白色)
+        for(let i=0; i<4; i++) villagers.push(new Entity(1200 + i*300, -500, '#3498db', 'villager'));
+        for(let i=0; i<6; i++) animals.push({x: 800 + i*600, y:-500, w:20, h:15, vx:1, vy:0});
+
+        isPlaying = true;
+        resize();
+        loop();
+    }
+
+    function checkCol(nx, ny, w, h) {
+        let x1 = Math.floor(nx / 32), x2 = Math.floor((nx + w) / 32);
+        let y1 = Math.floor(ny / 32), y2 = Math.floor((ny + h) / 32);
+        for (let x = x1; x <= x2; x++) for (let y = y1; y <= y2; y++) {
+            let ground = Math.floor(15 + Math.sin(x * 0.1) * 3);
+            if (y >= ground) return true;
         }
         return false;
     }
 
-    window.onkeydown = (e) => keys[e.code] = true;
-    window.onkeyup = (e) => keys[e.code] = false;
+    window.addEventListener('keydown', (e) => {
+        keys[e.code] = true;
+        if (isPlaying && e.code !== 'KeyA' && e.code !== 'KeyD' && e.code !== 'Space') attack();
+    });
+    window.addEventListener('keyup', (e) => keys[e.code] = false);
+    canvas.addEventListener('mousedown', () => attack());
 
-    // 初始化羊
-    for(let i=0; i<3; i++) animals.push({x: 500 + i*900, y: 0, w: 24, h: 20, vx: 0.5, hp: 100});
+    function attack() {
+        enemies.forEach(en => { if(Math.hypot(en.x - player.x, en.y - player.y) < 80) en.hp -= 40; });
+    }
+
+    function resize() { canvas.width = window.innerWidth; canvas.height = window.innerHeight; }
+    window.onresize = resize;
 
     function loop() {
-        // --- 精確時間系統邏輯 ---
-        gameTime = (gameTime + 0.3) % 1440; // 1440分鐘一圈
-        let h = Math.floor(gameTime / 60);
-        let m = Math.floor(gameTime % 60);
-        let totalMin = h * 60 + m;
+        if (!isPlaying) return;
 
-        let skyColor = "rgb(15, 15, 30)"; // 深夜顏色
-        let spawnMonster = false;
+        // --- 時間控制 ---
+        gameTime = (gameTime + 0.3) % 1440; 
+        let sky = "#87ceeb"; // 白天 07:00-17:00
+        if (gameTime >= 1050 && gameTime < 1080) sky = "#ff7832"; // 17:30-18:00 傍晚
+        else if (gameTime >= 1090 || gameTime < 390) sky = "#050510"; // 18:10-06:30 晚上
 
-        // 7:00 ~ 17:00 亮天
-        if (totalMin >= 420 && totalMin < 1020) {
-            skyColor = "rgb(135, 206, 235)";
-        } 
-        // 17:00 ~ 17:30 (過渡)
-        else if (totalMin >= 1020 && totalMin < 1050) {
-            skyColor = "rgb(100, 160, 200)";
-        }
-        // 17:30 ~ 18:00 傍晚 (橘紅)
-        else if (totalMin >= 1050 && totalMin < 1080) {
-            skyColor = "rgb(255, 120, 50)";
-        }
-        // 18:10 ~ 06:30 晚上 (有怪物)
-        if (totalMin >= 1090 || totalMin < 390) {
-            spawnMonster = true;
-            document.getElementById('warn').style.display = 'block';
-        } else {
-            document.getElementById('warn').style.display = 'none';
+        ctx.fillStyle = sky; ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        // 晚上生怪物 (綠色)
+        if (sky === "#050510" && Math.random() < 0.012 && enemies.length < 8) {
+            enemies.push(new Entity(player.x + (Math.random() > 0.5 ? 500 : -500), -500, '#2ecc71', 'enemy'));
         }
 
-        // 1. 玩家運動
-        player.vx = keys['KeyA'] ? -player.speed : (keys['KeyD'] ? player.speed : 0);
-        let nextX = player.x + player.vx;
-        if (isColliding(nextX, player.y, player.w, player.h)) {
-            if (!isColliding(nextX, player.y - tileSize, player.w, player.h)) {
-                player.x = nextX; player.y -= tileSize;
-            }
-        } else { player.x = nextX; }
-
-        player.vy += 0.6;
-        if (keys['Space'] && player.grounded) { player.vy = player.jump; player.grounded = false; }
-        if (!isColliding(player.x, player.y + player.vy, player.w, player.h)) {
-            player.y += player.vy; player.grounded = false;
-        } else { if (player.vy > 0) player.grounded = true; player.vy = 0; }
-
+        // 玩家更新
+        let pMove = (keys['KeyA'] ? -1 : keys['KeyD'] ? 1 : 0) * PHYSICS.speed;
+        player.update(pMove, keys['Space']);
         cameraX += (player.x - canvas.width / 2 - cameraX) * 0.1;
+        player.draw();
 
-        // 2. 怪物生成與 AI
-        if (spawnMonster && Math.random() < 0.01 && enemies.length < 5) {
-            enemies.push({ x: player.x + (Math.random() > 0.5 ? 500 : -500), y: 0, w: 20, h: 40, vx: 0, vy: 0, hp: 50 });
-        }
-
-        // 3. 繪製
-        ctx.fillStyle = skyColor;
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-        let startX = Math.floor(cameraX / tileSize);
-        let endX = startX + Math.ceil(canvas.width / tileSize) + 1;
-        for (let x = startX; x < endX; x++) {
-            for (let y = 0; y < 25; y++) {
-                let b = getBlock(x, y);
-                if (b === 0) continue;
-                ctx.fillStyle = (b===1)?'#6d4c41':(b===2)?'#4caf50':'#5d4037';
-                ctx.fillRect(x * tileSize - cameraX, y * tileSize, tileSize, tileSize);
+        // 地形繪製
+        let sx = Math.floor(cameraX / 32), ex = sx + Math.ceil(canvas.width / 32) + 1;
+        for (let x = sx; x < ex; x++) {
+            let gr = Math.floor(15 + Math.sin(x * 0.1) * 3);
+            for (let y = gr; y < gr + 8; y++) {
+                ctx.fillStyle = (y === gr) ? '#4caf50' : '#6d4c41';
+                ctx.fillRect(x * 32 - cameraX, y * 32, 32, 32);
             }
         }
 
-        // 處理怪物
-        enemies = enemies.filter(en => en.hp > 0);
-        enemies.forEach(en => {
-            en.vx = (player.x > en.x) ? 1.8 : -1.8;
-            en.vy += 0.6;
-            if (!isColliding(en.x + en.vx, en.y, en.w, en.h)) en.x += en.vx;
-            if (!isColliding(en.x, en.y + en.vy, en.w, en.h)) en.y += en.vy; else en.vy = 0;
-            if (Math.abs(en.x - player.x) < 20 && Math.abs(en.y - player.y) < 20) player.hp -= 0.5;
-            ctx.fillStyle = '#1b5e20'; // 綠色殭屍
-            ctx.fillRect(en.x - cameraX, en.y, en.w, en.h);
+        // 隊友/村民/怪物 AI
+        [...teammates, ...villagers, ...enemies].forEach(ent => {
+            let mv = 0, jump = false;
+            if (ent.type === 'teammate') {
+                let d = player.x - ent.x;
+                if (Math.abs(d) > 60) mv = (d > 0 ? 1 : -1) * PHYSICS.speed;
+                jump = checkCol(ent.x + mv, ent.y, ent.w, ent.h);
+            } else if (ent.type === 'enemy') {
+                let d = player.x - ent.x; mv = (d > 0 ? 1 : -1) * 2;
+                jump = checkCol(ent.x + mv, ent.y, ent.w, ent.h);
+                if(Math.abs(ent.x - player.x) < 20) player.hp -= 0.1;
+            } else { mv = (Math.random()-0.5)*1.5; }
+            ent.update(mv, jump);
+            ent.draw();
         });
+        enemies = enemies.filter(en => en.hp > 0);
 
         // 動物
         animals.forEach(an => {
             an.vy += 0.5;
-            if (!isColliding(an.x + an.vx, an.y, an.w, an.h)) an.x += an.vx; else an.vx *= -1;
-            if (!isColliding(an.x, an.y + an.vy, an.w, an.h)) an.y += an.vy; else an.vy = 0;
-            ctx.fillStyle = '#ffffff'; ctx.fillRect(an.x - cameraX, an.y, an.w, an.h);
+            if(!checkCol(an.x + an.vx, an.y, an.w, an.h)) an.x += an.vx; else an.vx *= -1;
+            if(!checkCol(an.x, an.y + an.vy, an.w, an.h)) an.y += an.vy; else an.vy = 0;
+            ctx.fillStyle = '#fff'; ctx.fillRect(an.x - cameraX, an.y, an.w, an.h);
         });
 
-        // 畫玩家與攻擊特效
-        ctx.fillStyle = '#ff5722';
-        ctx.fillRect(player.x - cameraX, player.y, player.w, player.h);
-        if (atkTimer > 0) {
-            ctx.strokeStyle = "rgba(255, 255, 255, "+(atkTimer/10)+")";
-            ctx.lineWidth = 3;
-            ctx.beginPath();
-            ctx.arc(player.x - cameraX + 10, player.y + 20, 50, 0, Math.PI * 2);
-            ctx.stroke();
-            atkTimer--;
-        }
-
+        // 更新 UI
+        let h = Math.floor(gameTime / 60), m = Math.floor(gameTime % 60);
         document.getElementById('clock').innerText = `${h.toString().padStart(2,'0')}:${m.toString().padStart(2,'0')}`;
-        document.getElementById('hp').innerText = Math.floor(player.hp);
-        if (player.hp <= 0) { alert("戰死沙場！"); location.reload(); }
+        document.getElementById('hp').innerText = Math.max(0, Math.floor(player.hp));
 
         requestAnimationFrame(loop);
     }
-    loop();
 </script>
 </body>
 </html>
