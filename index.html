@@ -2,32 +2,61 @@
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
-    <title>2D Minecraft: 未來的super human</title>
+    <title>未來的 Super Human</title>
     <style>
-        body { margin: 0; overflow: hidden; background: #000; font-family: sans-serif; }
+        body { margin: 0; overflow: hidden; background: #000; font-family: 'Segoe UI', sans-serif; }
         canvas { display: block; }
-        #ui { 
-            position: absolute; top: 15px; left: 15px; background: rgba(255,255,255,0.1); 
-            color: #fff; padding: 12px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.3);
-            pointer-events: none; backdrop-filter: blur(5px);
+        
+        /* 開始選單樣式 */
+        #menu {
+            position: absolute; width: 100%; height: 100%;
+            background: linear-gradient(rgba(0,0,0,0.8), rgba(0,0,0,0.8)), url('https://www.transparenttextures.com/patterns/dark-matter.png');
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            z-index: 100; transition: 0.5s;
         }
-        .time-text { color: #f1c40f; font-weight: bold; font-size: 20px; }
-        .monster-warn { color: #ff4d4d; font-weight: bold; }
+        #menu h1 { color: #f1c40f; font-size: 60px; text-shadow: 0 0 20px #f1c40f; margin-bottom: 30px; }
+        #start-btn {
+            padding: 15px 40px; font-size: 24px; background: #f1c40f; color: #000;
+            border: none; border-radius: 50px; cursor: pointer; font-weight: bold;
+            transition: 0.3s; box-shadow: 0 0 15px rgba(241, 196, 15, 0.5);
+        }
+        #start-btn:hover { transform: scale(1.1); background: #fff; }
+
+        #ui { 
+            position: absolute; top: 15px; left: 15px; background: rgba(0,0,0,0.6); 
+            color: #fff; padding: 12px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.2);
+            pointer-events: none; display: none; /* 遊戲開始才顯示 */
+        }
+        .time-text { color: #f1c40f; font-weight: bold; }
     </style>
 </head>
 <body>
+
+    <div id="menu">
+        <h1>未來的 Super Human</h1>
+        <button id="start-btn" onclick="startGame()">開始遊戲</button>
+    </div>
+
     <div id="ui">
         <b>🌍 時間：<span id="clock" class="time-text">07:00</span></b><br>
         ❤️ 生命：<span id="hp" style="color:#2ecc71">100</span><br>
-        <span id="night-msg" class="monster-warn" style="display:none;">🌙 深夜：怪物出沒中！</span>
+        <small>左鍵：攻擊/挖掘 | 右鍵：建造 | A/D：移動</small>
     </div>
     <canvas id="gameCanvas"></canvas>
 
 <script>
     const canvas = document.getElementById('gameCanvas');
     const ctx = canvas.getContext('2d');
+    let gameActive = false;
+
     function resize() { canvas.width = window.innerWidth; canvas.height = window.innerHeight; }
     window.onresize = resize; resize();
+
+    function startGame() {
+        document.getElementById('menu').style.display = 'none';
+        document.getElementById('ui').style.display = 'block';
+        gameActive = true;
+    }
 
     const tileSize = 32;
     let cameraX = 0;
@@ -36,34 +65,36 @@
     let gameTime = 420; // 07:00
     let atkTimer = 0;
 
-    // 玩家從高處出生避免卡死
-    let player = { x: 300, y: -300, w: 22, h: 42, vx: 0, vy: 0, speed: 4, jump: -11, grounded: false, hp: 100 };
+    let player = { x: 300, y: -400, w: 22, h: 42, vx: 0, vy: 0, speed: 4, jump: -11, grounded: false, hp: 100 };
     let enemies = [];
     let animals = [];
+    let villagers = [];
 
     function getBlock(x, y) {
         const key = `${x}_${y}`;
         if (worldData[key] !== undefined) return worldData[key];
         let ground = Math.floor(15 + Math.sin(x * 0.1) * 3);
         if (y < ground) {
-            if (y === ground - 1 && x % 45 === 0) { // 村莊
-                for(let i=0; i<4; i++) for(let j=0; j<3; j++) if(i===0||i===3||j===2) worldData[`${x+i}_${y-j}`] = 4;
+            if (y === ground - 1 && x % 60 === 0) { // 村莊小屋
+                for(let i=0; i<5; i++) for(let j=0; j<4; j++) if(i===0||i===4||j===3) worldData[`${x+i}_${y-j}`] = 4;
+                if (!villagers.some(v => v.originX === x*tileSize)) {
+                    villagers.push({ x: (x+2)*tileSize, y: (y-1)*tileSize, w: 20, h: 40, vx: 0.3, originX: x*tileSize });
+                }
             }
-            if (y === ground - 1 && Math.abs(Math.sin(x)) > 0.98) return 4; // 樹幹
+            if (y === ground - 1 && Math.abs(Math.sin(x)) > 0.98) return 4; // 樹
             return 0;
         }
         return (y === ground) ? 2 : 1; 
     }
 
     canvas.onmousedown = (e) => {
+        if (!gameActive) return;
         const gx = Math.floor((e.clientX + cameraX) / tileSize);
         const gy = Math.floor(e.clientY / tileSize);
         if (e.button === 0) { 
             atkTimer = 10;
             let hit = false;
-            enemies.forEach(en => {
-                if (Math.hypot(en.x - (gx*tileSize), en.y - (gy*tileSize)) < 60) { en.hp -= 20; hit = true; }
-            });
+            enemies.forEach(en => { if (Math.hypot(en.x - (gx*tileSize), en.y - (gy*tileSize)) < 60) { en.hp -= 20; hit = true; } });
             if (!hit) worldData[`${gx}_${gy}`] = 0;
         } else if (e.button === 2) { 
             if (getBlock(gx, gy) === 0) worldData[`${gx}_${gy}`] = 4;
@@ -83,31 +114,30 @@
     window.onkeydown = (e) => keys[e.code] = true;
     window.onkeyup = (e) => keys[e.code] = false;
 
-    for(let i=0; i<3; i++) animals.push({x: 800 + i*700, y: 0, w: 24, h: 20, vx: 0.6});
+    // 初始化羊
+    for(let i=0; i<3; i++) animals.push({x: 600 + i*800, y: 0, w: 24, h: 20, vx: 0.6});
 
     function loop() {
+        if (!gameActive) return requestAnimationFrame(loop);
+
         gameTime = (gameTime + 0.3) % 1440; 
         let h = Math.floor(gameTime / 60);
         let m = Math.floor(gameTime % 60);
         let totalM = h * 60 + m;
 
-        let sky = "#000000"; // 預設黑夜
+        let sky = "#000000"; 
         let isDark = true;
-
         if (totalM >= 420 && totalM < 1020) { sky = "#87ceeb"; isDark = false; } // 07:00-17:00
         else if (totalM >= 1050 && totalM < 1080) { sky = "#ff7832"; isDark = false; } // 17:30-18:00
         
-        let showMonster = (totalM >= 1090 || totalM < 390);
-        document.getElementById('night-msg').style.display = showMonster ? 'block' : 'none';
         document.getElementById('clock').innerText = `${h.toString().padStart(2,'0')}:${m.toString().padStart(2,'0')}`;
 
-        // 玩家邏輯 (速度 1.0)
+        // 玩家運動
         player.vx = keys['KeyA'] ? -player.speed : (keys['KeyD'] ? player.speed : 0);
         let nextX = player.x + player.vx;
         if (isColliding(nextX, player.y, player.w, player.h)) {
             if (!isColliding(nextX, player.y - tileSize, player.w, player.h)) { player.x = nextX; player.y -= tileSize; }
         } else { player.x = nextX; }
-
         player.vy += 0.6;
         if (keys['Space'] && player.grounded) { player.vy = player.jump; player.grounded = false; }
         if (!isColliding(player.x, player.y + player.vy, player.w, player.h)) {
@@ -116,15 +146,15 @@
 
         cameraX += (player.x - canvas.width / 2 - cameraX) * 0.1;
 
-        if (showMonster && Math.random() < 0.01 && enemies.length < 5) {
+        // 怪物生成
+        if ((totalM >= 1090 || totalM < 390) && Math.random() < 0.01 && enemies.length < 5) {
             enemies.push({ x: player.x + (Math.random() > 0.5 ? 500 : -500), y: 0, w: 20, h: 40, hp: 50 });
         }
 
-        // 繪製天空
+        // 繪製
         ctx.fillStyle = sky;
         ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-        // 繪製方塊
         let startX = Math.floor(cameraX / tileSize);
         let endX = startX + Math.ceil(canvas.width / tileSize) + 1;
         for (let x = startX; x < endX; x++) {
@@ -136,45 +166,53 @@
             }
         }
 
-        // 怪物與動物
+        // 處理村民 (藍色)
+        villagers.forEach(v => {
+            v.vy += 0.6;
+            if (Math.random() < 0.02) v.vx *= -1;
+            if (!isColliding(v.x + v.vx, v.y, v.w, v.h)) v.x += v.vx;
+            if (!isColliding(v.x, v.y + v.vy, v.w, v.h)) v.y += v.vy; else v.vy = 0;
+            ctx.fillStyle = '#3498db'; ctx.fillRect(v.x - cameraX, v.y, v.w, v.h);
+        });
+
+        // 怪物 (綠色)
         enemies = enemies.filter(en => en.hp > 0);
         enemies.forEach(en => {
             en.vx = (player.x > en.x) ? 1.5 : -1.5; en.vy += 0.6;
             if (!isColliding(en.x + en.vx, en.y, en.w, en.h)) en.x += en.vx;
             if (!isColliding(en.x, en.y + en.vy, en.w, en.h)) en.y += en.vy; else en.vy = 0;
             if (Math.abs(en.x - player.x) < 20 && Math.abs(en.y - player.y) < 20) player.hp -= 0.5;
-            ctx.fillStyle = '#1b5e20'; ctx.fillRect(en.x - cameraX, en.y, en.w, en.h);
+            ctx.fillStyle = '#27ae60'; ctx.fillRect(en.x - cameraX, en.y, en.w, en.h);
         });
 
+        // 動物 (白色)
         animals.forEach(an => {
             an.vy += 0.5;
             if (!isColliding(an.x + an.vx, an.y, an.w, an.h)) an.x += an.vx; else an.vx *= -1;
             if (!isColliding(an.x, an.y + an.vy, an.w, an.h)) an.y += an.vy; else an.vy = 0;
-            ctx.fillStyle = '#fff'; ctx.fillRect(an.x - cameraX, an.y, an.w, an.h);
+            ctx.fillStyle = '#ecf0f1'; ctx.fillRect(an.x - cameraX, an.y, an.w, an.h);
         });
 
-        // --- 角色與光源效果 ---
+        // 角色光源
         if (isDark) {
-            // 在黑夜中畫出一個光圈，讓角色被看到
-            let grd = ctx.createRadialGradient(player.x - cameraX + 10, player.y + 20, 10, player.x - cameraX + 10, player.y + 20, 150);
-            grd.addColorStop(0, "rgba(255, 255, 255, 0.3)");
+            let grd = ctx.createRadialGradient(player.x - cameraX + 11, player.y + 21, 10, player.x - cameraX + 11, player.y + 21, 160);
+            grd.addColorStop(0, "rgba(255, 255, 255, 0.35)");
             grd.addColorStop(1, "rgba(0, 0, 0, 0)");
             ctx.fillStyle = grd;
             ctx.fillRect(0, 0, canvas.width, canvas.height);
         }
 
-        ctx.fillStyle = '#ff5722';
+        ctx.fillStyle = '#e67e22'; // 玩家顏色
         ctx.fillRect(player.x - cameraX, player.y, player.w, player.h);
 
-        // 攻擊特效
         if (atkTimer > 0) {
             ctx.strokeStyle = "white"; ctx.beginPath();
-            ctx.arc(player.x - cameraX + 10, player.y + 20, 50, 0, Math.PI*2);
+            ctx.arc(player.x - cameraX + 11, player.y + 21, 55, 0, Math.PI*2);
             ctx.stroke(); atkTimer--;
         }
 
         document.getElementById('hp').innerText = Math.floor(player.hp);
-        if (player.hp <= 0) { alert("你被擊敗了！"); location.reload(); }
+        if (player.hp <= 0) { alert("戰力耗盡！"); location.reload(); }
         requestAnimationFrame(loop);
     }
     loop();
