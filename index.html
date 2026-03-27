@@ -1,82 +1,219 @@
-<!DOCTYPE html>
+    <!DOCTYPE html>
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
-    <title>未來的 Super Human - 地形與圓形地圖版</title>
+    <title>未來的 Super Human - 說明與修復版</title>
     <style>
-        body, html { margin: 0; padding: 0; width: 100%; height: 100%; background: #000; overflow: hidden; font-family: sans-serif; }
+        body, html { margin: 0; padding: 0; width: 100%; height: 100%; background: #111; font-family: "Microsoft JhengHei", sans-serif; overflow: hidden; color: white; }
         
-        /* 啟動選單 */
-        #startup-ui {
-            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            display: flex; flex-direction: column; align-items: center; justify-content: center;
-            background: #111; z-index: 999999; color: #f1c40f;
-        }
-        .btn { padding: 20px 60px; font-size: 28px; cursor: pointer; margin: 15px; background: #f1c40f; border: none; font-weight: bold; border-radius: 50px; }
-        
-        /* 遊戲內介面 */
-        #hud { position: fixed; top: 10px; left: 10px; color: white; background: rgba(0,0,0,0.8); padding: 12px; border: 2px solid #f1c40f; display: none; z-index: 5000; pointer-events: none; border-radius: 10px; }
-        
-        /* 右上角圓形小地圖 */
-        #minimap-box {
-            position: fixed; top: 20px; right: 20px; width: 160px; height: 160px;
-            border: 3px solid white; border-radius: 50%; overflow: hidden;
-            background: rgba(0,0,0,0.6); display: none; z-index: 5000;
-        }
-        #minimap-canvas { width: 160px; height: 160px; }
+        /* 初始畫面 */
+        #menu-layer { position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; background: #000; z-index: 9999; }
+        .btn { padding: 20px 60px; font-size: 28px; cursor: pointer; margin: 15px; background: #f1c40f; border: none; font-weight: bold; border-radius: 10px; }
+
+        /* 遊戲說明視窗 */
+        #how-to-play { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.9); display: none; flex-direction: column; align-items: center; justify-content: center; z-index: 10000; padding: 20px; text-align: center; }
+        .info-box { background: #222; padding: 30px; border: 2px solid #f1c40f; border-radius: 15px; max-width: 500px; }
+        .info-box ul { text-align: left; line-height: 1.8; font-size: 18px; }
+
+        /* 遊戲介面 */
+        #hud { position: fixed; top: 10px; left: 10px; background: rgba(0,0,0,0.8); padding: 12px; border: 2px solid #f1c40f; display: none; z-index: 5000; pointer-events: none; }
+        #minimap { position: fixed; top: 20px; right: 20px; width: 140px; height: 140px; border: 3px solid white; border-radius: 50%; overflow: hidden; background: rgba(0,0,0,0.7); display: none; z-index: 5000; }
+        canvas { display: none; }
     </style>
 </head>
 <body>
 
-    <div id="startup-ui">
-        <h1 style="font-size: 48px; margin-bottom: 40px;">未來的 Super Human</h1>
-        <button class="btn" onclick="initGame(1)">單人探險</button>
-        <button class="btn" style="background:#3498db; color:white;" onclick="initGame(5)">多人模式 (5人)</button>
+    <div id="menu-layer">
+        <h1 style="font-size: 50px; color: #f1c40f;">未來的 Super Human</h1>
+        <button class="btn" onclick="showInstructions(1)">開始單人遊戲</button>
+        <button class="btn" style="background:#3498db; color:white;" onclick="showInstructions(5)">多人連線 (5人)</button>
+    </div>
+
+    <div id="how-to-play">
+        <div class="info-box">
+            <h2 style="color: #f1c40f;">🎮 遊戲操作說明</h2>
+            <ul>
+                <li><b>A / D 鍵</b>：左右移動</li>
+                <li><b>空白鍵</b>：跳躍</li>
+                <li><b>滑鼠左鍵</b>：挖掘方塊</li>
+                <li><b>滑鼠右鍵</b>：放置方塊</li>
+                <li><b>1, 2, 3 鍵</b>：切換建築材料 (草/土/石)</li>
+                <li><b>K 鍵</b>：近戰攻擊怪物</li>
+                <li><b>右上角地圖</b>：橘點是你，黃點是隊友，綠點是怪物</li>
+            </ul>
+            <p>※ 晚上怪物會出現，白天 (07:00) 怪物會燒死。</p>
+            <button class="btn" style="padding:10px 40px; font-size:20px;" onclick="startGame()">我知道了，出發！</button>
+        </div>
     </div>
 
     <div id="hud">
-        ❤️ 血量: <span id="hp">100</span> | 🕒 <span id="time">07:00</span> | ⚔️ [K] 攻擊 | 🛠️ [1,2,3] 建築
+        ❤️ 血量: <span id="hp">100</span> | 🕒 時間: <span id="time">07:00</span>
     </div>
+    <div id="minimap"><canvas id="mini-canvas" width="140" height="140"></canvas></div>
 
-    <div id="minimap-box">
-        <canvas id="minimap-canvas" width="160" height="160"></canvas>
-    </div>
+    <script>
+    let canvas, ctx, miniCanvas, miniCtx, isRunning = false;
+    let ticks = 420; // 07:00
+    let world = {}, camX = 0, bType = 2, playerCount = 1;
+    const TILE = 32;
+    const COLORS = { 1: '#8B4513', 2: '#228B22', 3: '#666' };
 
-<script>
-let canvas, ctx, miniCanvas, miniCtx, isRunning = false;
-let ticks = 420; // 07:00
-let world = {}, camX = 0, bType = 2;
-const TILE = 32;
-const COLORS = { 1: '#8B4513', 2: '#228B22', 3: '#666' };
+    let p = { x: 500, y: -200, w: 24, h: 44, vx: 0, vy: 0, hp: 100, ground: false, atk: 0 };
+    let allies = [], mobs = [];
+    const keys = {};
 
-let p = { x: 500, y: -200, w: 24, h: 44, vx: 0, vy: 0, hp: 100, ground: false, atk: 0 };
-let allies = [], mobs = [];
-
-function initGame(count) {
-    document.getElementById('startup-ui').remove();
-    document.getElementById('hud').style.display = 'block';
-    document.getElementById('minimap-box').style.display = 'block';
-
-    canvas = document.createElement('canvas');
-    document.body.appendChild(canvas);
-    ctx = canvas.getContext('2d');
-    
-    miniCanvas = document.getElementById('minimap-canvas');
-    miniCtx = miniCanvas.getContext('2d');
-
-    // 隊友
-    for(let i=0; i < count - 1; i++) {
-        allies.push({ x: 500 + Math.random()*200, y: -200, w: 24, h: 44, vx: 0, vy: 0, hp: 100, atk: 0, buildT: 0 });
+    function showInstructions(count) {
+        playerCount = count;
+        document.getElementById('menu-layer').style.display = 'none';
+        document.getElementById('how-to-play').style.display = 'flex';
     }
 
-    isRunning = true;
-    window.addEventListener('resize', resize); resize();
-    window.addEventListener('keydown', e => { 
-        keys[e.code] = true; 
-        if(e.key==='1') bType=2; if(e.key==='2') bType=1; if(e.key==='3') bType=3;
-    });
-    window.addEventListener('keyup', e => keys[e.code] = false);
+    function startGame() {
+        document.getElementById('how-to-play').style.display = 'none';
+        document.getElementById('hud').style.display = 'block';
+        document.getElementById('minimap').style.display = 'block';
 
-    canvas.onmousedown = (e) => {
+        canvas = document.createElement('canvas');
+        canvas.style.display = 'block';
+        document.body.appendChild(canvas);
+        ctx = canvas.getContext('2d');
+        
+        miniCanvas = document.getElementById('mini-canvas');
+        miniCtx = miniCanvas.getContext('2d');
+
+        // 生成隊友
+        allies = [];
+        for(let i=0; i < playerCount - 1; i++) {
+            allies.push({ x: 500 + Math.random()*200, y: -200, w: 24, h: 44, vx: 0, vy: 0, hp: 100, atk: 0, buildT: 0 });
+        }
+
+        isRunning = true;
+        window.addEventListener('resize', resize);
+        resize();
+
+        window.onkeydown = e => { 
+            keys[e.code] = true; 
+            if(e.key==='1') bType=2; if(e.key==='2') bType=1; if(e.key==='3') bType=3;
+        };
+        window.onkeyup = e => keys[e.code] = false;
+        canvas.onmousedown = handleMouseDown;
+        canvas.oncontextmenu = e => e.preventDefault();
+
+        requestAnimationFrame(loop);
+    }
+
+    function handleMouseDown(e) {
         const rect = canvas.getBoundingClientRect();
-        const gx = Math.floor((e.clientX - rect.left + camX
+        const gx = Math.floor((e.clientX - rect.left + camX) / TILE);
+        const gy = Math.floor((e.clientY - rect.top) / TILE);
+        if (e.button === 0) world[`${gx}_${gy}`] = 0;
+        if (e.button === 2) world[`${gx}_${gy}`] = bType;
+    }
+
+    function getB(gx, gy) {
+        if (world[`${gx}_${gy}`] !== undefined) return world[`${gx}_${gy}`];
+        let h = Math.sin(gx * 0.05) * 6; // 丘陵起伏
+        let m = Math.sin(gx * 0.01) * 12; // 山地/盆地
+        let groundY = Math.floor(15 + h + m);
+        return gy < groundY ? 0 : (gy === groundY ? 2 : 1);
+    }
+
+    function physics(o, isPlayer) {
+        if (isPlayer) {
+            o.vx = (keys['KeyA'] ? -5 : keys['KeyD'] ? 5 : 0);
+            if (keys['Space'] && o.ground) o.vy = -12;
+        } else {
+            if (Math.random() < 0.01) o.dir = (Math.random() - 0.5) * 4;
+            o.vx = o.dir || 0;
+        }
+        o.vy += 0.6;
+        let nx = o.x + o.vx, gx = (o.vx > 0) ? Math.floor((nx + o.w) / TILE) : Math.floor(nx / TILE);
+        let ty = Math.floor(o.y / TILE), by = Math.floor((o.y + o.h - 5) / TILE);
+        if (getB(gx, ty) === 0 && getB(gx, by) === 0) o.x = nx; else if (!isPlayer && o.ground) o.vy = -10;
+        o.y += o.vy; o.ground = false;
+        let lx = Math.floor(o.x/TILE), rx = Math.floor((o.x+o.w-1)/TILE), fy = Math.floor((o.y+o.h)/TILE);
+        if (getB(lx, fy) !== 0 || getB(rx, fy) !== 0) { o.y = fy*TILE-o.h; o.vy = 0; o.ground = true; }
+    }
+
+    function loop() {
+        if (!isRunning) return;
+        ticks = (ticks + 0.4) % 1440;
+        let hr = Math.floor(ticks / 60);
+        let isDay = (hr >= 7 && hr < 18);
+
+        physics(p, true);
+        camX = p.x - canvas.width / 2;
+
+        allies.forEach(a => {
+            physics(a, false);
+            a.buildT++;
+            if (a.buildT > 300) {
+                let gx = Math.floor(a.x / TILE), gy = Math.floor(a.y / TILE);
+                if(Math.random() > 0.7) world[`${gx}_${gy+1}`] = 0; // AI挖
+                else world[`${gx+1}_${gy}`] = 3; // AI蓋石頭
+                a.buildT = 0;
+            }
+            mobs.forEach(m => { if(Math.abs(m.x-a.x)<60 && a.atk<=0){ a.atk=20; m.hp-=5; }});
+            if(a.atk > 0) a.atk--;
+        });
+
+        if (!isDay && Math.random() < 0.02) mobs.push({ x: p.x + (Math.random()-0.5)*1000, y: -100, w: 24, h: 44, vx: 0, vy: 0, hp: 20 });
+        mobs.forEach((m, i) => {
+            if (isDay) m.hp -= 0.5;
+            m.vx = (m.x < p.x) ? 2.5 : -2.5;
+            physics(m, false);
+            let midX = Math.floor((m.x + p.x)/2/TILE), midY = Math.floor((m.y + p.y)/2/TILE);
+            if (Math.abs(m.x - p.x) < 30 && getB(midX, midY) === 0) p.hp -= 0.3;
+            if (m.hp <= 0) mobs.splice(i, 1);
+        });
+
+        if (keys['KeyK'] && p.atk <= 0) {
+            p.atk = 15;
+            mobs.forEach(m => { if(Math.abs(m.x-p.x)<70) m.hp -= 10; });
+        }
+        if (p.atk > 0) p.atk--;
+
+        if (p.hp <= 0) { alert("你失敗了！"); location.reload(); }
+
+        draw();
+        drawMinimap();
+        requestAnimationFrame(loop);
+    }
+
+    function draw() {
+        let sky = (ticks>420 && ticks<1080) ? "#87ceeb" : (ticks>=1080 && ticks<1110) ? "#ff7832" : "#050515";
+        ctx.fillStyle = sky; ctx.fillRect(0, 0, canvas.width, canvas.height);
+        let sx = Math.floor(camX / TILE), ex = sx + Math.ceil(canvas.width / TILE) + 1;
+        for (let x = sx; x < ex; x++) {
+            for (let y = 0; y < 25; y++) {
+                let b = getB(x, y);
+                if (b !== 0) { ctx.fillStyle = COLORS[b]; ctx.fillRect(x*TILE-camX, y*TILE, TILE, TILE); }
+            }
+        }
+        allies.forEach(a => {
+            ctx.fillStyle = "#f1c40f"; ctx.fillRect(a.x-camX, a.y, a.w, a.h);
+            ctx.fillStyle = "white"; ctx.font = "12px Arial"; ctx.fillText(`HP:${Math.ceil(a.hp)}`, a.x-camX, a.y-10);
+        });
+        mobs.forEach(m => { ctx.fillStyle = "#2ecc71"; ctx.fillRect(m.x-camX, m.y, m.w, m.h); });
+        ctx.fillStyle = "#FF5733"; ctx.fillRect(p.x-camX, p.y, p.w, p.h);
+        if (p.atk > 5) { ctx.fillStyle = "white"; ctx.fillRect(p.x-camX+(p.vx>=0?25:-25), p.y+10, 25, 10); }
+        document.getElementById('hp').innerText = Math.ceil(p.hp);
+        document.getElementById('time').innerText = `${Math.floor(ticks/60).toString().padStart(2,'0')}:${Math.floor(ticks%60).toString().padStart(2,'0')}`;
+    }
+
+    function drawMinimap() {
+        miniCtx.fillStyle = "black"; miniCtx.fillRect(0,0,140,140);
+        const s = 0.1;
+        const d = (ox, oy, c) => {
+            let dx = 70 + (ox - p.x) * s, dy = 70 + (oy - p.y) * s;
+            if (Math.hypot(dx-70, dy-70) < 65) { miniCtx.fillStyle = c; miniCtx.beginPath(); miniCtx.arc(dx, dy, 3, 0, 7); miniCtx.fill(); }
+        };
+        allies.forEach(a => d(a.x, a.y, "#f1c40f"));
+        mobs.forEach(m => d(m.x, m.y, "#2ecc71"));
+        d(p.x, p.y, "#FF5733");
+    }
+
+    function resize() { if(canvas){ canvas.width = window.innerWidth; canvas.height = window.innerHeight; } }
+    </script>
+</body>
+</html>
