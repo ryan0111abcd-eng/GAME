@@ -2,49 +2,96 @@
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
-    <title>未來的 Super Human - 完美修復版</title>
+    <title>未來的 Super Human - 終極穩定版</title>
     <style>
-        body { margin: 0; overflow: hidden; background: #000; font-family: "Microsoft JhengHei", sans-serif; user-select: none; }
-        canvas { display: block; position: absolute; top: 0; left: 0; z-index: 1; }
+        /* 基礎設定 */
+        body { margin: 0; padding: 0; background: #222; font-family: sans-serif; overflow: hidden; }
         
-        /* 選單容器：保證在最上層 */
-        .overlay-screen {
-            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+        /* 選單容器：強制放在最高層級 */
+        #ui-layer {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
             display: flex; flex-direction: column; align-items: center; justify-content: center;
-            background: rgba(0,0,0,0.9); color: white; z-index: 99999;
+            background: #000; color: #f1c40f; z-index: 999999;
         }
-        h1 { font-size: 55px; color: #f1c40f; text-shadow: 0 0 20px #f1c40f; margin-bottom: 40px; }
-        .btn {
-            padding: 20px 60px; margin: 15px; font-size: 28px; cursor: pointer;
-            background: #f1c40f; border: none; color: #000; border-radius: 50px;
-            font-weight: bold; transition: 0.2s; box-shadow: 0 4px 15px rgba(241, 196, 15, 0.4);
-        }
-        .btn:hover { background: #fff; transform: scale(1.1); }
-        .input-box { font-size: 30px; width: 100px; text-align: center; margin: 20px; border-radius: 10px; border: none; }
         
-        /* 遊戲內 UI */
-        #game-hud { position: absolute; top: 20px; left: 20px; color: white; background: rgba(0,0,0,0.75); padding: 15px; border-radius: 10px; z-index: 100; border: 1px solid #f1c40f; display: none; pointer-events: none; }
-        #hotbar { position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%); display: none; gap: 10px; background: rgba(0,0,0,0.8); padding: 10px; border: 2px solid #fff; z-index: 100; }
-        .slot { width: 60px; height: 60px; border: 3px solid #555; display: flex; align-items: center; justify-content: center; color: white; font-weight: bold; }
-        .slot.active { border-color: #f1c40f; box-shadow: 0 0 15px #f1c40f; }
+        .menu-title { font-size: 48px; margin-bottom: 20px; }
+        .main-btn { padding: 20px 60px; font-size: 24px; cursor: pointer; margin: 10px; background: #f1c40f; border: none; font-weight: bold; }
+        .multi-btn { padding: 15px 40px; font-size: 20px; cursor: pointer; margin: 10px; background: #3498db; color: white; border: none; }
+        
+        /* 多人設定區 */
+        #multi-config { display: none; flex-direction: column; align-items: center; }
+        select { font-size: 24px; padding: 10px; margin: 20px; }
+
+        /* 遊戲內介面 */
+        #game-hud {
+            position: fixed; top: 10px; left: 10px; color: white; 
+            background: rgba(0,0,0,0.8); padding: 10px; border: 2px solid #f1c40f;
+            display: none; z-index: 100; pointer-events: none;
+        }
+        canvas { display: none; background: #87ceeb; }
     </style>
 </head>
 <body>
 
-    <div id="main-menu" class="overlay-screen">
-        <h1>未來的 Super Human</h1>
-        <button class="btn" onclick="launchGame(1)">開始遊戲</button>
-        <button class="btn" style="background:#3498db; color:white;" onclick="openMulti()">多人連線</button>
-    </div>
+    <div id="ui-layer">
+        <div id="main-menu" style="display: flex; flex-direction: column; align-items: center;">
+            <div class="menu-title">未來的 Super Human</div>
+            <button class="main-btn" onclick="startGame(1)">開始遊戲</button>
+            <button class="multi-btn" onclick="showMulti()">多人連線</button>
+        </div>
 
-    <div id="multi-menu" class="overlay-screen" style="display:none;">
-        <h1>多人模式設定</h1>
-        <p style="font-size: 20px;">請輸入總人數 (2-10)：</p>
-        <input type="number" id="pNum" class="input-box" min="2" max="10" value="5">
-        <button class="btn" onclick="launchGame(document.getElementById('pNum').value)">點此開始遊戲</button>
-        <button class="btn" style="background:#666; font-size: 16px; padding: 10px 30px;" onclick="location.reload()">返回首頁</button>
+        <div id="multi-config">
+            <div class="menu-title">選擇人數 (2-10)</div>
+            <select id="pSelect">
+                <option value="2">2 人</option>
+                <option value="3">3 人</option>
+                <option value="4">4 人</option>
+                <option value="5" selected>5 人</option>
+                <option value="6">6 人</option>
+                <option value="7">7 人</option>
+                <option value="8">8 人</option>
+                <option value="9">9 人</option>
+                <option value="10">10 人</option>
+            </select>
+            <button class="main-btn" onclick="startGame(document.getElementById('pSelect').value)">點此開始遊戲</button>
+            <button style="color:white; background:none; border:1px solid #666; cursor:pointer;" onclick="location.reload()">返回</button>
+        </div>
     </div>
 
     <div id="game-hud">
-        ❤️ 血量: <span id="hp-val">100</span> | 🕒 時間: <span id="time-val">07:00</span><br>
-        📍 座標: <span id="pos-val">
+        ❤️ 血量: <span id="hp">100</span> | 🕒 <span id="time">07:00</span> | ⚔️ 攻擊: [K] | 🛠️ [1,2,3]
+    </div>
+
+    <canvas id="gameCanvas"></canvas>
+
+<script>
+const canvas = document.getElementById('gameCanvas');
+const ctx = canvas.getContext('2d');
+
+let isRunning = false;
+let ticks = 420; // 07:00
+let camX = 0, world = {}, blockType = 2;
+const SZ = 32;
+const COLORS = { 1: '#8B4513', 2: '#228B22', 3: '#666' };
+
+let p = { x: 400, y: 0, w: 24, h: 44, vx: 0, vy: 0, hp: 100, ground: false, atk: 0 };
+let allies = [], vils = [], anis = [], mobs = [];
+
+function showMulti() {
+    document.getElementById('main-menu').style.display = 'none';
+    document.getElementById('multi-config').style.display = 'flex';
+}
+
+function startGame(num) {
+    // 隱藏 UI 層並顯示畫布
+    document.getElementById('ui-layer').style.display = 'none';
+    document.getElementById('game-hud').style.display = 'block';
+    canvas.style.display = 'block';
+
+    // 初始化隊友 (黃色)
+    for(let i=0; i < num - 1; i++) {
+        allies.push({ x: 400 + Math.random()*500, y: -50, w: 24, h: 44, vx: 0, vy: 0, ground: false });
+    }
+    // 村民與動物
+    for(let i=0; i<6; i++) vils.push({ x: 1500+i*200, y: -50, w: 24, h: 44, vx: 0, vy: 0, ground: false });
+    for(let i=0; i<8; i++) anis.push({ x: 800+i*400, y: -50, w: 20, h: 20, vx:
