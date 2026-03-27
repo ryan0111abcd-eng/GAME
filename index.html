@@ -2,7 +2,7 @@
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
-    <title>Super Human - 純陸地自主世界</title>
+    <title>Super Human - AI 血量監控版</title>
     <style>
         body, html { margin: 0; padding: 0; width: 100%; height: 100%; background: #000; overflow: hidden; font-family: sans-serif; color: white; }
         .layer { position: fixed; top: 0; left: 0; width: 100%; height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; background: #111; z-index: 9999; }
@@ -14,19 +14,18 @@
 <body>
 
     <div id="layer-home" class="layer">
-        <h1 style="font-size: 40px; color: #f1c40f;">Super Human: 陸地文明版</h1>
-        <button class="btn" id="start-btn">開始探索</button>
+        <h1 style="font-size: 40px; color: #f1c40f;">Super Human: AI 生態監測</h1>
+        <button class="btn" id="start-btn">開始遊戲</button>
     </div>
 
-    <div id="hud">❤️ 血量: <span id="hp">100</span> | 🕒 <span id="time">07:00</span> <span id="wea">☀️</span></div>
+    <div id="hud">❤️ 我的血量: <span id="hp">100</span> | 🕒 <span id="time">07:00</span> <span id="wea">☀️</span></div>
 
 <script>
 let canvas, ctx, isRunning = false;
 let ticks = 420, world = {}, camX = 0, camY = 0;
 const TILE = 32;
-// 顏色表：移除藍色水流，保留泥土、草地、石頭、木頭、遺跡
 const COLORS = { 1: '#8B4513', 2: '#228B22', 3: '#666', 4: '#cd853f', 5: '#444' };
-let p = { x: 500, y: 0, w: 22, h: 42, vx: 0, vy: 0, hp: 100, ground: false };
+let p = { x: 500, y: 0, w: 22, h: 42, vx: 0, vy: 0, hp: 100, maxHp: 100, ground: false };
 let agents = [], keys = {}, isRain = false, rTimer = 0;
 
 document.getElementById('start-btn').addEventListener('click', () => { 
@@ -34,11 +33,7 @@ document.getElementById('start-btn').addEventListener('click', () => {
     launch(); 
 });
 
-// 地形函數：純粹的山丘
-function getGY(gx) { 
-    return Math.floor(35 + Math.sin(gx * 0.05) * 12 + Math.cos(gx * 0.02) * 15); 
-}
-
+function getGY(gx) { return Math.floor(35 + Math.sin(gx * 0.05) * 12 + Math.cos(gx * 0.02) * 15); }
 function getB(gx, gy) {
     if(world[`${gx}_${gy}`] !== undefined) return world[`${gx}_${gy}`];
     let floorY = getGY(gx);
@@ -47,22 +42,18 @@ function getB(gx, gy) {
 
 function launch() {
     canvas = document.createElement('canvas');
-    canvas.width = window.innerWidth; 
-    canvas.height = window.innerHeight;
+    canvas.width = window.innerWidth; canvas.height = window.innerHeight;
     document.body.appendChild(canvas);
     ctx = canvas.getContext('2d');
-    
     p.y = getGY(p.x/TILE)*TILE - 150;
     
-    // 生成自主 AI 角色
     const types = ['ally', 'vil', 'ani'];
-    for(let i=0; i<12; i++) {
+    for(let i=0; i<10; i++) {
         agents.push({
             x: 400 + i * 250, y: -200, w: 22, h: 42, vx: 0, vy: 0, 
-            type: types[i%3], dir: 1, state: 'idle', sTimer: Math.random()*100
+            hp: 100, maxHp: 100, type: types[i%3], dir: 1, state: 'idle', sTimer: Math.random()*100
         });
     }
-
     isRunning = true;
     window.onkeydown = e => keys[e.code] = true;
     window.onkeyup = e => keys[e.code] = false;
@@ -74,102 +65,83 @@ function phys(o, isP) {
         o.vx = (keys['KeyA'] ? -5 : keys['KeyD'] ? 5 : 0);
         if((keys['Space'] || keys['KeyW']) && o.ground) o.vy = -12;
     } else {
-        // AI 自主行為：做自己的事
         o.sTimer--;
         if(o.sTimer <= 0) {
-            let r = Math.random();
-            if(r < 0.4) { o.state = 'walk'; o.dir = Math.random() > 0.5 ? 1 : -1; }
-            else if(r < 0.7) { o.state = 'idle'; o.vx = 0; }
-            else if(o.type === 'ally') { o.state = 'jump'; } // 隊友沒事會跳一下
+            o.state = Math.random() < 0.5 ? 'walk' : 'idle';
+            o.dir = Math.random() > 0.5 ? 1 : -1;
             o.sTimer = 60 + Math.random()*150;
         }
-
-        if(o.state === 'walk') o.vx = o.dir * 2.2;
-        if(o.state === 'jump' && o.ground) { o.vy = -10; o.state = 'idle'; }
-        
-        // 自動避開障礙
+        if(o.state === 'walk') o.vx = o.dir * 2; else o.vx = 0;
         let aheadX = Math.floor((o.x + (o.vx >= 0 ? o.w + 5 : -5)) / TILE);
         let footY = Math.floor((o.y + o.h - 8) / TILE);
         if(getB(aheadX, footY) > 0 && o.ground) o.vy = -11;
     }
 
-    o.vy += 0.7; // 標準重力
-
-    // X 碰撞判定
+    o.vy += 0.7;
     let nx = o.x + o.vx;
     let sideX = o.vx > 0 ? Math.floor((nx + o.w)/TILE) : Math.floor(nx/TILE);
-    let topY = Math.floor((o.y + 5)/TILE);
-    let botY = Math.floor((o.y + o.h - 5)/TILE);
+    let topY = Math.floor((o.y + 5)/TILE), botY = Math.floor((o.y + o.h - 5)/TILE);
     if(getB(sideX, topY) === 0 && getB(sideX, botY) === 0) o.x = nx;
 
-    // Y 碰撞判定 (地面)
     o.y += o.vy; o.ground = false;
     let feetY = Math.floor((o.y + o.h)/TILE);
-    let lX = Math.floor((o.x + 2)/TILE);
-    let rX = Math.floor((o.x + o.w - 2)/TILE);
+    let lX = Math.floor((o.x + 2)/TILE), rX = Math.floor((o.x + o.w - 2)/TILE);
     if(getB(lX, feetY) > 0 || getB(rX, feetY) > 0) {
-        o.y = feetY * TILE - o.h;
-        o.vy = 0;
-        o.ground = true;
+        o.y = feetY * TILE - o.h; o.vy = 0; o.ground = true;
     }
 }
 
 function loop() {
     if(!isRunning) return;
     ticks = (ticks + 0.2) % 1440;
-    
-    // 天氣切換
     rTimer++; if(rTimer > 1800) { isRain = !isRain; rTimer = 0; document.getElementById('wea').innerText = isRain?'🌧️':'☀️'; }
-
     phys(p, true);
     camX += (p.x - canvas.width/2 - camX) * 0.1;
     camY += (p.y - canvas.height/2 - camY) * 0.1;
-
     agents.forEach(a => phys(a, false));
     render();
     requestAnimationFrame(loop);
 }
 
 function render() {
-    // 晝夜/雨天背景色
     ctx.fillStyle = isRain ? '#4a4e5a' : '#87ceeb';
     ctx.fillRect(0, 0, canvas.width, canvas.height);
-    
-    let cx = Math.floor(camX);
-    let cy = Math.floor(camY);
+    let cx = Math.floor(camX), cy = Math.floor(camY);
     let sx = Math.floor(cx/TILE), ex = sx + Math.ceil(canvas.width/TILE)+1;
     let sy = Math.floor(cy/TILE), ey = sy + Math.ceil(canvas.height/TILE)+1;
 
-    // 渲染方塊
     for(let x=sx; x<ex; x++) {
         for(let y=sy; y<ey; y++) {
             let b = getB(x, y);
-            if(b !== 0) {
-                ctx.fillStyle = COLORS[b];
-                ctx.fillRect(Math.floor(x*TILE - cx), Math.floor(y*TILE - cy), TILE, TILE);
-            }
+            if(b !== 0) { ctx.fillStyle = COLORS[b]; ctx.fillRect(Math.floor(x*TILE - cx), Math.floor(y*TILE - cy), TILE, TILE); }
         }
     }
 
-    // 渲染角色
+    // 渲染 AI 及其血量條
     agents.forEach(a => {
+        let rx = Math.floor(a.x - cx), ry = Math.floor(a.y - cy);
+        // 本體
         ctx.fillStyle = a.type==='ally'?'#f1c40f':(a.type==='vil'?'#3498db':'#fff');
-        ctx.fillRect(Math.floor(a.x-cx), Math.floor(a.y-cy), a.w, a.h);
+        ctx.fillRect(rx, ry, a.w, a.h);
+        
+        // 血量條背景 (灰色)
+        ctx.fillStyle = '#555';
+        ctx.fillRect(rx - 4, ry - 12, a.w + 8, 5);
+        // 血量條數值 (綠色)
+        ctx.fillStyle = '#2ecc71';
+        let hpW = (a.hp / a.maxHp) * (a.w + 8);
+        ctx.fillRect(rx - 4, ry - 12, hpW, 5);
     });
 
-    // 渲染玩家
-    ctx.fillStyle = "#FF5733"; 
-    ctx.fillRect(Math.floor(p.x-cx), Math.floor(p.y-cy), p.w, p.h);
-
-    // 下雨視覺效果
+    ctx.fillStyle = "#FF5733"; ctx.fillRect(Math.floor(p.x-cx), Math.floor(p.y-cy), p.w, p.h);
     if(isRain) {
         ctx.strokeStyle = "rgba(180,210,255,0.4)";
-        for(let i=0; i<40; i++) {
-            let rx = Math.random()*canvas.width, ry = Math.random()*canvas.height;
-            ctx.beginPath(); ctx.moveTo(rx, ry); ctx.lineTo(rx-2, ry+12); ctx.stroke();
+        for(let i=0; i<30; i++) {
+            let x = Math.random()*canvas.width, y = Math.random()*canvas.height;
+            ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x-2, y+10); ctx.stroke();
         }
     }
-
+    document.getElementById('hp').innerText = Math.ceil(p.hp);
     document.getElementById('time').innerText = Math.floor(ticks/60).toString().padStart(2,'0') + ":" + Math.floor(ticks%60).toString().padStart(2,'0');
 }
 </script>
