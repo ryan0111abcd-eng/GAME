@@ -2,7 +2,7 @@
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
-    <title>Super Human - 隊友血量監控版</title>
+    <title>Super Human - 世界生態版 (AI、村莊、古蹟、雨)</title>
     <style>
         body, html { margin: 0; padding: 0; width: 100%; height: 100%; background: #000; overflow: hidden; font-family: sans-serif; color: white; }
         .layer { position: fixed; top: 0; left: 0; width: 100%; height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; background: #111; z-index: 9999; }
@@ -10,82 +10,84 @@
         .btn:hover { background: #fff; transform: scale(1.05); }
         #hud { position: fixed; top: 10px; left: 10px; background: rgba(0,0,0,0.8); padding: 12px; border: 2px solid #f1c40f; display: none; z-index: 5000; border-radius: 10px; }
         #minimap-container { position: fixed; top: 20px; right: 20px; width: 160px; height: 160px; border: 3px solid white; border-radius: 50%; overflow: hidden; background: #000; display: none; z-index: 5000; }
+        canvas { display: block; }
     </style>
 </head>
 <body>
 
     <div id="layer-home" class="layer">
         <h1 style="font-size: 48px; color: #f1c40f; margin-bottom: 30px;">未來的 Super Human</h1>
-        <button class="btn" onclick="fnSelectMode('single')">單人探險</button>
-        <button class="btn" style="background:#3498db; color:white;" onclick="fnSelectMode('multi')">多人連線 (AI 協力)</button>
+        <button class="btn" onclick="openModeSelect('single')">單人探險</button>
+        <button class="btn" style="background:#3498db; color:white;" onclick="openModeSelect('multi')">多人連線 (AI 全能協力)</button>
     </div>
 
     <div id="layer-select" class="layer" style="display:none;">
         <h1>選擇小隊總人數</h1>
-        <select id="pNumInput" style="font-size:30px; padding:15px; margin:25px; border-radius:10px; width: 250px;">
+        <select id="pNumInput" style="font-size:30px; padding:15px; margin:25px; border-radius:10px;">
             <option value="2">2 人</option>
             <option value="5" selected>5 人</option>
             <option value="10">10 人</option>
         </select>
-        <button class="btn" onclick="fnShowRules()">下一步</button>
+        <button class="btn" onclick="openGameRules()">確定</button>
     </div>
 
     <div id="layer-info" class="layer" style="display:none;">
         <div style="background:#222; padding:40px; border:3px solid #f1c40f; border-radius:25px; text-align:center; max-width:500px;">
-            <h2 id="modeTitle" style="color:#f1c40f; font-size: 32px;">準備出發</h2>
-            <ul style="text-align:left; font-size:20px; line-height:1.8; margin: 20px 0;">
+            <h2 id="modeTitle" style="color:#f1c40f;">模式確認</h2>
+            <ul style="text-align:left; font-size:19px; line-height:1.7;">
                 <li><b>A / D / 空白</b>：跑跳移動</li>
-                <li><b>滑鼠左鍵</b>：挖掘 / <b>右鍵</b>：蓋牆</li>
-                <li><b>K 鍵</b>：攻擊 (隊友也會自動戰鬥)</li>
-                <li><b>隊友血量</b>：顯示在角色頭部上方</li>
+                <li><b>滑鼠左右鍵</b>：挖掘 / 建築 (隊友也會)</li>
+                <li><b>K 鍵</b>：攻擊 / <b>隊友血量</b>顯示在頭上</li>
+                <li><b>探索世界</b>：尋找村莊、村民、動物與古蹟</li>
+                <li><b>動態天氣</b>：隨機下雨，天色會變暗</li>
             </ul>
-            <button class="btn" style="width: 100%;" onclick="fnStartGame()">正式進入世界</button>
+            <button class="btn" style="width: 100%;" onclick="launchGame()">正式開始遊戲</button>
         </div>
     </div>
 
-    <div id="hud">❤️ 我的血量: <span id="hp">100</span> | 🕒 <span id="time">07:00</span></div>
+    <div id="hud">❤️ 我: <span id="hp">100</span> | 🕒 <span id="time">07:00</span> <span id="weather">☀️</span></div>
     <div id="minimap-container"><canvas id="mini-canvas" width="160" height="160"></canvas></div>
 
 <script>
 let canvas, ctx, miniCtx, isRunning = false;
-let ticks = 420, world = {}, camX = 0, camY = 0, bType = 2, finalPCount = 1;
-const TILE = 32, COLORS = { 1: '#8B4513', 2: '#228B22', 3: '#666' };
+let ticks = 420, world = {}, camX = 0, camY = 0, bType = 2, finalCount = 1;
+const TILE = 32, COLORS = { 1: '#8B4513', 2: '#228B22', 3: '#666', 4: '#cd853f', 5: '#444' }; // 4=木頭, 5=遺跡石
 let p = { x: 500, y: 0, w: 24, h: 44, vx: 0, vy: 0, hp: 100, ground: false, atk: 0 };
-let allies = [], mobs = [], keys = {};
+let allies = [], vils = [], anis = [], mobs = [],keys = {}, isRaining = false, rainTimer = 0;
 
-function fnSelectMode(mode) {
+function openModeSelect(mode) {
     document.getElementById('layer-home').style.display = 'none';
-    if (mode === 'single') { finalPCount = 1; fnShowRules(); } 
+    if(mode === 'single') { finalCount = 1; openGameRules(); } 
     else { document.getElementById('layer-select').style.display = 'flex'; }
 }
-
-function fnShowRules() {
-    if (document.getElementById('layer-select').style.display !== 'none') {
-        finalPCount = parseInt(document.getElementById('pNumInput').value);
+function openGameRules() {
+    if(document.getElementById('layer-select').style.display !== 'none') {
+        finalCount = parseInt(document.getElementById('pNumInput').value);
     }
     document.getElementById('layer-select').style.display = 'none';
     document.getElementById('layer-info').style.display = 'flex';
-    document.getElementById('modeTitle').innerText = `🎮 ${finalPCount} 人模式`;
+    document.getElementById('modeTitle').innerText = `🎮 ${finalCount} 人模式已就緒`;
 }
-
-function fnStartGame() {
+function launchGame() {
     document.getElementById('layer-info').style.display = 'none';
     document.getElementById('hud').style.display = 'block';
     document.getElementById('minimap-container').style.display = 'block';
 
     canvas = document.createElement('canvas');
-    canvas.width = window.innerWidth;
-    canvas.height = window.innerHeight;
+    canvas.width = window.innerWidth; canvas.height = window.innerHeight;
     document.body.appendChild(canvas);
     ctx = canvas.getContext('2d');
     miniCtx = document.getElementById('mini-canvas').getContext('2d');
 
-    p.y = getGroundY(p.x/TILE) * TILE - 150;
-    allies = [];
-    for(let i=0; i < finalPCount - 1; i++){
+    // 初始化位置確保站在高山上
+    p.y = getGroundY(p.x/TILE)*TILE - 200;
+    allies = []; vils = []; anis = [];
+    for(let i=0; i < finalCount - 1; i++){
         let ax = p.x + (i + 1) * 60;
-        allies.push({ x: ax, y: p.y, w: 24, h: 44, vx: 0, vy: 0, hp: 100, maxHp: 100, atk: 0, dir: 1 });
+        allies.push({ x: ax, y: p.y, w: 24, h: 44, vx: 0, vy: 0, hp: 100, maxHp: 100, atk: 0, dir: 1, type:'ally' });
     }
+    // 生成生態系統
+    generateEcosystem();
 
     isRunning = true;
     window.onkeydown = e => { keys[e.code] = true; if(e.key==='1') bType=2; if(e.key==='2') bType=1; if(e.key==='3') bType=3; };
@@ -101,10 +103,48 @@ function fnStartGame() {
     requestAnimationFrame(loop);
 }
 
-function getGroundY(gx) { return Math.floor(35 + Math.sin(gx * 0.05) * 12 + Math.cos(gx * 0.02) * 18); }
+// 地形與生態生成公式
+function getGroundY(gx) { return Math.floor(35 + Math.sin(gx*0.05)*10 + Math.cos(gx*0.02)*15); }
 function getB(gx, gy) { 
     if (world[`${gx}_${gy}`] !== undefined) return world[`${gx}_${gy}`];
-    return gy < getGroundY(gx) ? 0 : (gy === getGroundY(gx) ? 2 : 1);
+    let gY = getGroundY(gx);
+    return gy < gY ? 0 : (gy === gY ? 2 : 1); // 草地與泥土
+}
+function generateEcosystem() {
+    // 左右兩邊隨機生成村莊、古蹟、動物與村民
+    for(let r=0; r<10; r++) { // 擴大範圍
+        let baseGX = (Math.random()-0.5)*1000 + 500;
+        let type = Math.random();
+        if(type < 0.2) spawnVillage(baseGX);
+        else if(type < 0.4) spawnRuins(baseGX);
+        else if(type < 0.7) spawnAnimals(baseGX);
+        else spawnVillagers(baseGX);
+    }
+}
+function spawnVillage(gx) {
+    gx = Math.floor(gx); let gy = getGroundY(gx);
+    for(let h=0; h<3; h++) { // 蓋小房子
+        let startX = gx + h*10; let groundY = getGroundY(startX);
+        for(let w=0; w<5; w++) {
+            for(let r=1; r<5; r++) { world[`${startX+w}_${groundY-r}`] = 4; } // 木頭牆
+            world[`${startX+w}_${groundY-5}`] = 3; // 石屋頂
+        }
+        world[`${startX+2}_${groundY-1}`] = 0; world[`${startX+2}_${groundY-2}`] = 0; // 門
+    }
+}
+function spawnRuins(gx) {
+    gx = Math.floor(gx); let gy = getGroundY(gx);
+    for(let h=0; h<Math.random()*5+3; h++) {
+        let柱X = gx + h*4; let groundY = getGroundY(柱X);
+        for(let c=1; c<Math.random()*8+4; c++) world[`${柱X}_${groundY-c}`] = 5; // 柱子
+        if(h%2===0) world[`${柱X}_${groundY-Math.floor(Math.random()*8+4)}`] = 5; // 廢牆
+    }
+}
+function spawnVillagers(gx) {
+    for(let i=0; i<3; i++) vils.push({x: gx+i*30, y:-300, w:24, h:44, vx:0, vy:0, ground:false, timer:0, dir:1, type:'vil'});
+}
+function spawnAnimals(gx) {
+    for(let i=0; i<5; i++) anis.push({x: gx+i*40, y:-300, w:20, h:20, vx:0, vy:0, ground:false, timer:0, dir:1, type:'ani'});
 }
 
 function physics(o, isPlayer) {
@@ -112,15 +152,23 @@ function physics(o, isPlayer) {
         o.vx = (keys['KeyA'] ? -5 : keys['KeyD'] ? 5 : 0);
         if (keys['Space'] && o.ground) o.vy = -13;
     } else {
-        let dist = p.x - o.x;
-        if (Math.abs(dist) > 120) o.vx = (dist > 0 ? 3.8 : -3.8); else o.vx = 0;
-        let aheadX = Math.floor((o.x + (o.vx >= 0 ? 30 : -10)) / TILE);
-        let footY = Math.floor((o.y + o.h - 5) / TILE);
-        if (getB(aheadX, footY) !== 0) {
-            if (o.ground) o.vy = -13; 
-            if (Math.random() < 0.04) world[`${aheadX}_${footY}`] = 0;
+        if(o.type==='ally') { // AI 隊友全能智慧 (核心修正：不會不動)
+            let dist = p.x - o.x;
+            if (Math.abs(dist) > 130) o.vx = (dist > 0 ? 3.8 : -3.8); else o.vx = 0;
+            // 跳躍與挖掘邏輯 (確保爬山不卡住)
+            let aheadX = Math.floor((o.x + (o.vx >= 0 ? 30 : -10)) / TILE);
+            let footY = Math.floor((o.y + o.h - 5) / TILE);
+            if (getB(aheadX, footY) !== 0) {
+                if (o.ground) o.vy = -13; // 跳
+                if (Math.random() < 0.05) world[`${aheadX}_${footY}`] = 0; // 挖開擋路
+            }
+        } else { // 村民與動物隨機漫步
+            if(Math.random()<0.01) o.dir *= -1;
+            o.vx = o.dir * (o.type==='ani'?1.5:2);
+            let aheadX = Math.floor((o.x + (o.vx >= 0 ? 30 : -10)) / TILE);
+            let footY = Math.floor((o.y + o.h - 5) / TILE);
+            if(getB(aheadX, footY)!==0 && o.ground) o.vy = -10; // 遇到障礙會跳
         }
-        if (o.vy > 5 && Math.random() < 0.08) world[`${Math.floor(o.x/TILE)}_${footY+1}`] = 3;
     }
     o.vy += 0.7;
     let nx = o.x + o.vx, gx = (o.vx > 0) ? Math.floor((nx + o.w) / TILE) : Math.floor(nx / TILE);
@@ -134,80 +182,31 @@ function physics(o, isPlayer) {
 function loop() {
     if (!isRunning) return;
     ticks = (ticks + 0.4) % 1440;
+    // 天氣系統：隨機下雨
+    rainTimer++;
+    if(rainTimer > 2000) { isRaining = !isRaining; rainTimer = 0; document.getElementById('weather').innerText = isRaining?'🌧️':'☀️'; }
+
     physics(p, true);
     camX += (p.x - canvas.width / 2 - camX) * 0.1;
     camY += (p.y - canvas.height / 2 - camY) * 0.1;
 
+    // 生態系統更新
     allies.forEach((a, index) => {
         physics(a, false);
-        mobs.forEach(m => {
-            if(Math.abs(m.x - a.x) < 40 && Math.abs(m.y - a.y) < 40) {
-                a.hp -= 0.1; // 隊友受傷
-                a.atk = 10; m.hp -= 5; // 隊友反擊
-            }
-        });
-        if(a.atk > 0) a.atk--;
-        if(a.hp <= 0) allies.splice(index, 1); // 隊友戰死
+        mobs.forEach(m => { if(Math.abs(m.x-a.x)<40){ a.hp-=0.1; a.atk=10; m.hp-=5; }});
+        if(a.atk>0) a.atk--; if(a.hp<=0) allies.splice(index, 1); // 隊友戰死
     });
+    vils.forEach(v => physics(v, false));anis.forEach(an => physics(an, false));
 
     let hr = ticks / 60;
     let isDay = (hr >= 7 && hr < 17.5);
     if (!isDay && Math.random() < 0.025) mobs.push({ x: p.x + (Math.random()-0.5)*1500, y: p.y-500, w: 24, h: 44, vx: 0, vy: 0, hp: 20 });
     mobs.forEach((m, i) => {
         if (isDay) m.hp -= 0.5;
-        m.vx = (m.x < p.x) ? 2.8 : -2.8;
-        physics(m, false);
+        m.vx = (m.x < p.x) ? 2.8 : -2.8; physics(m, false);
         if (Math.abs(m.x - p.x) < 30 && Math.abs(m.y - p.y) < 30) p.hp -= 0.4;
         if (m.hp <= 0) mobs.splice(i, 1);
     });
 
     if (keys['KeyK'] && p.atk <= 0) { p.atk = 15; mobs.forEach(m => { if(Math.abs(m.x-p.x)<80) m.hp -= 10; }); }
-    if (p.atk > 0) p.atk--;
-    if (p.hp <= 0) { alert("你失敗了！"); location.reload(); }
-
-    render();
-    requestAnimationFrame(loop);
-}
-
-function render() {
-    let hr = ticks / 60;
-    ctx.fillStyle = (hr > 7 && hr < 17) ? "#87ceeb" : (hr >= 17 && hr < 18.5) ? "#ff7832" : "#050515";
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
-    
-    let sx = Math.floor(camX / TILE), ex = sx + Math.ceil(canvas.width / TILE) + 1;
-    let sy = Math.floor(camY / TILE), ey = sy + Math.ceil(canvas.height / TILE) + 1;
-
-    for (let x = sx; x < ex; x++) {
-        for (let y = sy; y < ey; y++) {
-            let b = getB(x, y);
-            if (b !== 0) { ctx.fillStyle = COLORS[b]; ctx.fillRect(x*TILE-camX, y*TILE-camY, TILE, TILE); }
-        }
-    }
-    
-    allies.forEach(a => {
-        // 畫電腦隊友
-        ctx.fillStyle = "#f1c40f"; ctx.fillRect(a.x-camX, a.y-camY, a.w, a.h);
-        // 畫頭上血量條 (關鍵更新)
-        ctx.fillStyle = "red"; ctx.fillRect(a.x-camX-5, a.y-camY-15, 34, 5);
-        ctx.fillStyle = "#2ecc71"; ctx.fillRect(a.x-camX-5, a.y-camY-15, 34 * (a.hp/a.maxHp), 5);
-        if(a.atk > 0) { ctx.fillStyle = "white"; ctx.fillRect(a.x-camX+(a.vx>=0?25:-20), a.y-camY+10, 20, 5); }
-    });
-    
-    mobs.forEach(m => { ctx.fillStyle = "#2ecc71"; ctx.fillRect(m.x-camX, m.y-camY, m.w, m.h); });
-    ctx.fillStyle = "#FF5733"; ctx.fillRect(p.x-camX, p.y-camY, p.w, p.h);
-
-    document.getElementById('hp').innerText = Math.ceil(p.hp);
-    document.getElementById('time').innerText = Math.floor(hr).toString().padStart(2,'0') + ":" + Math.floor(ticks%60).toString().padStart(2,'0');
-
-    miniCtx.fillStyle = "black"; miniCtx.fillRect(0,0,160,160);
-    const drawDot = (ox, oy, c) => {
-        let dx = 80 + (ox - p.x) * 0.1, dy = 80 + (oy - p.y) * 0.1;
-        if (Math.hypot(dx-80, dy-80) < 75) { miniCtx.fillStyle = c; miniCtx.beginPath(); miniCtx.arc(dx, dy, 4, 0, 7); miniCtx.fill(); }
-    };
-    allies.forEach(a => drawDot(a.x, a.y, "#f1c40f"));
-    mobs.forEach(m => drawDot(m.x, m.y, "#2ecc71"));
-    drawDot(p.x, p.y, "#FF5733");
-}
-</script>
-</body>
-</html>
+    if
