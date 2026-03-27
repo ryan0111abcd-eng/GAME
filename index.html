@@ -80,4 +80,132 @@ function startGame() {
     canvas.width = window.innerWidth;
     canvas.height = window.innerHeight;
     document.body.appendChild(canvas);
-    ctx = canvas
+    ctx = canvas.getContext('2d');
+    miniCtx = document.getElementById('mini-canvas').getContext('2d');
+
+    // 初始化位置：確保大家都在地表
+    p.y = getGroundY(p.x / TILE) * TILE - 100;
+
+    // 關鍵修正：生成隊友並分散位置
+    allies = [];
+    for(let i=0; i < finalCount - 1; i++) {
+        let ax = p.x + (i + 1) * 80; // 橫向排開 80 像素
+        allies.push({ 
+            x: ax, 
+            y: getGroundY(ax / TILE) * TILE - 100, 
+            w: 24, h: 44, vx: 0, vy: 0, hp: 100, atk: 0, buildT: 0, dir: 1 
+        });
+    }
+
+    isRunning = true;
+    window.onkeydown = e => { keys[e.code] = true; if(e.key==='1') bType=2; if(e.key==='2') bType=1; if(e.key==='3') bType=3; };
+    window.onkeyup = e => keys[e.code] = false;
+    canvas.onmousedown = e => {
+        const rect = canvas.getBoundingClientRect();
+        const gx = Math.floor((e.clientX - rect.left + camX) / TILE);
+        const gy = Math.floor((e.clientY - rect.top) / TILE);
+        if (e.button === 0) world[`${gx}_${gy}`] = 0;
+        if (e.button === 2) world[`${gx}_${gy}`] = bType;
+    };
+    canvas.oncontextmenu = e => e.preventDefault();
+    requestAnimationFrame(loop);
+}
+
+function getGroundY(gx) { return Math.floor(15 + Math.sin(gx * 0.08) * 4 + Math.sin(gx * 0.02) * 8); }
+function getB(gx, gy) { 
+    if (world[`${gx}_${gy}`] !== undefined) return world[`${gx}_${gy}`];
+    return gy < getGroundY(gx) ? 0 : (gy === getGroundY(gx) ? 2 : 1);
+}
+
+function physics(o, isPlayer) {
+    if (isPlayer) {
+        o.vx = (keys['KeyA'] ? -5 : keys['KeyD'] ? 5 : 0);
+        if (keys['Space'] && o.ground) o.vy = -12;
+    } else {
+        if (Math.random() < 0.02) o.dir = (Math.random() - 0.5) * 4;
+        o.vx = o.dir;
+    }
+    o.vy += 0.6;
+    let nx = o.x + o.vx, gx = (o.vx > 0) ? Math.floor((nx + o.w) / TILE) : Math.floor(nx / TILE);
+    let ty = Math.floor(o.y / TILE), by = Math.floor((o.y + o.h - 5) / TILE);
+    if (getB(gx, ty) === 0 && getB(gx, by) === 0) o.x = nx; else if (!isPlayer && o.ground) o.vy = -10;
+    o.y += o.vy; o.ground = false;
+    let lx = Math.floor(o.x/TILE), rx = Math.floor((o.x+o.w-1)/TILE), fy = Math.floor((o.y+o.h)/TILE);
+    if (getB(lx, fy) !== 0 || getB(rx, fy) !== 0) { o.y = fy*TILE-o.h; o.vy = 0; o.ground = true; }
+}
+
+function loop() {
+    if (!isRunning) return;
+    ticks = (ticks + 0.4) % 1440;
+    physics(p, true);
+    camX = p.x - canvas.width / 2;
+
+    allies.forEach(a => {
+        physics(a, false);
+        // AI 跟隨玩家邏輯：如果離太遠就往玩家靠
+        if (Math.abs(a.x - p.x) > 300) a.dir = (a.x < p.x ? 3 : -3);
+        
+        a.buildT++;
+        if (a.buildT > 300) {
+            let gx = Math.floor(a.x / TILE), gy = Math.floor(a.y / TILE);
+            if(Math.random() > 0.8) world[`${gx}_${gy+1}`] = 0;
+            else if(getB(gx+1, gy+1) !== 0) world[`${gx+1}_${gy}`] = 3;
+            a.buildT = 0;
+        }
+    });
+
+    let hr = ticks / 60;
+    let isDay = (hr >= 7 && hr < 17.5);
+    if (!isDay && Math.random() < 0.02) mobs.push({ x: p.x + (Math.random()-0.5)*1200, y: -100, w: 24, h: 44, vx: 0, vy: 0, hp: 20 });
+    mobs.forEach((m, i) => {
+        if (isDay) m.hp -= 0.5;
+        m.vx = (m.x < p.x) ? 2.5 : -2.5;
+        physics(m, false);
+        if (Math.abs(m.x - p.x) < 30 && Math.abs(m.y - p.y) < 30) p.hp -= 0.3;
+        if (m.hp <= 0) mobs.splice(i, 1);
+    });
+
+    if (keys['KeyK'] && p.atk <= 0) { p.atk = 15; mobs.forEach(m => { if(Math.abs(m.x-p.x)<70) m.hp -= 10; }); }
+    if (p.atk > 0) p.atk--;
+    if (p.hp <= 0) { alert("Game Over"); location.reload(); }
+
+    render();
+    requestAnimationFrame(loop);
+}
+
+function render() {
+    let hr = ticks / 60;
+    ctx.fillStyle = (hr > 7 && hr < 17) ? "#87ceeb" : (hr >= 17 && hr < 18.5) ? "#ff7832" : "#050515";
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    
+    let sx = Math.floor(camX / TILE), ex = sx + Math.ceil(canvas.width / TILE) + 1;
+    for (let x = sx; x < ex; x++) {
+        for (let y = 0; y < 25; y++) {
+            let b = getB(x, y);
+            if (b !== 0) { ctx.fillStyle = COLORS[b]; ctx.fillRect(x*TILE-camX, y*TILE, TILE, TILE); }
+        }
+    }
+    allies.forEach(a => {
+        ctx.fillStyle = "#f1c40f"; ctx.fillRect(a.x-camX, a.y, a.w, a.h);
+        ctx.fillStyle = "white"; ctx.fillText(`HP:${Math.ceil(a.hp)}`, a.x-camX-5, a.y-10);
+    });
+    mobs.forEach(m => { ctx.fillStyle = "#2ecc71"; ctx.fillRect(m.x-camX, m.y, m.w, m.h); });
+    ctx.fillStyle = "#FF5733"; ctx.fillRect(p.x-camX, p.y, p.w, p.h);
+    if (p.atk > 5) { ctx.fillStyle = "white"; ctx.fillRect(p.x-camX+(p.vx>=0?25:-25), p.y+10, 25, 10); }
+
+    document.getElementById('hp').innerText = Math.ceil(p.hp);
+    document.getElementById('time').innerText = `${Math.floor(hr).toString().padStart(2,'0')}:${Math.floor(ticks%60).toString().padStart(2,'0')}`;
+
+    // 小地圖
+    miniCtx.fillStyle = "black"; miniCtx.fillRect(0,0,160,160);
+    const drawDot = (ox, oy, c) => {
+        let dx = 80 + (ox - p.x) * 0.12, dy = 80 + (oy - p.y) * 0.12;
+        if (Math.hypot(dx-80, dy-80) < 75) { miniCtx.fillStyle = c; miniCtx.beginPath(); miniCtx.arc(dx, dy, 4, 0, 7); miniCtx.fill(); }
+    };
+    allies.forEach(a => drawDot(a.x, a.y, "#f1c40f"));
+    mobs.forEach(m => drawDot(m.x, m.y, "#2ecc71"));
+    drawDot(p.x, p.y, "#FF5733");
+}
+</script>
+</body>
+</html>
