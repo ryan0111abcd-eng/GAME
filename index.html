@@ -2,34 +2,16 @@
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
-    <title>未來的 Super Human - 絕對點擊版</title>
+    <title>未來的 Super Human - 全員戰鬥版</title>
     <style>
-        body, html { margin: 0; padding: 0; width: 100%; height: 100%; background: #111; font-family: sans-serif; overflow: hidden; }
-        
-        /* 初始選單介面：這是在畫布產生前唯一的東西 */
-        #ui-wrapper {
-            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-            display: flex; flex-direction: column; align-items: center; justify-content: center;
-            z-index: 10000; background: #000;
-        }
-        
+        body, html { margin: 0; padding: 0; width: 100%; height: 100%; background: #000; font-family: sans-serif; overflow: hidden; }
+        #ui-wrapper { position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 10000; background: #000; }
         .title { font-size: 40px; color: #f1c40f; margin-bottom: 30px; text-align: center; }
-        .btn { 
-            padding: 20px 50px; font-size: 24px; cursor: pointer; margin: 10px; 
-            background: #f1c40f; border: none; font-weight: bold; border-radius: 8px;
-        }
+        .btn { padding: 20px 50px; font-size: 24px; cursor: pointer; margin: 10px; background: #f1c40f; border: none; font-weight: bold; border-radius: 8px; }
         .btn-blue { background: #3498db; color: white; }
-        
-        /* 多人設定 */
         #setup-area { display: none; flex-direction: column; align-items: center; }
         select { font-size: 24px; padding: 10px; margin: 20px; border-radius: 5px; }
-
-        /* 遊戲內 HUD */
-        #hud {
-            position: fixed; top: 10px; left: 10px; color: white; 
-            background: rgba(0,0,0,0.8); padding: 12px; border: 2px solid #f1c40f;
-            display: none; z-index: 5000; pointer-events: none; border-radius: 10px;
-        }
+        #hud { position: fixed; top: 10px; left: 10px; color: white; background: rgba(0,0,0,0.8); padding: 12px; border: 2px solid #f1c40f; display: none; z-index: 5000; pointer-events: none; border-radius: 10px; }
     </style>
 </head>
 <body>
@@ -40,15 +22,11 @@
             <button class="btn" onclick="init(1)">開始遊戲</button><br>
             <button class="btn btn-blue" onclick="showMulti()">多人連線</button>
         </div>
-
         <div id="setup-area">
             <div class="title">選擇遊戲人數</div>
             <select id="playerNum">
                 <option value="2">2 人</option>
-                <option value="3">3 人</option>
-                <option value="4">4 人</option>
                 <option value="5" selected>5 人</option>
-                <option value="8">8 人</option>
                 <option value="10">10 人</option>
             </select>
             <button class="btn" onclick="init(document.getElementById('playerNum').value)">點此開始遊戲</button>
@@ -57,7 +35,7 @@
     </div>
 
     <div id="hud">
-        ❤️ 血量: <span id="hp">100</span> | 🕒 <span id="time">07:00</span> | ⚔️ [K] 攻擊 | 🛠️ [1,2,3] 切換
+        ❤️ 我的血量: <span id="hp">100</span> | 🕒 <span id="time">07:00</span> | ⚔️ [K] 攻擊 | 🛠️ [1,2,3] 建造
     </div>
 
 <script>
@@ -76,28 +54,23 @@ function showMulti() {
 }
 
 function init(count) {
-    // 1. 移除選單
-    document.getElementById('ui-wrapper').style.removeProperty('display');
     document.getElementById('ui-wrapper').style.display = 'none';
     document.getElementById('hud').style.display = 'block';
 
-    // 2. 動態生成 Canvas
     canvas = document.createElement('canvas');
-    canvas.id = 'gameCanvas';
     document.body.appendChild(canvas);
     ctx = canvas.getContext('2d');
     
-    // 3. 設定角色
-    for(let i=0; i < count - 1; i++) allies.push({ x: 400 + Math.random()*500, y: -50, w: 24, h: 44, vx: 0, vy: 0, ground: false });
-    for(let i=0; i<6; i++) vils.push({ x: 1600+i*200, y: -50, w: 24, h: 44, vx: 0, vy: 0, ground: false });
-    for(let i=0; i<8; i++) anis.push({ x: 800+i*400, y: -50, w: 20, h: 20, vx: 0, vy: 0, ground: false });
+    // 生成隊友 (黃色)
+    for(let i=0; i < count - 1; i++) allies.push({ x: 400 + Math.random()*600, y: -50, w: 24, h: 44, vx: 0, vy: 0, ground: false, hp: 100, atk: 0 });
+    // 村民與動物
+    for(let i=0; i<5; i++) vils.push({ x: 1600+i*200, y: -50, w: 24, h: 44, vx: 0, vy: 0, ground: false });
+    for(let i=0; i<6; i++) anis.push({ x: 800+i*400, y: -50, w: 20, h: 20, vx: 0, vy: 0, ground: false });
 
-    // 4. 啟動
     isRunning = true;
     window.addEventListener('resize', resize);
     resize();
     
-    // 事件監聽
     window.addEventListener('keydown', (e) => {
         keys[e.code] = true;
         if (e.key === '1') blockType = 2;
@@ -143,30 +116,46 @@ function loop() {
     ticks = (ticks + 0.4) % 1440;
     let hr = Math.floor(ticks / 60);
 
+    // 1. 玩家控制
     p.vx = (keys['KeyA'] ? -5 : keys['KeyD'] ? 5 : 0);
     if (keys['Space'] && p.ground) p.vy = -12;
     if (keys['KeyK'] && p.atk <= 0) {
-        p.atk = 20;
-        mobs.forEach(m => { if(Math.abs(m.x-p.x)<70) { m.hp-=10; m.vx=(m.x>p.x?12:-12); } });
+        p.atk = 15;
+        mobs.forEach(m => { if(Math.abs(m.x-p.x)<70) { m.hp-=10; m.vx=(m.x>p.x?8:-8); } });
     }
     if (p.atk > 0) p.atk--;
     physics(p);
     camX = p.x - canvas.width / 2;
 
-    const runAI = (list) => {
-        list.forEach(e => {
-            if (Math.abs(p.x - e.x) > 600) e.vx = (p.x > e.x ? 3 : -3);
-            else if (Math.random() < 0.01) e.vx = (Math.random() - 0.5) * 3;
-            physics(e);
+    // 2. 隊友 AI (帶血量與主動攻擊)
+    allies.forEach(a => {
+        if (Math.abs(p.x - a.x) > 600) a.vx = (p.x > a.x ? 3 : -3);
+        else if (Math.random() < 0.01) a.vx = (Math.random() - 0.5) * 3;
+        
+        // 隊友攻擊邏輯
+        mobs.forEach(m => {
+            if (Math.abs(m.x - a.x) < 60 && a.atk <= 0) {
+                a.atk = 20; m.hp -= 5; m.vx = (m.x > a.x ? 6 : -6);
+            }
         });
-    };
-    runAI(allies); runAI(vils); runAI(anis);
+        if (a.atk > 0) a.atk--;
+        physics(a);
+    });
 
-    if ((hr >= 18 || hr < 6) && Math.random() < 0.015) mobs.push({ x: p.x + (Math.random()>0.5?800:-800), y: -50, w: 24, h: 44, vx: 0, vy: 0, hp: 20 });
+    // 3. 村民與動物
+    [...vils, ...anis].forEach(e => { if (Math.random() < 0.01) e.vx = (Math.random() - 0.5) * 2; physics(e); });
+
+    // 4. 怪物系統 (晚上生成，白天死亡)
+    let isDay = (hr >= 7 && hr < 17.5);
+    if (!isDay && Math.random() < 0.015) mobs.push({ x: p.x + (Math.random()>0.5?800:-800), y: -50, w: 24, h: 44, vx: 0, vy: 0, hp: 20 });
+    
     mobs.forEach((m, idx) => {
+        if (isDay) m.hp -= 0.5; // 早上怪物會死掉
         m.vx = (m.x < p.x) ? 2.5 : -2.5;
         physics(m);
-        if (Math.abs(m.x - p.x) < 25 && Math.abs(m.y - p.y) < 30) p.hp -= 0.5;
+        // 傷害玩家與隊友
+        if (Math.abs(m.x - p.x) < 25) p.hp -= 0.3;
+        allies.forEach(a => { if (Math.abs(m.x - a.x) < 25) a.hp -= 0.2; });
         if (m.hp <= 0) mobs.splice(idx, 1);
     });
 
@@ -176,9 +165,7 @@ function loop() {
 }
 
 function draw() {
-    let sky = "#87ceeb"; 
-    if (ticks >= 1050 && ticks < 1080) sky = "#ff7832"; // 17:30
-    else if (ticks >= 1080 || ticks < 390) sky = "#050515"; // 18:10
+    let sky = (ticks >= 420 && ticks < 1050) ? "#87ceeb" : (ticks >= 1050 && ticks < 1080) ? "#ff7832" : "#050515";
     ctx.fillStyle = sky;
     ctx.fillRect(0, 0, canvas.width, canvas.height);
 
@@ -190,10 +177,20 @@ function draw() {
         }
     }
 
+    // 繪製隊友與血量
+    allies.forEach(a => {
+        ctx.fillStyle = "#f1c40f"; ctx.fillRect(a.x-camX, a.y, a.w, a.h);
+        ctx.fillStyle = "white"; ctx.font = "12px Arial";
+        ctx.fillText(`HP: ${Math.ceil(a.hp)}`, a.x-camX, a.y-10); // 頭上寫血量
+        if (a.atk > 10) { ctx.fillStyle = "rgba(255,255,255,0.5)"; ctx.fillRect(a.x-camX+(a.vx>=0?25:-25), a.y+10, 15, 5); }
+    });
+
     const d = (l, c) => l.forEach(e => { ctx.fillStyle = c; ctx.fillRect(e.x-camX, e.y, e.w, e.h); });
-    d(allies, "#f1c40f"); d(vils, "#3498db"); d(anis, "#fff"); d(mobs, "#2ecc71");
+    d(vils, "#3498db"); d(anis, "#fff"); d(mobs, "#2ecc71");
+    
+    // 玩家
     ctx.fillStyle = "#FF5733"; ctx.fillRect(p.x-camX, p.y, p.w, p.h);
-    if (p.atk > 10) { ctx.fillStyle = "white"; ctx.fillRect(p.x-camX+(p.vx>=0?25:-25), p.y+10, 25, 10); }
+    if (p.atk > 5) { ctx.fillStyle = "white"; ctx.fillRect(p.x-camX+(p.vx>=0?25:-25), p.y+10, 25, 10); }
 
     document.getElementById('time').innerText = `${Math.floor(ticks/60).toString().padStart(2,'0')}:${Math.floor(ticks%60).toString().padStart(2,'0')}`;
     document.getElementById('hp').innerText = Math.ceil(p.hp);
