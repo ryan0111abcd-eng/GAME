@@ -1,197 +1,121 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <title>未來的 Super Human - 冒險生存版</title>
+    <style>
+        body { margin: 0; overflow: hidden; background: #000; font-family: "Microsoft JhengHei", sans-serif; user-select: none; }
+        canvas { display: block; position: absolute; top: 0; left: 0; }
+        
+        /* 強制置頂選單 */
+        .ui-screen {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            background: rgba(0,0,0,0.95); color: white; z-index: 9999;
+        }
+        h1 { font-size: 55px; color: #f1c40f; text-shadow: 0 0 20px #f1c40f; margin-bottom: 40px; }
+        .btn {
+            padding: 18px 60px; margin: 15px; font-size: 26px; cursor: pointer;
+            background: #f1c40f; border: none; color: #000; border-radius: 50px;
+            font-weight: bold; transition: 0.2s; pointer-events: auto;
+        }
+        .btn:hover { background: #fff; transform: scale(1.05); }
+        input { font-size: 30px; width: 100px; text-align: center; margin: 20px; border-radius: 10px; border: none; }
+        
+        /* 遊戲內介面 */
+        #game-stats { position: absolute; top: 20px; left: 20px; color: white; background: rgba(0,0,0,0.7); padding: 15px; border-radius: 10px; z-index: 100; border: 1px solid #f1c40f; display: none; pointer-events: none; }
+        #hotbar { position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%); display: none; gap: 10px; background: rgba(0,0,0,0.8); padding: 10px; border: 2px solid #fff; z-index: 100; }
+        .slot { width: 55px; height: 55px; border: 2px solid #555; display: flex; align-items: center; justify-content: center; color: white; }
+        .slot.active { border-color: #f1c40f; box-shadow: 0 0 10px #f1c40f; }
+    </style>
+</head>
+<body>
+
+    <div id="screen-main" class="ui-screen">
+        <h1>未來的 Super Human</h1>
+        <button class="btn" onclick="startNow(1)">開始遊戲</button>
+        <button class="btn" style="background:#3498db; color:white;" onclick="goMulti()">多人連線</button>
+    </div>
+
+    <div id="screen-multi" class="ui-screen" style="display:none;">
+        <h1>設定總人數 (2-10人)</h1>
+        <input type="number" id="pCount" min="2" max="10" value="5">
+        <button class="btn" onclick="startNow(document.getElementById('pCount').value)">點此開始遊戲</button>
+        <button class="btn" style="background:#666; font-size: 18px;" onclick="location.reload()">返回</button>
+    </div>
+
+    <div id="game-stats">
+        ❤️ 血量: <span id="hp-txt">100</span> | 🕒 時間: <span id="time-txt">07:00</span><br>
+        📍 座標: <span id="pos-txt">0,0</span> | ⚔️ 攻擊: [K 鍵] | 🛠️ 挖/蓋: 滑鼠
+    </div>
+
+    <div id="hotbar">
+        <div id="s1" class="slot active">草</div>
+        <div id="s2" class="slot">土</div>
+        <div id="s3" class="slot">石</div>
+    </div>
+
+    <canvas id="gameCanvas"></canvas>
+
 <script>
 const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
 
-let isStarted = false, ticks = 420; 
-let camX = 0, world = {}, selBlock = 2;
-const tileSize = 32;
+let isStarted = false;
+let gameTime = 420; // 07:00
+let camX = 0, worldData = {}, selBlock = 2;
+const TILE = 32;
+const COLORS = { 1: '#8B4513', 2: '#228B22', 3: '#666' };
 
-// --- 圓形地圖設定 ---
-const WORLD_COLS = 120; // 世界寬度 120 格
-const WORLD_PX = WORLD_COLS * tileSize; // 世界總像素寬度
-const colors = { 1: '#8B4513', 2: '#228B22', 3: '#666' };
-
-let p = { x: 300, y: 0, w: 24, h: 44, vx: 0, vy: 0, hp: 100, grounded: false, atk: 0 };
+// 角色類別
+let player = { x: 400, y: 0, w: 24, h: 44, vx: 0, vy: 0, hp: 100, grounded: false, atk: 0 };
 let teams = [], vils = [], anis = [], mobs = [];
 
-function showMulti() {
-    document.getElementById('start-screen').style.display = 'none';
-    document.getElementById('multi-screen').style.display = 'flex';
+function goMulti() {
+    document.getElementById('screen-main').style.display = 'none';
+    document.getElementById('screen-multi').style.display = 'flex';
 }
 
-function preStart(n) {
-    document.querySelectorAll('.screen').forEach(s => s.style.display = 'none');
-    document.getElementById('ui-bar').style.display = 'block';
+function startNow(num) {
+    document.querySelectorAll('.ui-screen').forEach(s => s.style.display = 'none');
+    document.getElementById('game-stats').style.display = 'block';
     document.getElementById('hotbar').style.display = 'flex';
     
-    for(let i=0; i < n-1; i++) teams.push({ x: 300 + Math.random()*200, y: -50, w: 24, h: 44, vx: 0, vy: 0, grounded: false });
-    for(let i=0; i<6; i++) vils.push({ x: 1500 + i*180, y: -50, w: 24, h: 44, vx: 0, vy: 0, grounded: false });
-    for(let i=0; i<8; i++) anis.push({ x: 600 + i*350, y: -50, w: 20, h: 20, vx: 0, vy: 0, grounded: false });
+    // 生成隊友 (黃色)
+    for(let i=0; i < num - 1; i++) {
+        teams.push({ x: 400 + Math.random()*400, y: -50, w: 24, h: 44, vx: 0, vy: 0, grounded: false, timer: 0 });
+    }
+    // 生成村民與動物
+    for(let i=0; i<6; i++) vils.push({ x: 1600 + i*250, y: -50, w: 24, h: 44, vx: 0, vy: 0, grounded: false });
+    for(let i=0; i<8; i++) anis.push({ x: 800 + i*400, y: -50, w: 20, h: 20, vx: 0, vy: 0, grounded: false });
 
-    isStarted = true; resize(); loop();
+    isStarted = true;
+    resize();
+    gameLoop();
 }
 
-// 核心：環狀地圖塊獲取 (支援圓形循環)
-function getB(gx, gy) {
-    // 讓 X 座標永遠在 0 到 WORLD_COLS 之間循環
-    let wrapX = ((gx % WORLD_COLS) + WORLD_COLS) % WORLD_COLS;
-    const key = `${wrapX}_${gy}`;
-    if (world[key] !== undefined) return world[key];
-    let g = Math.floor(12 + Math.sin(wrapX * 0.15) * 2.5); // 地形起伏
-    return gy < g ? 0 : (gy === g ? 2 : 1);
+function getBlock(x, y) {
+    const key = `${Math.floor(x)}_${Math.floor(y)}`;
+    if (worldData[key] !== undefined) return worldData[key];
+    let ground = Math.floor(12 + Math.sin(x * 0.1) * 3);
+    return (y < ground) ? 0 : (y === ground ? 2 : 1);
 }
 
-// 核心：防穿牆物理系統 (圓形循環版)
+// 核心物理：防穿牆與自動跳躍
 function physics(o) {
     o.vy += 0.6;
-    
-    // 1. 水平移動與碰撞
-    let nextX = o.x + o.vx;
-    // 讓座標循環
-    nextX = ((nextX % WORLD_PX) + WORLD_PX) % WORLD_PX;
+    let nX = o.x + o.vx;
+    let gX = (o.vx > 0) ? Math.floor((nX + o.w) / TILE) : Math.floor(nX / TILE);
+    let tY = Math.floor(o.y / TILE), bY = Math.floor((o.y + o.h - 5) / TILE);
 
-    let checkX = (o.vx > 0) ? nextX + o.w : nextX;
-    let gX = Math.floor(checkX / tileSize);
-    let tY = Math.floor(o.y / tileSize), bY = Math.floor((o.y + o.h - 4) / tileSize);
-
-    if (getB(gX, tY) === 0 && getB(gX, bY) === 0) {
-        o.x = nextX;
-    } else if (o.grounded && Math.abs(o.vx) > 0) {
-        o.vy = -9; // 遇障礙物自動跳躍
+    if (getBlock(gX, tY) === 0 && getBlock(gX, bY) === 0) {
+        o.x = nX;
+    } else if (o.grounded) {
+        o.vy = -10; // 撞牆自動跳躍
     }
 
-    // 2. 垂直移動與碰撞
     o.y += o.vy;
     o.grounded = false;
-    let lX = Math.floor(o.x / tileSize), rX = Math.floor((o.x + o.w - 1) / tileSize), fY = Math.floor((o.y + o.h) / tileSize);
-    
-    if (getB(lX, fY) !== 0 || getB(rX, fY) !== 0) {
-        o.y = fY * tileSize - o.h;
-        o.vy = 0;
-        o.grounded = true;
-    }
-}
-
-let keys = {};
-window.onkeydown = (e) => {
-    keys[e.code] = true;
-    if (e.key === '1') { selBlock = 2; updateSlot(1); }
-    if (e.key === '2') { selBlock = 1; updateSlot(2); }
-    if (e.key === '3') { selBlock = 3; updateSlot(3); }
-};
-window.onkeyup = (e) => keys[e.code] = false;
-
-function updateSlot(idx) {
-    document.querySelectorAll('.slot').forEach(s => s.classList.remove('active'));
-    document.getElementById('slot'+idx).classList.add('active');
-}
-
-canvas.onmousedown = (e) => {
-    if (!isStarted) return;
-    const rect = canvas.getBoundingClientRect();
-    // 點擊座標也要計算循環偏移
-    const realX = ((e.clientX - rect.left + camX) % WORLD_PX + WORLD_PX) % WORLD_PX;
-    const gx = Math.floor(realX / tileSize);
-    const gy = Math.floor((e.clientY - rect.top) / tileSize);
-    if (e.button === 0) world[`${gx}_${gy}`] = 0;
-    if (e.button === 2) world[`${gx}_${gy}`] = selBlock;
-};
-canvas.oncontextmenu = e => e.preventDefault();
-
-function loop() {
-    if (!isStarted) return;
-    ticks = (ticks + 0.4) % 1440;
-    let hr = Math.floor(ticks / 60);
-
-    // 玩家控制
-    p.vx = (keys['KeyA'] ? -5 : keys['KeyD'] ? 5 : 0);
-    if (keys['Space'] && p.grounded) p.vy = -12;
-    
-    // 攻擊判定 (考慮循環邊界)
-    if (keys['KeyK'] && p.atk <= 0) {
-        p.atk = 15;
-        mobs.forEach(m => {
-            let dx = Math.abs(m.x - p.x);
-            if (dx > WORLD_PX/2) dx = WORLD_PX - dx; // 圓形最短距離
-            if(dx < 70) { m.hp -= 10; m.vx = (m.x > p.x ? 8 : -8); }
-        });
-    }
-    if (p.atk > 0) p.atk--;
-
-    physics(p);
-    camX = p.x - canvas.width/2;
-
-    // AI 更新
-    [...teams, ...vils, ...anis].forEach(e => {
-        if(Math.random() < 0.01) e.vx = (Math.random()-0.5)*3;
-        physics(e);
-    });
-
-    // 怪物生成
-    if ((hr >= 18 || hr < 6) && Math.random() < 0.012) {
-        let spawnX = (p.x + (Math.random() > 0.5 ? 600 : -600)) % WORLD_PX;
-        mobs.push({ x: spawnX, y: -50, w: 24, h: 44, vx: 0, vy: 0, hp: 20 });
-    }
-    mobs.forEach((m, i) => {
-        let dx = p.x - m.x;
-        if (Math.abs(dx) > WORLD_PX/2) dx = dx > 0 ? dx - WORLD_PX : dx + WORLD_PX;
-        m.vx = dx > 0 ? 2.2 : -2.2;
-        physics(m);
-        if (Math.abs(dx) < 25 && Math.abs(m.y - p.y) < 30) p.hp -= 0.5;
-        if (m.hp <= 0) mobs.splice(i, 1);
-    });
-
-    if (p.hp <= 0) { alert("你失敗了！"); location.reload(); }
-    render();
-    requestAnimationFrame(loop);
-}
-
-function render() {
-    let hr = Math.floor(ticks / 60);
-    let bg = "#87ceeb"; 
-    if (ticks >= 1050 && ticks < 1080) bg = "#ff7832"; 
-    else if (ticks >= 1080 || ticks < 390) bg = "#050515"; 
-    ctx.fillStyle = bg;
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-    // 繪製循環世界塊
-    let sX = Math.floor(camX / tileSize);
-    let eX = sX + Math.ceil(canvas.width / tileSize) + 1;
-
-    for (let x = sX; x < eX; x++) {
-        for (let y = 0; y < 25; y++) {
-            let b = getB(x, y);
-            if (b !== 0) {
-                ctx.fillStyle = colors[b];
-                // 這裡直接畫，座標會隨攝像機線性移動，視覺上就是連續的
-                ctx.fillRect(x * tileSize - camX, y * tileSize, tileSize, tileSize);
-            }
-        }
-    }
-
-    // 繪製實體 (處理邊界鏡像繪製)
-    const drawEnt = (list, col) => list.forEach(e => {
-        let dx = e.x - camX;
-        // 如果實體太遠，計算它在循環另一頭的距離
-        if (dx < -WORLD_PX/2) dx += WORLD_PX;
-        if (dx > WORLD_PX*1.5) dx -= WORLD_PX;
-        ctx.fillStyle = col;
-        ctx.fillRect(dx, e.y, e.w, e.h);
-    });
-
-    drawEnt(teams, "#f1c40f"); drawEnt(vils, "#3498db"); 
-    drawEnt(anis, "#ffffff"); drawEnt(mobs, "#2ecc71");
-    
-    // 玩家
-    ctx.fillStyle = "#FF5733";
-    ctx.fillRect(p.x - camX, p.y, p.w, p.h);
-    if (p.atk > 5) { ctx.fillStyle = "white"; ctx.fillRect(p.x-camX + (p.vx>=0?25:-25), p.y+10, 25, 8); }
-
-    document.getElementById('time-val').innerText = `${hr.toString().padStart(2,'0')}:${Math.floor(ticks%60).toString().padStart(2,'0')}`;
-    document.getElementById('hp-val').innerText = Math.ceil(p.hp);
-    document.getElementById('pos-val').innerText = `${Math.floor(p.x/tileSize)}, ${Math.floor(p.y/tileSize)}`;
-}
-
-function resize() { canvas.width = window.innerWidth; canvas.height = window.innerHeight; }
-window.onresize = resize;
-</script>
+    let lX = Math.floor(o.x / TILE), rX = Math.floor((o.x + o.w - 1) / TILE), fY = Math.floor((o.y + o.h) / TILE);
+    if (getBlock(lX, fY) !== 0 || getBlock(rX, fY) !== 0) {
+        o.y = fY * TILE - o.h; o.vy =
