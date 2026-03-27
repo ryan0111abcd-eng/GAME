@@ -2,11 +2,12 @@
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
-    <title>Super Human - 全能 AI 與高山版</title>
+    <title>Super Human - 點擊修復終極版</title>
     <style>
         body, html { margin: 0; padding: 0; width: 100%; height: 100%; background: #000; overflow: hidden; font-family: sans-serif; color: white; }
-        .layer { position: fixed; top: 0; left: 0; width: 100%; height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; background: #111; z-index: 9000; }
-        .btn { padding: 15px 50px; font-size: 24px; cursor: pointer; margin: 10px; background: #f1c40f; border: none; font-weight: bold; border-radius: 10px; color: black; }
+        .layer { position: fixed; top: 0; left: 0; width: 100%; height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; background: #111; z-index: 9999; }
+        .btn { padding: 18px 60px; font-size: 26px; cursor: pointer; margin: 15px; background: #f1c40f; border: none; font-weight: bold; border-radius: 12px; color: black; display: block; }
+        .btn:hover { background: #fff; scale: 1.05; }
         #hud { position: fixed; top: 10px; left: 10px; background: rgba(0,0,0,0.8); padding: 12px; border: 2px solid #f1c40f; display: none; z-index: 5000; border-radius: 10px; }
         #minimap-container { position: fixed; top: 20px; right: 20px; width: 160px; height: 160px; border: 3px solid white; border-radius: 50%; overflow: hidden; background: #000; display: none; z-index: 5000; }
         canvas { display: block; }
@@ -14,33 +15,33 @@
 </head>
 <body>
 
-    <div id="menu-layer" class="layer">
-        <h1 style="font-size: 42px; color: #f1c40f;">未來的 Super Human</h1>
-        <button class="btn" onclick="setMode('single')">單人探險</button>
-        <button class="btn" style="background:#3498db; color:white;" onclick="setMode('multi')">多人連線 (AI 協力)</button>
+    <div id="layer-home" class="layer">
+        <h1 style="font-size: 48px; color: #f1c40f; margin-bottom: 30px;">未來的 Super Human</h1>
+        <button class="btn" onclick="fnSelectMode('single')">單人探險</button>
+        <button class="btn" style="background:#3498db; color:white;" onclick="fnSelectMode('multi')">多人連線 (AI 協力)</button>
     </div>
 
-    <div id="select-layer" class="layer" style="display:none;">
-        <h1>選擇小隊人數</h1>
-        <select id="pNumInput" style="font-size:28px; padding:10px; margin:20px; border-radius:10px;">
+    <div id="layer-select" class="layer" style="display:none;">
+        <h1>選擇小隊總人數</h1>
+        <select id="pNumInput" style="font-size:30px; padding:15px; margin:25px; border-radius:10px; width: 250px;">
             <option value="2">2 人</option>
             <option value="5" selected>5 人</option>
             <option value="10">10 人</option>
         </select>
-        <button class="btn" onclick="showRules()">確定</button>
+        <button class="btn" onclick="fnShowRules()">下一步</button>
     </div>
 
-    <div id="info-layer" class="layer" style="display:none;">
-        <div style="background:#222; padding:30px; border:2px solid #f1c40f; border-radius:20px; text-align:center;">
-            <h2 id="modeTitle" style="color:#f1c40f;">模式確認</h2>
-            <p>你的隊友現在擁有跟你一樣的 AI 智慧！</p>
-            <ul style="text-align:left; font-size:18px; line-height:1.6;">
-                <li><b>A / D / 空白</b>：移動與跳躍</li>
-                <li><b>滑鼠左右鍵</b>：挖掘與建築</li>
-                <li><b>K 鍵</b>：攻擊 (隊友也會自動戰鬥)</li>
-                <li><b>高山地形</b>：攝影機會自動跟隨高度</li>
+    <div id="layer-info" class="layer" style="display:none;">
+        <div style="background:#222; padding:40px; border:3px solid #f1c40f; border-radius:25px; text-align:center; max-width:500px;">
+            <h2 id="modeTitle" style="color:#f1c40f; font-size: 32px;">準備出發</h2>
+            <p style="font-size: 18px; color: #ccc;">AI 隊友將具備與你相同的挖掘與建築智慧</p>
+            <ul style="text-align:left; font-size:20px; line-height:1.8; margin: 20px 0;">
+                <li><b>A / D / 空白</b>：跑跳移動</li>
+                <li><b>滑鼠左鍵</b>：挖掘 (隊友也會)</li>
+                <li><b>滑鼠右鍵</b>：蓋牆 (隊友也會)</li>
+                <li><b>K 鍵</b>：手動攻擊</li>
             </ul>
-            <button class="btn" onclick="startGame()">正式進入世界</button>
+            <button class="btn" style="width: 100%;" onclick="fnStartGame()">正式進入世界</button>
         </div>
     </div>
 
@@ -54,23 +55,28 @@ const TILE = 32, COLORS = { 1: '#8B4513', 2: '#228B22', 3: '#666' };
 let p = { x: 500, y: 0, w: 24, h: 44, vx: 0, vy: 0, hp: 100, ground: false, atk: 0 };
 let allies = [], mobs = [], keys = {};
 
-function setMode(m) {
-    document.getElementById('menu-layer').style.display = 'none';
-    if(m === 'single') { finalPCount = 1; showRules(); } 
-    else { document.getElementById('select-layer').style.display = 'flex'; }
+// 介面導航函數 (修復點不進去的關鍵)
+function fnSelectMode(mode) {
+    document.getElementById('layer-home').style.display = 'none';
+    if (mode === 'single') {
+        finalPCount = 1;
+        fnShowRules();
+    } else {
+        document.getElementById('layer-select').style.display = 'flex';
+    }
 }
 
-function showRules() {
-    if(document.getElementById('select-layer').style.display !== 'none') {
+function fnShowRules() {
+    if (document.getElementById('layer-select').style.display !== 'none') {
         finalPCount = parseInt(document.getElementById('pNumInput').value);
     }
-    document.getElementById('select-layer').style.display = 'none';
-    document.getElementById('info-layer').style.display = 'flex';
-    document.getElementById('modeTitle').innerText = `🎮 ${finalPCount} 人模式 (AI 全能啟動)`;
+    document.getElementById('layer-select').style.display = 'none';
+    document.getElementById('layer-info').style.display = 'flex';
+    document.getElementById('modeTitle').innerText = `🎮 ${finalPCount} 人模式已就緒`;
 }
 
-function startGame() {
-    document.getElementById('info-layer').style.display = 'none';
+function fnStartGame() {
+    document.getElementById('layer-info').style.display = 'none';
     document.getElementById('hud').style.display = 'block';
     document.getElementById('minimap-container').style.display = 'block';
 
@@ -81,10 +87,12 @@ function startGame() {
     ctx = canvas.getContext('2d');
     miniCtx = document.getElementById('mini-canvas').getContext('2d');
 
-    p.y = getGroundY(p.x/TILE) * TILE - 100;
+    // 初始化角色與隊友
+    p.y = getGroundY(p.x/TILE) * TILE - 150;
+    allies = [];
     for(let i=0; i < finalPCount - 1; i++){
         let ax = p.x + (i + 1) * 60;
-        allies.push({ x: ax, y: p.y, w: 24, h: 44, vx: 0, vy: 0, hp: 100, atk: 0, dir: 1, timer: 0 });
+        allies.push({ x: ax, y: p.y, w: 24, h: 44, vx: 0, vy: 0, hp: 100, atk: 0, dir: 1 });
     }
 
     isRunning = true;
@@ -101,11 +109,9 @@ function startGame() {
     requestAnimationFrame(loop);
 }
 
-// 高山地形公式 (大幅度起伏但平滑)
+// 高山地形公式
 function getGroundY(gx) {
-    let hill = Math.sin(gx * 0.05) * 10;
-    let mountain = Math.cos(gx * 0.02) * 15;
-    return Math.floor(30 + hill + mountain); 
+    return Math.floor(35 + Math.sin(gx * 0.05) * 12 + Math.cos(gx * 0.02) * 18); 
 }
 
 function getB(gx, gy) {
@@ -117,24 +123,21 @@ function getB(gx, gy) {
 function physics(o, isPlayer) {
     if (isPlayer) {
         o.vx = (keys['KeyA'] ? -5 : keys['KeyD'] ? 5 : 0);
-        if (keys['Space'] && o.ground) o.vy = -12;
+        if (keys['Space'] && o.ground) o.vy = -13;
     } else {
-        // AI 全能邏輯
         let dist = p.x - o.x;
-        if (Math.abs(dist) > 100) o.vx = (dist > 0 ? 3.5 : -3.5); else o.vx = 0;
+        if (Math.abs(dist) > 120) o.vx = (dist > 0 ? 3.8 : -3.8); else o.vx = 0;
         
-        // AI 遇到牆壁自動跳躍或挖掘
-        let aheadX = Math.floor((o.x + (o.vx > 0 ? 30 : -10)) / TILE);
+        let aheadX = Math.floor((o.x + (o.vx >= 0 ? 30 : -10)) / TILE);
         let footY = Math.floor((o.y + o.h - 5) / TILE);
         if (getB(aheadX, footY) !== 0) {
-            if (o.ground) o.vy = -12; // 跳躍
-            if (Math.random() < 0.05) world[`${aheadX}_${footY}`] = 0; // 挖掘
+            if (o.ground) o.vy = -13; 
+            if (Math.random() < 0.04) world[`${aheadX}_${footY}`] = 0; // AI 挖掘
         }
-        // AI 掉下坑洞自動墊腳
-        if (o.vy > 5 && Math.random() < 0.1) world[`${Math.floor(o.x/TILE)}_${footY+1}`] = 3;
+        if (o.vy > 5 && Math.random() < 0.08) world[`${Math.floor(o.x/TILE)}_${footY+1}`] = 3; // AI 墊腳
     }
     
-    o.vy += 0.6;
+    o.vy += 0.7;
     let nx = o.x + o.vx, gx = (o.vx > 0) ? Math.floor((nx + o.w) / TILE) : Math.floor(nx / TILE);
     let ty = Math.floor(o.y / TILE), by = Math.floor((o.y + o.h - 5) / TILE);
     if (getB(gx, ty) === 0 && getB(gx, by) === 0) o.x = nx;
@@ -149,32 +152,30 @@ function loop() {
     ticks = (ticks + 0.4) % 1440;
     physics(p, true);
 
-    // 攝影機平滑跟隨 (包含 X 和 Y)
     camX += (p.x - canvas.width / 2 - camX) * 0.1;
     camY += (p.y - canvas.height / 2 - camY) * 0.1;
 
     allies.forEach(a => {
         physics(a, false);
-        mobs.forEach(m => {
-            if(Math.abs(m.x - a.x) < 60) { a.atk = 10; m.hp -= 5; }
-        });
+        mobs.forEach(m => { if(Math.abs(m.x - a.x) < 60) { a.atk = 10; m.hp -= 5; } });
         if(a.atk > 0) a.atk--;
     });
 
-    let isDay = (ticks/60 >= 7 && ticks/60 < 17.5);
-    if (!isDay && Math.random() < 0.02) mobs.push({ x: p.x + (Math.random()-0.5)*1200, y: p.y-400, w: 24, h: 44, vx: 0, vy: 0, hp: 20 });
+    let hr = ticks / 60;
+    let isDay = (hr >= 7 && hr < 17.5);
+    if (!isDay && Math.random() < 0.025) mobs.push({ x: p.x + (Math.random()-0.5)*1500, y: p.y-500, w: 24, h: 44, vx: 0, vy: 0, hp: 20 });
     
     mobs.forEach((m, i) => {
         if (isDay) m.hp -= 0.5;
-        m.vx = (m.x < p.x) ? 2.5 : -2.5;
+        m.vx = (m.x < p.x) ? 2.8 : -2.8;
         physics(m, false);
-        if (Math.abs(m.x - p.x) < 30 && Math.abs(m.y - p.y) < 30) p.hp -= 0.3;
+        if (Math.abs(m.x - p.x) < 30 && Math.abs(m.y - p.y) < 30) p.hp -= 0.4;
         if (m.hp <= 0) mobs.splice(i, 1);
     });
 
-    if (keys['KeyK'] && p.atk <= 0) { p.atk = 15; mobs.forEach(m => { if(Math.abs(m.x-p.x)<70) m.hp -= 10; }); }
+    if (keys['KeyK'] && p.atk <= 0) { p.atk = 15; mobs.forEach(m => { if(Math.abs(m.x-p.x)<80) m.hp -= 10; }); }
     if (p.atk > 0) p.atk--;
-    if (p.hp <= 0) { alert("遊戲結束"); location.reload(); }
+    if (p.hp <= 0) { alert("英雄倒下了..."); location.reload(); }
 
     render();
     requestAnimationFrame(loop);
@@ -203,3 +204,17 @@ function render() {
     if (p.atk > 5) { ctx.fillStyle = "white"; ctx.fillRect(p.x-camX+(p.vx>=0?25:-25), p.y-camY+10, 25, 10); }
 
     document.getElementById('hp').innerText = Math.ceil(p.hp);
+    document.getElementById('time').innerText = Math.floor(hr).toString().padStart(2,'0') + ":" + Math.floor(ticks%60).toString().padStart(2,'0');
+
+    miniCtx.fillStyle = "black"; miniCtx.fillRect(0,0,160,160);
+    const drawDot = (ox, oy, c) => {
+        let dx = 80 + (ox - p.x) * 0.1, dy = 80 + (oy - p.y) * 0.1;
+        if (Math.hypot(dx-80, dy-80) < 75) { miniCtx.fillStyle = c; miniCtx.beginPath(); miniCtx.arc(dx, dy, 4, 0, 7); miniCtx.fill(); }
+    };
+    allies.forEach(a => drawDot(a.x, a.y, "#f1c40f"));
+    mobs.forEach(m => drawDot(m.x, m.y, "#2ecc71"));
+    drawDot(p.x, p.y, "#FF5733");
+}
+</script>
+</body>
+</html>
