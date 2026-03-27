@@ -2,15 +2,14 @@
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
-    <title>Super Human - 點擊修復終極版</title>
+    <title>Super Human - 隊友血量監控版</title>
     <style>
         body, html { margin: 0; padding: 0; width: 100%; height: 100%; background: #000; overflow: hidden; font-family: sans-serif; color: white; }
         .layer { position: fixed; top: 0; left: 0; width: 100%; height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; background: #111; z-index: 9999; }
-        .btn { padding: 18px 60px; font-size: 26px; cursor: pointer; margin: 15px; background: #f1c40f; border: none; font-weight: bold; border-radius: 12px; color: black; display: block; }
-        .btn:hover { background: #fff; scale: 1.05; }
+        .btn { padding: 18px 60px; font-size: 26px; cursor: pointer; margin: 15px; background: #f1c40f; border: none; font-weight: bold; border-radius: 12px; color: black; transition: 0.2s; }
+        .btn:hover { background: #fff; transform: scale(1.05); }
         #hud { position: fixed; top: 10px; left: 10px; background: rgba(0,0,0,0.8); padding: 12px; border: 2px solid #f1c40f; display: none; z-index: 5000; border-radius: 10px; }
         #minimap-container { position: fixed; top: 20px; right: 20px; width: 160px; height: 160px; border: 3px solid white; border-radius: 50%; overflow: hidden; background: #000; display: none; z-index: 5000; }
-        canvas { display: block; }
     </style>
 </head>
 <body>
@@ -34,18 +33,17 @@
     <div id="layer-info" class="layer" style="display:none;">
         <div style="background:#222; padding:40px; border:3px solid #f1c40f; border-radius:25px; text-align:center; max-width:500px;">
             <h2 id="modeTitle" style="color:#f1c40f; font-size: 32px;">準備出發</h2>
-            <p style="font-size: 18px; color: #ccc;">AI 隊友將具備與你相同的挖掘與建築智慧</p>
             <ul style="text-align:left; font-size:20px; line-height:1.8; margin: 20px 0;">
                 <li><b>A / D / 空白</b>：跑跳移動</li>
-                <li><b>滑鼠左鍵</b>：挖掘 (隊友也會)</li>
-                <li><b>滑鼠右鍵</b>：蓋牆 (隊友也會)</li>
-                <li><b>K 鍵</b>：手動攻擊</li>
+                <li><b>滑鼠左鍵</b>：挖掘 / <b>右鍵</b>：蓋牆</li>
+                <li><b>K 鍵</b>：攻擊 (隊友也會自動戰鬥)</li>
+                <li><b>隊友血量</b>：顯示在角色頭部上方</li>
             </ul>
             <button class="btn" style="width: 100%;" onclick="fnStartGame()">正式進入世界</button>
         </div>
     </div>
 
-    <div id="hud">❤️ 血量: <span id="hp">100</span> | 🕒 <span id="time">07:00</span></div>
+    <div id="hud">❤️ 我的血量: <span id="hp">100</span> | 🕒 <span id="time">07:00</span></div>
     <div id="minimap-container"><canvas id="mini-canvas" width="160" height="160"></canvas></div>
 
 <script>
@@ -55,15 +53,10 @@ const TILE = 32, COLORS = { 1: '#8B4513', 2: '#228B22', 3: '#666' };
 let p = { x: 500, y: 0, w: 24, h: 44, vx: 0, vy: 0, hp: 100, ground: false, atk: 0 };
 let allies = [], mobs = [], keys = {};
 
-// 介面導航函數 (修復點不進去的關鍵)
 function fnSelectMode(mode) {
     document.getElementById('layer-home').style.display = 'none';
-    if (mode === 'single') {
-        finalPCount = 1;
-        fnShowRules();
-    } else {
-        document.getElementById('layer-select').style.display = 'flex';
-    }
+    if (mode === 'single') { finalPCount = 1; fnShowRules(); } 
+    else { document.getElementById('layer-select').style.display = 'flex'; }
 }
 
 function fnShowRules() {
@@ -72,7 +65,7 @@ function fnShowRules() {
     }
     document.getElementById('layer-select').style.display = 'none';
     document.getElementById('layer-info').style.display = 'flex';
-    document.getElementById('modeTitle').innerText = `🎮 ${finalPCount} 人模式已就緒`;
+    document.getElementById('modeTitle').innerText = `🎮 ${finalPCount} 人模式`;
 }
 
 function fnStartGame() {
@@ -87,12 +80,11 @@ function fnStartGame() {
     ctx = canvas.getContext('2d');
     miniCtx = document.getElementById('mini-canvas').getContext('2d');
 
-    // 初始化角色與隊友
     p.y = getGroundY(p.x/TILE) * TILE - 150;
     allies = [];
     for(let i=0; i < finalPCount - 1; i++){
         let ax = p.x + (i + 1) * 60;
-        allies.push({ x: ax, y: p.y, w: 24, h: 44, vx: 0, vy: 0, hp: 100, atk: 0, dir: 1 });
+        allies.push({ x: ax, y: p.y, w: 24, h: 44, vx: 0, vy: 0, hp: 100, maxHp: 100, atk: 0, dir: 1 });
     }
 
     isRunning = true;
@@ -109,15 +101,10 @@ function fnStartGame() {
     requestAnimationFrame(loop);
 }
 
-// 高山地形公式
-function getGroundY(gx) {
-    return Math.floor(35 + Math.sin(gx * 0.05) * 12 + Math.cos(gx * 0.02) * 18); 
-}
-
-function getB(gx, gy) {
+function getGroundY(gx) { return Math.floor(35 + Math.sin(gx * 0.05) * 12 + Math.cos(gx * 0.02) * 18); }
+function getB(gx, gy) { 
     if (world[`${gx}_${gy}`] !== undefined) return world[`${gx}_${gy}`];
-    let gY = getGroundY(gx);
-    return gy < gY ? 0 : (gy === gY ? 2 : 1);
+    return gy < getGroundY(gx) ? 0 : (gy === getGroundY(gx) ? 2 : 1);
 }
 
 function physics(o, isPlayer) {
@@ -127,21 +114,18 @@ function physics(o, isPlayer) {
     } else {
         let dist = p.x - o.x;
         if (Math.abs(dist) > 120) o.vx = (dist > 0 ? 3.8 : -3.8); else o.vx = 0;
-        
         let aheadX = Math.floor((o.x + (o.vx >= 0 ? 30 : -10)) / TILE);
         let footY = Math.floor((o.y + o.h - 5) / TILE);
         if (getB(aheadX, footY) !== 0) {
             if (o.ground) o.vy = -13; 
-            if (Math.random() < 0.04) world[`${aheadX}_${footY}`] = 0; // AI 挖掘
+            if (Math.random() < 0.04) world[`${aheadX}_${footY}`] = 0;
         }
-        if (o.vy > 5 && Math.random() < 0.08) world[`${Math.floor(o.x/TILE)}_${footY+1}`] = 3; // AI 墊腳
+        if (o.vy > 5 && Math.random() < 0.08) world[`${Math.floor(o.x/TILE)}_${footY+1}`] = 3;
     }
-    
     o.vy += 0.7;
     let nx = o.x + o.vx, gx = (o.vx > 0) ? Math.floor((nx + o.w) / TILE) : Math.floor(nx / TILE);
     let ty = Math.floor(o.y / TILE), by = Math.floor((o.y + o.h - 5) / TILE);
     if (getB(gx, ty) === 0 && getB(gx, by) === 0) o.x = nx;
-    
     o.y += o.vy; o.ground = false;
     let lx = Math.floor(o.x/TILE), rx = Math.floor((o.x+o.w-1)/TILE), fy = Math.floor((o.y+o.h)/TILE);
     if (getB(lx, fy) !== 0 || getB(rx, fy) !== 0) { o.y = fy*TILE-o.h; o.vy = 0; o.ground = true; }
@@ -151,20 +135,24 @@ function loop() {
     if (!isRunning) return;
     ticks = (ticks + 0.4) % 1440;
     physics(p, true);
-
     camX += (p.x - canvas.width / 2 - camX) * 0.1;
     camY += (p.y - canvas.height / 2 - camY) * 0.1;
 
-    allies.forEach(a => {
+    allies.forEach((a, index) => {
         physics(a, false);
-        mobs.forEach(m => { if(Math.abs(m.x - a.x) < 60) { a.atk = 10; m.hp -= 5; } });
+        mobs.forEach(m => {
+            if(Math.abs(m.x - a.x) < 40 && Math.abs(m.y - a.y) < 40) {
+                a.hp -= 0.1; // 隊友受傷
+                a.atk = 10; m.hp -= 5; // 隊友反擊
+            }
+        });
         if(a.atk > 0) a.atk--;
+        if(a.hp <= 0) allies.splice(index, 1); // 隊友戰死
     });
 
     let hr = ticks / 60;
     let isDay = (hr >= 7 && hr < 17.5);
     if (!isDay && Math.random() < 0.025) mobs.push({ x: p.x + (Math.random()-0.5)*1500, y: p.y-500, w: 24, h: 44, vx: 0, vy: 0, hp: 20 });
-    
     mobs.forEach((m, i) => {
         if (isDay) m.hp -= 0.5;
         m.vx = (m.x < p.x) ? 2.8 : -2.8;
@@ -175,7 +163,7 @@ function loop() {
 
     if (keys['KeyK'] && p.atk <= 0) { p.atk = 15; mobs.forEach(m => { if(Math.abs(m.x-p.x)<80) m.hp -= 10; }); }
     if (p.atk > 0) p.atk--;
-    if (p.hp <= 0) { alert("英雄倒下了..."); location.reload(); }
+    if (p.hp <= 0) { alert("你失敗了！"); location.reload(); }
 
     render();
     requestAnimationFrame(loop);
@@ -195,13 +183,18 @@ function render() {
             if (b !== 0) { ctx.fillStyle = COLORS[b]; ctx.fillRect(x*TILE-camX, y*TILE-camY, TILE, TILE); }
         }
     }
+    
     allies.forEach(a => {
+        // 畫電腦隊友
         ctx.fillStyle = "#f1c40f"; ctx.fillRect(a.x-camX, a.y-camY, a.w, a.h);
+        // 畫頭上血量條 (關鍵更新)
+        ctx.fillStyle = "red"; ctx.fillRect(a.x-camX-5, a.y-camY-15, 34, 5);
+        ctx.fillStyle = "#2ecc71"; ctx.fillRect(a.x-camX-5, a.y-camY-15, 34 * (a.hp/a.maxHp), 5);
         if(a.atk > 0) { ctx.fillStyle = "white"; ctx.fillRect(a.x-camX+(a.vx>=0?25:-20), a.y-camY+10, 20, 5); }
     });
+    
     mobs.forEach(m => { ctx.fillStyle = "#2ecc71"; ctx.fillRect(m.x-camX, m.y-camY, m.w, m.h); });
     ctx.fillStyle = "#FF5733"; ctx.fillRect(p.x-camX, p.y-camY, p.w, p.h);
-    if (p.atk > 5) { ctx.fillStyle = "white"; ctx.fillRect(p.x-camX+(p.vx>=0?25:-25), p.y-camY+10, 25, 10); }
 
     document.getElementById('hp').innerText = Math.ceil(p.hp);
     document.getElementById('time').innerText = Math.floor(hr).toString().padStart(2,'0') + ":" + Math.floor(ticks%60).toString().padStart(2,'0');
