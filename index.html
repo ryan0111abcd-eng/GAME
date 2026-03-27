@@ -2,37 +2,68 @@
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
-    <title>Super Human - 浮力物理版</title>
+    <title>未來的 Super Human - 修正啟動版</title>
     <style>
         body, html { margin: 0; padding: 0; width: 100%; height: 100%; background: #000; overflow: hidden; font-family: "Microsoft JhengHei", sans-serif; color: white; }
-        .layer { position: fixed; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; background: #1a1a1a; z-index: 10001; }
+        
+        /* 確保選單在最前面，且滑鼠可以點擊 */
+        .layer { 
+            position: fixed; inset: 0; 
+            display: flex; flex-direction: column; align-items: center; justify-content: center; 
+            background: rgba(26, 26, 26, 1); 
+            z-index: 99999; /* 極高層級 */
+            pointer-events: auto; 
+        }
+        
         .title-text { color: #f1c40f; font-size: 50px; margin-bottom: 40px; text-shadow: 3px 3px 0 #000; }
-        .btn { padding: 15px 50px; font-size: 24px; cursor: pointer; margin: 10px; background: #f1c40f; border: none; font-weight: bold; border-radius: 12px; color: black; box-shadow: 0 6px 0 #b8860b; }
-        #hud { position: fixed; top: 10px; left: 10px; background: rgba(0,0,0,0.7); padding: 15px; border: 2px solid #f1c40f; display: none; z-index: 5000; border-radius: 10px; pointer-events: none; }
+        
+        /* 按鈕樣式加強 */
+        .btn { 
+            padding: 20px 60px; font-size: 28px; cursor: pointer; 
+            margin: 15px; background: #f1c40f; border: 4px solid #fff; 
+            font-weight: bold; border-radius: 15px; color: black; 
+            box-shadow: 0 8px 0 #b8860b;
+            transition: transform 0.1s;
+        }
+        .btn:hover { background: #fff; transform: scale(1.05); }
+        .btn:active { transform: translateY(4px); box-shadow: 0 4px 0 #b8860b; }
+
+        /* 滑桿樣式 */
+        input[type=range] { width: 300px; height: 20px; cursor: pointer; }
+
+        /* 遊戲介面 */
+        #hud { position: fixed; top: 10px; left: 10px; background: rgba(0,0,0,0.8); padding: 15px; border: 2px solid #f1c40f; display: none; z-index: 5000; border-radius: 10px; pointer-events: none; }
         #inv { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); display: none; gap: 8px; z-index: 5000; }
-        .slot { width: 45px; height: 45px; border: 2px solid #777; background: #333; display: flex; align-items: center; justify-content: center; font-size: 14px; }
-        .slot.active { border-color: #f1c40f; transform: scale(1.1); background: #444; }
-        canvas#gameCanvas { display: none; position: absolute; top: 0; left: 0; }
+        .slot { width: 50px; height: 50px; border: 2px solid #777; background: #333; display: flex; align-items: center; justify-content: center; font-weight: bold; }
+        .slot.active { border-color: #f1c40f; background: #555; transform: scale(1.1); }
+        
+        canvas#gameCanvas { display: none; position: absolute; top: 0; left: 0; z-index: 10; }
     </style>
 </head>
 <body>
 
-    <div id="ui-main" class="layer">
+    <div id="ui-boot" class="layer">
+        <h1 class="title-text">點擊畫面中央來開始遊戲</h1>
+        <div style="width:200px; height:200px; background:#f1c40f; border-radius:20px; cursor:pointer; display:flex; align-items:center; justify-content:center; color:black; font-weight:bold; font-size:24px;" onclick="toMain()">開始點這裡</div>
+    </div>
+
+    <div id="ui-main" class="layer" style="display:none;">
         <h1 class="title-text">未來的 SUPER HUMAN</h1>
-        <button class="btn" onclick="boot(1)">開始鍵</button>
-        <button class="btn" onclick="document.getElementById('ui-main').style.display='none'; document.getElementById('ui-multi').style.display='flex';">多人連線鍵</button>
+        <button class="btn" onclick="bootGame(1)">單人遊戲</button>
+        <button class="btn" onclick="showMultiMenu()" style="background:#3498db; color:white; border-color:#fff;">多人連線鍵</button>
     </div>
 
     <div id="ui-multi" class="layer" style="display:none;">
         <h1 class="title-text">選擇人數</h1>
         <input type="range" id="p-range" min="2" max="10" value="5" oninput="document.getElementById('pv').innerText=this.value">
-        <div style="font-size:32px; margin: 20px;">總人數：<span id="pv" style="color:#f1c40f;">5</span></div>
-        <button class="btn" onclick="boot(document.getElementById('p-range').value)">確認並開始</button>
+        <div style="font-size:35px; margin: 25px;">總人數：<span id="pv" style="color:#f1c40f;">5</span> 人</div>
+        <button class="btn" onclick="bootGame(document.getElementById('p-range').value)">確認並開始</button>
+        <button class="btn" onclick="location.reload()" style="background:#666; color:white;">返回首頁</button>
     </div>
 
     <div id="hud">
         📍 座標: <span id="posX">0</span>, <span id="posY">0</span> | ❤️ HP: <span id="hp">100</span><br>
-        🕒 時間: <span id="time-text">07:00</span> | 🌊 狀態: <span id="status">陸地</span>
+        🕒 時間: <span id="time-text">07:00</span> | 🌊 狀態: <span id="status">偵測中</span>
     </div>
 
     <div id="inv">
@@ -45,65 +76,130 @@
     <canvas id="gameCanvas"></canvas>
 
 <script>
-const cvs = document.getElementById('gameCanvas'), ctx = cvs.getContext('2d');
-let isRunning = false, ticks = 420, world = {}, camX = 0, camY = 0, curB = 1;
-let p = { x: 500, y: 0, w: 20, h: 40, vx: 0, vy: 0, hp: 100, ground: false, inWater: false, atk: 0 };
-let agents = [], keys = {};
-const TILE = 32, COLORS = { 1: '#8B4513', 2: '#228B22', 3: '#666', 4: '#cd853f', 9: 'rgba(52, 152, 219, 0.7)' };
+    const cvs = document.getElementById('gameCanvas'), ctx = cvs.getContext('2d');
+    let isRunning = false, ticks = 420, world = {}, camX = 0, camY = 0, curB = 1;
+    let p = { x: 500, y: 0, w: 20, h: 40, vx: 0, vy: 0, hp: 100, maxHp: 100, ground: false, inWater: false, atk: 0 };
+    let agents = [], keys = {};
+    const TILE = 32, COLORS = { 1: '#8B4513', 2: '#228B22', 3: '#666', 4: '#cd853f', 9: 'rgba(52, 152, 219, 0.7)' };
 
-function getBiome(gx) {
-    let x = Math.abs(gx);
-    if (x % 400 < 60) return { name: '河流', h: 45, noise: 0, isWater: true };
-    if (x % 400 < 150) return { name: '平原', h: 38, noise: 2 };
-    if (x % 400 < 250) return { name: '山地', h: 15, noise: 12 };
-    return { name: '丘陵', h: 30, noise: 6 };
-}
-
-function getGY(gx) {
-    let b = getBiome(gx);
-    return Math.floor(b.h + Math.sin(gx * 0.1) * b.noise);
-}
-
-function getB(gx, gy) {
-    if (world[gx+'_'+gy] !== undefined) return world[gx+'_'+gy];
-    let fY = getGY(gx), b = getBiome(gx);
-    if (b.isWater && gy >= fY) return 9; // 水
-    return gy < fY ? 0 : (gy === fY ? 2 : 1);
-}
-
-function boot(num) {
-    document.querySelectorAll('.layer').forEach(l=>l.style.display='none');
-    document.getElementById('hud').style.display='block';
-    document.getElementById('inv').style.display='flex';
-    cvs.style.display='block'; cvs.width = window.innerWidth; cvs.height = window.innerHeight;
-    p.y = getGY(Math.floor(p.x/TILE))*TILE - 200;
-    
-    for(let i=0; i < num-1; i++) {
-        agents.push({x: p.x + (i+1)*120, y:p.y, w:20, h:40, vx:0, vy:0, hp:100, maxHp:100, type:'ally', dir:1, sTimer:50});
+    function toMain() {
+        document.getElementById('ui-boot').style.display = 'none';
+        document.getElementById('ui-main').style.display = 'flex';
     }
-    isRunning = true;
-    requestAnimationFrame(loop);
-}
 
-window.addEventListener('keydown', e => { 
-    keys[e.code] = true; 
-    if(e.code === 'KeyK') p.atk = 10;
-    if(e.key >= '1' && e.key <= '4') {
-        curB = parseInt(e.key);
-        document.querySelectorAll('.slot').forEach(s => s.classList.remove('active'));
-        document.getElementById('sl'+curB).classList.add('active');
+    function showMultiMenu() {
+        document.getElementById('ui-main').style.display = 'none';
+        document.getElementById('ui-multi').style.display = 'flex';
     }
-});
-window.addEventListener('keyup', e => keys[e.code] = false);
-window.addEventListener('mousedown', e => {
-    let gx = Math.floor((e.clientX + camX)/TILE), gy = Math.floor((e.clientY + camY)/TILE);
-    if(e.button === 0) world[gx+'_'+gy] = 0;
-    if(e.button === 2) world[gx+'_'+gy] = curB;
-});
 
-function loop() {
-    if(isRunning) {
-        ticks = (ticks + 0.3) % 1440;
+    // 地形與物理邏輯 (保持之前的功能：河、山、穿牆、浮力)
+    function getGY(gx) {
+        let x = Math.abs(gx);
+        let h = 35, n = 5;
+        if (x % 400 < 60) { h = 45; n = 0; } // 河
+        else if (x % 400 < 250) { h = 15; n = 12; } // 山
+        return Math.floor(h + Math.sin(gx * 0.1) * n);
+    }
+
+    function getB(gx, gy) {
+        if (world[gx+'_'+gy] !== undefined) return world[gx+'_'+gy];
+        let fY = getGY(gx);
+        if (Math.abs(gx) % 400 < 60 && gy >= fY) return 9; // 水
+        return gy < fY ? 0 : (gy === fY ? 2 : 1);
+    }
+
+    function bootGame(num) {
+        document.querySelectorAll('.layer').forEach(l => l.style.display = 'none');
+        document.getElementById('hud').style.display = 'block';
+        document.getElementById('inv').style.display = 'flex';
+        cvs.style.display = 'block';
+        cvs.width = window.innerWidth;
+        cvs.height = window.innerHeight;
         
-        // 檢測是否在水裡
-        let px = Math.floor((p.x + p.w/2)/TILE), py = Math.
+        p.y = getGY(Math.floor(p.x/TILE)) * TILE - 200;
+        
+        // 生成隊友
+        for(let i=0; i < num-1; i++) {
+            agents.push({x: p.x + (i+1)*120, y:p.y, w:20, h:40, vx:0, vy:0, hp:100, maxHp:100, type:'ally', dir:1, sTimer:50});
+        }
+        
+        isRunning = true;
+        requestAnimationFrame(loop);
+    }
+
+    // 事件監聽
+    window.onkeydown = e => { keys[e.code] = true; if(e.code === 'KeyK') p.atk = 10; };
+    window.onkeyup = e => keys[e.code] = false;
+    window.onmousedown = e => {
+        if(!isRunning) return;
+        let gx = Math.floor((e.clientX + camX)/TILE), gy = Math.floor((e.clientY + camY)/TILE);
+        if(e.button === 0) world[gx+'_'+gy] = 0;
+        if(e.button === 2) world[gx+'_'+gy] = curB;
+    };
+
+    function loop() {
+        if(isRunning) {
+            ticks = (ticks + 0.3) % 1440;
+            p.vx = keys['KeyD'] ? 5 : (keys['KeyA'] ? -5 : 0);
+            
+            // 浮力與重力
+            let px = Math.floor((p.x + p.w/2)/TILE), py = Math.floor((p.y + p.h/2)/TILE);
+            p.inWater = (getB(px, py) === 9);
+            if (p.inWater) {
+                p.vy -= 0.8; if (p.vy < -3) p.vy = -3;
+                if (keys['KeyW'] || keys['Space']) p.vy = -5;
+            } else {
+                p.vy += 0.7;
+                if ((keys['KeyW'] || keys['Space']) && p.ground) p.vy = -12;
+            }
+
+            p.y += p.vy; p.ground = false;
+            let fy = Math.floor((p.y+p.h)/TILE), lx = Math.floor((p.x+2)/TILE), rx = Math.floor((p.x+p.w-2)/TILE);
+            if(getB(lx, fy) > 0 && getB(lx, fy) !== 9) { p.y = fy*TILE-p.h; p.vy = 0; p.ground = true; }
+            p.x += p.vx;
+
+            agents.forEach((a, idx) => {
+                a.sTimer--; if(a.sTimer <= 0) { a.dir = Math.random() > 0.5 ? 1 : -1; a.sTimer = 80; }
+                a.x += a.dir * 2;
+                let targetY = getGY(Math.floor(a.x/TILE)) * TILE - a.h;
+                a.y += (targetY - a.y) * 0.1; // 穿牆爬行
+                if(p.atk > 0 && Math.abs(a.x-p.x)<50 && Math.abs(a.y-p.y)<50) a.hp -= 10;
+            });
+        }
+        render();
+        requestAnimationFrame(loop);
+    }
+
+    function render() {
+        let sky = (ticks >= 1090 || ticks < 390) ? '#191970' : (ticks >= 1050 ? '#ff7f50' : '#87ceeb');
+        ctx.fillStyle = sky; ctx.fillRect(0, 0, cvs.width, cvs.height);
+
+        camX += (p.x - cvs.width/2 - camX) * 0.1;
+        camY += (p.y - cvs.height/2 - camY) * 0.1;
+        
+        let startX = Math.floor(camX/TILE), endX = Math.floor((camX+cvs.width)/TILE)+1;
+        let startY = Math.floor(camY/TILE), endY = Math.floor((camY+cvs.height)/TILE)+1;
+
+        for(let x=startX; x<endX; x++) {
+            for(let y=startY; y<endY; y++) {
+                let b = getB(x, y);
+                if(b!==0) { ctx.fillStyle = COLORS[b]; ctx.fillRect(x*TILE-camX, y*TILE-camY, TILE, TILE); }
+            }
+        }
+
+        agents.forEach(a => {
+            ctx.fillStyle = '#f1c40f'; ctx.fillRect(a.x-camX, a.y-camY, a.w, a.h);
+            ctx.fillStyle = 'red'; ctx.fillRect(a.x-camX-5, a.y-camY-12, 30, 4);
+            ctx.fillStyle = 'lime'; ctx.fillRect(a.x-camX-5, a.y-camY-12, 30*(a.hp/a.maxHp), 4);
+        });
+
+        ctx.fillStyle = "#FF5733"; ctx.fillRect(p.x-camX, p.y-camY, p.w, p.h);
+        if(p.atk > 0) { ctx.strokeStyle="#fff"; ctx.strokeRect(p.x-camX-10, p.y-camY-10, p.w+20, p.h+20); p.atk--; }
+
+        document.getElementById('posX').innerText = Math.floor(p.x/TILE);
+        document.getElementById('hp').innerText = Math.ceil(p.hp);
+        document.getElementById('status').innerText = p.inWater ? "游泳中" : "陸地";
+    }
+</script>
+</body>
+</html>
