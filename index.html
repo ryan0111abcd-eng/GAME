@@ -2,7 +2,7 @@
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
-    <title>Super Human - 世界生態版 (AI、村莊、古蹟、雨)</title>
+    <title>Super Human - 終極世界版</title>
     <style>
         body, html { margin: 0; padding: 0; width: 100%; height: 100%; background: #000; overflow: hidden; font-family: sans-serif; color: white; }
         .layer { position: fixed; top: 0; left: 0; width: 100%; height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; background: #111; z-index: 9999; }
@@ -17,196 +17,53 @@
 
     <div id="layer-home" class="layer">
         <h1 style="font-size: 48px; color: #f1c40f; margin-bottom: 30px;">未來的 Super Human</h1>
-        <button class="btn" onclick="openModeSelect('single')">單人探險</button>
-        <button class="btn" style="background:#3498db; color:white;" onclick="openModeSelect('multi')">多人連線 (AI 全能協力)</button>
+        <button class="btn" onclick="fnMode('single')">單人探險</button>
+        <button class="btn" style="background:#3498db; color:white;" onclick="fnMode('multi')">多人連線 (AI 全能)</button>
     </div>
 
     <div id="layer-select" class="layer" style="display:none;">
-        <h1>選擇小隊總人數</h1>
+        <h1>選擇小隊人數</h1>
         <select id="pNumInput" style="font-size:30px; padding:15px; margin:25px; border-radius:10px;">
             <option value="2">2 人</option>
             <option value="5" selected>5 人</option>
             <option value="10">10 人</option>
         </select>
-        <button class="btn" onclick="openGameRules()">確定</button>
+        <button class="btn" onclick="fnRules()">確定</button>
     </div>
 
     <div id="layer-info" class="layer" style="display:none;">
-        <div style="background:#222; padding:40px; border:3px solid #f1c40f; border-radius:25px; text-align:center; max-width:500px;">
+        <div style="background:#222; padding:40px; border:3px solid #f1c40f; border-radius:25px; text-align:center;">
             <h2 id="modeTitle" style="color:#f1c40f;">模式確認</h2>
-            <ul style="text-align:left; font-size:19px; line-height:1.7;">
-                <li><b>A / D / 空白</b>：跑跳移動</li>
-                <li><b>滑鼠左右鍵</b>：挖掘 / 建築 (隊友也會)</li>
-                <li><b>K 鍵</b>：攻擊 / <b>隊友血量</b>顯示在頭上</li>
-                <li><b>探索世界</b>：尋找村莊、村民、動物與古蹟</li>
-                <li><b>動態天氣</b>：隨機下雨，天色會變暗</li>
-            </ul>
-            <button class="btn" style="width: 100%;" onclick="launchGame()">正式開始遊戲</button>
+            <p>包含：村莊、村民、動物、下雨與古蹟</p>
+            <button class="btn" onclick="fnStart()">正式進入遊戲</button>
         </div>
     </div>
 
-    <div id="hud">❤️ 我: <span id="hp">100</span> | 🕒 <span id="time">07:00</span> <span id="weather">☀️</span></div>
+    <div id="hud">❤️ 血量: <span id="hp">100</span> | 🕒 <span id="time">07:00</span> <span id="wea">☀️</span></div>
     <div id="minimap-container"><canvas id="mini-canvas" width="160" height="160"></canvas></div>
 
 <script>
 let canvas, ctx, miniCtx, isRunning = false;
-let ticks = 420, world = {}, camX = 0, camY = 0, bType = 2, finalCount = 1;
-const TILE = 32, COLORS = { 1: '#8B4513', 2: '#228B22', 3: '#666', 4: '#cd853f', 5: '#444' }; // 4=木頭, 5=遺跡石
+let ticks = 420, world = {}, camX = 0, camY = 0, bType = 2, fCount = 1;
+const TILE = 32, COLORS = { 1: '#8B4513', 2: '#228B22', 3: '#666', 4: '#cd853f', 5: '#444' };
 let p = { x: 500, y: 0, w: 24, h: 44, vx: 0, vy: 0, hp: 100, ground: false, atk: 0 };
-let allies = [], vils = [], anis = [], mobs = [],keys = {}, isRaining = false, rainTimer = 0;
+let allies = [], vils = [], anis = [], mobs = [], keys = {}, isRain = false, rTimer = 0;
 
-function openModeSelect(mode) {
+function fnMode(m) {
     document.getElementById('layer-home').style.display = 'none';
-    if(mode === 'single') { finalCount = 1; openGameRules(); } 
-    else { document.getElementById('layer-select').style.display = 'flex'; }
+    if(m === 'single') { fCount = 1; fnRules(); } else { document.getElementById('layer-select').style.display = 'flex'; }
 }
-function openGameRules() {
-    if(document.getElementById('layer-select').style.display !== 'none') {
-        finalCount = parseInt(document.getElementById('pNumInput').value);
-    }
+function fnRules() {
+    if(document.getElementById('layer-select').style.display !== 'none') fCount = parseInt(document.getElementById('pNumInput').value);
     document.getElementById('layer-select').style.display = 'none';
     document.getElementById('layer-info').style.display = 'flex';
-    document.getElementById('modeTitle').innerText = `🎮 ${finalCount} 人模式已就緒`;
+    document.getElementById('modeTitle').innerText = fCount + " 人探險模式";
 }
-function launchGame() {
+function fnStart() {
     document.getElementById('layer-info').style.display = 'none';
     document.getElementById('hud').style.display = 'block';
     document.getElementById('minimap-container').style.display = 'block';
-
     canvas = document.createElement('canvas');
     canvas.width = window.innerWidth; canvas.height = window.innerHeight;
     document.body.appendChild(canvas);
-    ctx = canvas.getContext('2d');
-    miniCtx = document.getElementById('mini-canvas').getContext('2d');
-
-    // 初始化位置確保站在高山上
-    p.y = getGroundY(p.x/TILE)*TILE - 200;
-    allies = []; vils = []; anis = [];
-    for(let i=0; i < finalCount - 1; i++){
-        let ax = p.x + (i + 1) * 60;
-        allies.push({ x: ax, y: p.y, w: 24, h: 44, vx: 0, vy: 0, hp: 100, maxHp: 100, atk: 0, dir: 1, type:'ally' });
-    }
-    // 生成生態系統
-    generateEcosystem();
-
-    isRunning = true;
-    window.onkeydown = e => { keys[e.code] = true; if(e.key==='1') bType=2; if(e.key==='2') bType=1; if(e.key==='3') bType=3; };
-    window.onkeyup = e => keys[e.code] = false;
-    canvas.onmousedown = (e) => {
-        const rect = canvas.getBoundingClientRect();
-        const gx = Math.floor((e.clientX - rect.left + camX) / TILE);
-        const gy = Math.floor((e.clientY - rect.top + camY) / TILE);
-        if (e.button === 0) world[`${gx}_${gy}`] = 0;
-        if (e.button === 2) world[`${gx}_${gy}`] = bType;
-    };
-    canvas.oncontextmenu = e => e.preventDefault();
-    requestAnimationFrame(loop);
-}
-
-// 地形與生態生成公式
-function getGroundY(gx) { return Math.floor(35 + Math.sin(gx*0.05)*10 + Math.cos(gx*0.02)*15); }
-function getB(gx, gy) { 
-    if (world[`${gx}_${gy}`] !== undefined) return world[`${gx}_${gy}`];
-    let gY = getGroundY(gx);
-    return gy < gY ? 0 : (gy === gY ? 2 : 1); // 草地與泥土
-}
-function generateEcosystem() {
-    // 左右兩邊隨機生成村莊、古蹟、動物與村民
-    for(let r=0; r<10; r++) { // 擴大範圍
-        let baseGX = (Math.random()-0.5)*1000 + 500;
-        let type = Math.random();
-        if(type < 0.2) spawnVillage(baseGX);
-        else if(type < 0.4) spawnRuins(baseGX);
-        else if(type < 0.7) spawnAnimals(baseGX);
-        else spawnVillagers(baseGX);
-    }
-}
-function spawnVillage(gx) {
-    gx = Math.floor(gx); let gy = getGroundY(gx);
-    for(let h=0; h<3; h++) { // 蓋小房子
-        let startX = gx + h*10; let groundY = getGroundY(startX);
-        for(let w=0; w<5; w++) {
-            for(let r=1; r<5; r++) { world[`${startX+w}_${groundY-r}`] = 4; } // 木頭牆
-            world[`${startX+w}_${groundY-5}`] = 3; // 石屋頂
-        }
-        world[`${startX+2}_${groundY-1}`] = 0; world[`${startX+2}_${groundY-2}`] = 0; // 門
-    }
-}
-function spawnRuins(gx) {
-    gx = Math.floor(gx); let gy = getGroundY(gx);
-    for(let h=0; h<Math.random()*5+3; h++) {
-        let柱X = gx + h*4; let groundY = getGroundY(柱X);
-        for(let c=1; c<Math.random()*8+4; c++) world[`${柱X}_${groundY-c}`] = 5; // 柱子
-        if(h%2===0) world[`${柱X}_${groundY-Math.floor(Math.random()*8+4)}`] = 5; // 廢牆
-    }
-}
-function spawnVillagers(gx) {
-    for(let i=0; i<3; i++) vils.push({x: gx+i*30, y:-300, w:24, h:44, vx:0, vy:0, ground:false, timer:0, dir:1, type:'vil'});
-}
-function spawnAnimals(gx) {
-    for(let i=0; i<5; i++) anis.push({x: gx+i*40, y:-300, w:20, h:20, vx:0, vy:0, ground:false, timer:0, dir:1, type:'ani'});
-}
-
-function physics(o, isPlayer) {
-    if (isPlayer) {
-        o.vx = (keys['KeyA'] ? -5 : keys['KeyD'] ? 5 : 0);
-        if (keys['Space'] && o.ground) o.vy = -13;
-    } else {
-        if(o.type==='ally') { // AI 隊友全能智慧 (核心修正：不會不動)
-            let dist = p.x - o.x;
-            if (Math.abs(dist) > 130) o.vx = (dist > 0 ? 3.8 : -3.8); else o.vx = 0;
-            // 跳躍與挖掘邏輯 (確保爬山不卡住)
-            let aheadX = Math.floor((o.x + (o.vx >= 0 ? 30 : -10)) / TILE);
-            let footY = Math.floor((o.y + o.h - 5) / TILE);
-            if (getB(aheadX, footY) !== 0) {
-                if (o.ground) o.vy = -13; // 跳
-                if (Math.random() < 0.05) world[`${aheadX}_${footY}`] = 0; // 挖開擋路
-            }
-        } else { // 村民與動物隨機漫步
-            if(Math.random()<0.01) o.dir *= -1;
-            o.vx = o.dir * (o.type==='ani'?1.5:2);
-            let aheadX = Math.floor((o.x + (o.vx >= 0 ? 30 : -10)) / TILE);
-            let footY = Math.floor((o.y + o.h - 5) / TILE);
-            if(getB(aheadX, footY)!==0 && o.ground) o.vy = -10; // 遇到障礙會跳
-        }
-    }
-    o.vy += 0.7;
-    let nx = o.x + o.vx, gx = (o.vx > 0) ? Math.floor((nx + o.w) / TILE) : Math.floor(nx / TILE);
-    let ty = Math.floor(o.y / TILE), by = Math.floor((o.y + o.h - 5) / TILE);
-    if (getB(gx, ty) === 0 && getB(gx, by) === 0) o.x = nx;
-    o.y += o.vy; o.ground = false;
-    let lx = Math.floor(o.x/TILE), rx = Math.floor((o.x+o.w-1)/TILE), fy = Math.floor((o.y+o.h)/TILE);
-    if (getB(lx, fy) !== 0 || getB(rx, fy) !== 0) { o.y = fy*TILE-o.h; o.vy = 0; o.ground = true; }
-}
-
-function loop() {
-    if (!isRunning) return;
-    ticks = (ticks + 0.4) % 1440;
-    // 天氣系統：隨機下雨
-    rainTimer++;
-    if(rainTimer > 2000) { isRaining = !isRaining; rainTimer = 0; document.getElementById('weather').innerText = isRaining?'🌧️':'☀️'; }
-
-    physics(p, true);
-    camX += (p.x - canvas.width / 2 - camX) * 0.1;
-    camY += (p.y - canvas.height / 2 - camY) * 0.1;
-
-    // 生態系統更新
-    allies.forEach((a, index) => {
-        physics(a, false);
-        mobs.forEach(m => { if(Math.abs(m.x-a.x)<40){ a.hp-=0.1; a.atk=10; m.hp-=5; }});
-        if(a.atk>0) a.atk--; if(a.hp<=0) allies.splice(index, 1); // 隊友戰死
-    });
-    vils.forEach(v => physics(v, false));anis.forEach(an => physics(an, false));
-
-    let hr = ticks / 60;
-    let isDay = (hr >= 7 && hr < 17.5);
-    if (!isDay && Math.random() < 0.025) mobs.push({ x: p.x + (Math.random()-0.5)*1500, y: p.y-500, w: 24, h: 44, vx: 0, vy: 0, hp: 20 });
-    mobs.forEach((m, i) => {
-        if (isDay) m.hp -= 0.5;
-        m.vx = (m.x < p.x) ? 2.8 : -2.8; physics(m, false);
-        if (Math.abs(m.x - p.x) < 30 && Math.abs(m.y - p.y) < 30) p.hp -= 0.4;
-        if (m.hp <= 0) mobs.splice(i, 1);
-    });
-
-    if (keys['KeyK'] && p.atk <= 0) { p.atk = 15; mobs.forEach(m => { if(Math.abs(m.x-p.x)<80) m.hp -= 10; }); }
-    if
+    ctx = canvas
