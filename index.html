@@ -2,94 +2,127 @@
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
-    <title>未來的 Super Human - 圓形星球版</title>
+    <title>未來的 Super Human - 圓形星球修正版</title>
     <style>
-        body, html { margin: 0; padding: 0; width: 100%; height: 100%; background: #050515; font-family: sans-serif; overflow: hidden; }
-        #ui-wrapper { position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 10000; background: #000; }
-        .title { font-size: 40px; color: #f1c40f; margin-bottom: 30px; text-align: center; text-shadow: 0 0 10px #f1c40f; }
-        .btn { padding: 15px 40px; font-size: 22px; cursor: pointer; margin: 10px; background: #f1c40f; border: none; font-weight: bold; border-radius: 30px; }
-        #hud { position: fixed; top: 10px; left: 10px; color: white; background: rgba(0,0,0,0.8); padding: 12px; border: 2px solid #f1c40f; display: none; z-index: 5000; pointer-events: none; border-radius: 10px; }
+        body, html { margin: 0; padding: 0; width: 100%; height: 100%; background: #000; overflow: hidden; font-family: sans-serif; }
+        
+        /* 初始選單：保證絕對置頂且唯一 */
+        #startup-ui {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            background: #111; z-index: 999999; color: #f1c40f;
+        }
+        .menu-btn { 
+            width: 300px; height: 80px; font-size: 30px; margin: 20px; 
+            cursor: pointer; background: #f1c40f; border: none; font-weight: bold; 
+        }
+        
+        /* 遊戲內介面 */
+        #hud { 
+            position: fixed; top: 10px; left: 10px; color: white; 
+            background: rgba(0,0,0,0.8); padding: 15px; border: 2px solid #f1c40f;
+            display: none; z-index: 5000; pointer-events: none; border-radius: 10px;
+        }
     </style>
 </head>
 <body>
 
-    <div id="ui-wrapper">
-        <div id="main-entry">
-            <div class="title">未來的 Super Human<br><small style="font-size:20px;">環形星球大冒險</small></div>
-            <button class="btn" onclick="init(1)">單人冒險</button>
-            <button class="btn" style="background:#3498db; color:white;" onclick="init(5)">多人連線 (5人)</button>
+    <div id="startup-ui">
+        <h1 style="font-size: 50px;">未來的 Super Human</h1>
+        <button class="menu-btn" onclick="start(1)">開始遊戲</button>
+        <button class="menu-btn" style="background:#3498db; color:white;" onclick="showConfig()">多人連線</button>
+        
+        <div id="multi-config" style="display:none; text-align:center;">
+            <h2>選擇人數 (2-10)</h2>
+            <select id="pCount" style="font-size:30px; margin-bottom:20px;">
+                <option value="2">2 人</option>
+                <option value="5" selected>5 人</option>
+                <option value="10">10 人</option>
+            </select><br>
+            <button class="menu-btn" onclick="start(document.getElementById('pCount').value)">啟動星球</button>
         </div>
     </div>
 
     <div id="hud">
-        ❤️ 血量: <span id="hp">100</span> | 🕒 <span id="time">07:00</span> | 🛠️ [1,2,3] 建造 | ⚔️ [K] 攻擊
+        ❤️ 我的血量: <span id="hp">100</span> | 🕒 <span id="time">07:00</span> | ⚔️ [K] 攻擊 | 🛠️ [1,2,3] 建造
     </div>
 
 <script>
 let canvas, ctx, isRunning = false;
-let ticks = 420; 
-let worldSeed = Math.random() * 100;
-const PLANET_RADIUS = 500; // 星球地表半徑
-const TILE_SIZE = 25; // 方塊大小
-const GRAVITY = 0.25;
+let ticks = 420; // 07:00
+let worldData = {};
+const PLANET_R = 500; 
+const TILE = 25; 
+const COLORS = { 1: '#8B4513', 2: '#228B22', 3: '#666' };
 
-let p = { angle: 0, r: PLANET_RADIUS + 50, vr: 0, hp: 100, atk: 0 };
-let allies = [], mobs = [], worldData = {};
+let p = { angle: 0, r: 550, vr: 0, hp: 100, atk: 0 };
+let allies = [], mobs = [];
 
-function init(count) {
-    document.getElementById('ui-wrapper').style.display = 'none';
+function showConfig() {
+    document.querySelector('button[onclick="start(1)"]').style.display = 'none';
+    document.querySelector('button[onclick="showConfig()"]').style.display = 'none';
+    document.getElementById('multi-config').style.display = 'block';
+}
+
+function start(count) {
+    // 1. 徹底移除選單
+    document.getElementById('startup-ui').remove();
     document.getElementById('hud').style.display = 'block';
+
+    // 2. 動態產生畫布
     canvas = document.createElement('canvas');
+    canvas.style.display = "block";
     document.body.appendChild(canvas);
     ctx = canvas.getContext('2d');
-    
+
+    // 3. 初始化角色
     for(let i=0; i < count - 1; i++) {
-        allies.push({ angle: Math.random()*Math.PI*2, r: PLANET_RADIUS+50, vr: 0, hp: 100, atk: 0, buildT: 0 });
+        allies.push({ angle: Math.random()*Math.PI*2, r: 550, vr: 0, hp: 100, atk: 0, buildT: 0 });
     }
 
     isRunning = true;
-    window.addEventListener('resize', resize); resize();
-    window.addEventListener('keydown', e => { keys[e.code] = true; });
+    window.addEventListener('resize', resize);
+    resize();
+    
+    // 事件綁定
+    window.addEventListener('keydown', e => { 
+        keys[e.code] = true; 
+        if(e.key==='1') bType=2; if(e.key==='2') bType=1; if(e.key==='3') bType=3;
+    });
     window.addEventListener('keyup', e => keys[e.code] = false);
+
     requestAnimationFrame(loop);
 }
 
 const keys = {};
-// 獲取環形地圖方塊
+let bType = 2;
+
 function getBlock(angle, r) {
-    let normAngle = ((angle % (Math.PI*2)) + (Math.PI*2)) % (Math.PI*2);
-    let layer = Math.floor(r / TILE_SIZE);
-    let segment = Math.floor(normAngle * 100); 
-    let key = `${segment}_${layer}`;
-    
+    let seg = Math.floor((((angle % (Math.PI*2)) + (Math.PI*2)) % (Math.PI*2)) * 100);
+    let lay = Math.floor(r / TILE);
+    let key = `${seg}_${lay}`;
     if (worldData[key] !== undefined) return worldData[key];
-    
-    // 基礎地形生成
-    let surfaceLayer = Math.floor((PLANET_RADIUS + Math.sin(segment * 0.1) * 20) / TILE_SIZE);
-    if (layer > surfaceLayer) return 0; // 天空
-    if (layer === surfaceLayer) return 2; // 草地
-    return 1; // 泥土
+    let surface = Math.floor((PLANET_R + Math.sin(seg * 0.1) * 15) / TILE);
+    return lay > surface ? 0 : (lay === surface ? 2 : 1);
 }
 
-function updatePhysics(o, isPlayer) {
-    // 左右移動改為旋轉角度
-    let speed = isPlayer ? 0.015 : 0.008;
+function physics(o, isPlayer) {
+    let speed = isPlayer ? 0.012 : 0.007;
     if (isPlayer) {
         if (keys['KeyA']) o.angle -= speed;
         if (keys['KeyD']) o.angle += speed;
     } else {
-        if (Math.random() < 0.01) o.moveDir = (Math.random() - 0.5) * 2;
-        o.angle += (o.moveDir || 0) * speed;
+        if (Math.random() < 0.01) o.dir = (Math.random() - 0.5) * 2;
+        o.angle += (o.dir || 0) * speed;
     }
 
-    // 重力與碰撞
-    o.vr -= GRAVITY;
+    o.vr -= 0.25; // 重力
     let nextR = o.r + o.vr;
     if (getBlock(o.angle, nextR) !== 0) {
-        o.r = (Math.floor(nextR / TILE_SIZE) + 1) * TILE_SIZE;
+        o.r = (Math.floor(nextR / TILE) + 1) * TILE;
         o.vr = 0;
         if (isPlayer && keys['Space']) o.vr = 7;
-        else if (!isPlayer && Math.random() < 0.02) o.vr = 6; // AI 自動跳躍
+        else if (!isPlayer && Math.random() < 0.02) o.vr = 6;
     } else {
         o.r = nextR;
     }
@@ -97,62 +130,84 @@ function updatePhysics(o, isPlayer) {
 
 function loop() {
     if (!isRunning) return;
-    ticks = (ticks + 0.5) % 1440;
+    ticks = (ticks + 0.4) % 1440;
     let hr = Math.floor(ticks / 60);
+    let isNight = (hr >= 18 || hr < 7);
 
-    // 1. 玩家與隊友 AI
-    updatePhysics(p, true);
+    physics(p, true);
     allies.forEach(a => {
-        updatePhysics(a, false);
-        // 隊友蓋房子/挖土邏輯
+        physics(a, false);
+        // 隊友挖/蓋功能
         a.buildT++;
-        if (a.buildT > 200) {
-            let seg = Math.floor(a.angle * 100);
-            let lay = Math.floor(a.r / TILE_SIZE) - 1;
-            if (Math.random() > 0.5) worldData[`${seg}_${lay}`] = 0; // 挖
-            else worldData[`${seg+1}_${lay+1}`] = 3; // 蓋石頭
+        if(a.buildT > 250) {
+            let s = Math.floor(a.angle * 100), l = Math.floor(a.r / TILE) - 1;
+            if(Math.random() > 0.6) worldData[`${s}_${l}`] = 0; // 挖
+            else worldData[`${s+1}_${l}`] = 3; // 蓋
             a.buildT = 0;
         }
+        // 隊友自動攻擊怪物
+        mobs.forEach(m => { if(Math.abs(m.angle-a.angle)<0.08 && a.atk<=0){ a.atk=20; m.hp-=5; }});
+        if(a.atk > 0) a.atk--;
     });
 
-    // 2. 怪物系統
-    let isNight = (hr >= 18 || hr < 7);
-    if (isNight && Math.random() < 0.02) {
-        mobs.push({ angle: p.angle + (Math.random()-0.5), r: PLANET_RADIUS + 100, vr: 0, hp: 20 });
-    }
+    if (isNight && Math.random() < 0.02) mobs.push({ angle: p.angle + (Math.random()-0.5), r: 600, vr: 0, hp: 20 });
     mobs.forEach((m, i) => {
-        if (!isNight) m.hp -= 0.5; // 白天自燃
+        if (!isNight) m.hp -= 0.5;
         m.angle += (m.angle < p.angle ? 0.005 : -0.005);
-        updatePhysics(m, false);
-        if (Math.abs(m.angle - p.angle) < 0.05 && Math.abs(m.r - p.r) < 20) p.hp -= 0.5;
+        physics(m, false);
+        // 隔牆判定
+        let midA = (m.angle + p.angle)/2, midR = (m.r + p.r)/2;
+        if (Math.abs(m.angle - p.angle) < 0.05 && Math.abs(m.r - p.r) < 25 && getBlock(midA, midR) === 0) p.hp -= 0.4;
         if (m.hp <= 0) mobs.splice(i, 1);
     });
 
-    // 3. 攻擊
-    if (keys['KeyK'] && p.atk <= 0) {
-        p.atk = 15;
-        mobs.forEach(m => { if(Math.abs(m.angle-p.angle)<0.1) m.hp -= 10; });
-    }
+    if (keys['KeyK'] && p.atk <= 0) { p.atk = 15; mobs.forEach(m => { if(Math.abs(m.angle-p.angle)<0.1) m.hp -= 10; }); }
     if (p.atk > 0) p.atk--;
 
+    if (p.hp <= 0) { alert("你失敗了！"); location.reload(); }
     draw();
     requestAnimationFrame(loop);
 }
 
 function draw() {
     ctx.clearRect(0,0,canvas.width, canvas.height);
-    let cx = canvas.width/2;
-    let cy = canvas.height/2;
+    let sky = (ticks>420 && ticks<1050) ? "#87ceeb" : (ticks>1050 && ticks<1080) ? "#ff7832" : "#050515";
+    ctx.fillStyle = sky; ctx.fillRect(0,0,canvas.width, canvas.height);
 
-    // 繪製背景 (晝夜顏色)
-    let skyAlpha = (ticks > 420 && ticks < 1050) ? 1 : (ticks > 1050 && ticks < 1080) ? 0.5 : 0.1;
-    ctx.fillStyle = `rgba(135, 206, 235, ${skyAlpha})`;
-    ctx.fillRect(0,0,canvas.width, canvas.height);
-
-    // 視角中心化：玩家永遠在星球正上方
     ctx.save();
-    ctx.translate(cx, cy + 200); // 將星球中心往下移一點
+    ctx.translate(canvas.width/2, canvas.height/2 + 200);
     ctx.rotate(-p.angle - Math.PI/2); 
 
-    // 繪製方塊
-    for (let seg = 0; seg
+    for (let s = 0; s < 628; s++) {
+        for (let l = 15; l < 25; l++) {
+            let b = getBlock(s/100, l*TILE);
+            if (b !== 0) {
+                ctx.fillStyle = COLORS[b];
+                ctx.beginPath();
+                ctx.arc(Math.cos(s/100)*l*TILE, Math.sin(s/100)*l*TILE, TILE/2 + 1, 0, Math.PI*2);
+                ctx.fill();
+            }
+        }
+    }
+
+    const drawE = (o, color, hp) => {
+        ctx.save();
+        ctx.translate(Math.cos(o.angle)*o.r, Math.sin(o.angle)*o.r);
+        ctx.rotate(o.angle + Math.PI/2);
+        ctx.fillStyle = color; ctx.fillRect(-10, -20, 20, 40);
+        if(hp){ ctx.fillStyle="white"; ctx.fillText(`HP:${Math.ceil(o.hp)}`, -15, -30); }
+        ctx.restore();
+    };
+    allies.forEach(a => drawE(a, "#f1c40f", true));
+    mobs.forEach(m => drawE(m, "#2ecc71", false));
+    drawE(p, "#FF5733", false);
+    ctx.restore();
+
+    document.getElementById('hp').innerText = Math.ceil(p.hp);
+    document.getElementById('time').innerText = `${Math.floor(ticks/60).toString().padStart(2,'0')}:${Math.floor(ticks%60).toString().padStart(2,'0')}`;
+}
+
+function resize() { canvas.width = window.innerWidth; canvas.height = window.innerHeight; }
+</script>
+</body>
+</html>
