@@ -2,12 +2,11 @@
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
-    <title>Super Human - 多人模式修正版</title>
+    <title>Super Human - 多人模式終極修復</title>
     <style>
         body, html { margin: 0; padding: 0; width: 100%; height: 100%; background: #000; overflow: hidden; font-family: sans-serif; color: white; }
-        #menu-layer, #select-layer, #info-layer { position: fixed; top: 0; left: 0; width: 100%; height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; background: #111; z-index: 9000; }
+        .layer { position: fixed; top: 0; left: 0; width: 100%; height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; background: #111; z-index: 9000; }
         .btn { padding: 15px 50px; font-size: 24px; cursor: pointer; margin: 10px; background: #f1c40f; border: none; font-weight: bold; border-radius: 10px; color: black; }
-        .btn:hover { background: #fff; }
         #hud { position: fixed; top: 10px; left: 10px; background: rgba(0,0,0,0.8); padding: 12px; border: 2px solid #f1c40f; display: none; z-index: 5000; pointer-events: none; }
         #minimap-container { position: fixed; top: 20px; right: 20px; width: 160px; height: 160px; border: 3px solid white; border-radius: 50%; overflow: hidden; background: #000; display: none; z-index: 5000; }
         canvas { display: block; }
@@ -15,33 +14,31 @@
 </head>
 <body>
 
-    <div id="menu-layer">
-        <h1 style="font-size: 48px; color: #f1c40f;">未來的 Super Human</h1>
-        <button class="btn" onclick="openSelect(1)">單人冒險</button>
-        <button class="btn" style="background:#3498db; color:white;" onclick="openSelect('multi')">多人連線</button>
+    <div id="menu-layer" class="layer">
+        <h1 style="font-size: 40px; color: #f1c40f;">未來的 Super Human</h1>
+        <button class="btn" onclick="goSelect('single')">單人冒險</button>
+        <button class="btn" style="background:#3498db; color:white;" onclick="goSelect('multi')">多人連線</button>
     </div>
 
-    <div id="select-layer" style="display:none;">
-        <h1>選擇人數</h1>
-        <select id="pNum" style="font-size:24px; padding:10px; margin:20px;">
-            <option value="2">2 人</option>
-            <option value="5" selected>5 人</option>
-            <option value="10">10 人</option>
+    <div id="select-layer" class="layer" style="display:none;">
+        <h1>你要帶多少隊友？</h1>
+        <select id="pNumInput" style="font-size:30px; padding:10px; margin:20px;">
+            <option value="2">2 人 (1位隊友)</option>
+            <option value="5" selected>5 人 (4位隊友)</option>
+            <option value="10">10 人 (9位隊友)</option>
         </select>
-        <button class="btn" onclick="openInfo()">確定</button>
+        <button class="btn" onclick="goInfo()">確定人數</button>
     </div>
 
-    <div id="info-layer" style="display:none;">
-        <div style="background:#222; padding:30px; border:2px solid #f1c40f; border-radius:20px; max-width:400px; text-align:center;">
-            <h2 style="color:#f1c40f;">🎮 遊戲操作</h2>
-            <ul style="text-align:left; font-size:18px; line-height:1.6;">
-                <li><b>A / D</b>：左右移動</li>
-                <li><b>空白鍵</b>：跳躍</li>
-                <li><b>左鍵</b>：挖掘 / <b>右鍵</b>：建築</li>
-                <li><b>1, 2, 3</b>：切換方塊材料</li>
-                <li><b>K 鍵</b>：攻擊怪物</li>
+    <div id="info-layer" class="layer" style="display:none;">
+        <div style="background:#222; padding:30px; border:2px solid #f1c40f; border-radius:20px; text-align:center;">
+            <h2 id="modeText" style="color:#f1c40f;">模式確認中...</h2>
+            <ul style="text-align:left; font-size:18px; line-height:1.8;">
+                <li><b>A / D</b>：移動，<b>空白</b>：跳躍</li>
+                <li><b>左鍵</b>：挖土，<b>右鍵</b>：蓋牆</li>
+                <li><b>K 鍵</b>：砍怪</li>
             </ul>
-            <button class="btn" onclick="startGame()">正式開始遊戲</button>
+            <button class="btn" onclick="startGameNow()">進入世界</button>
         </div>
     </div>
 
@@ -49,33 +46,37 @@
     <div id="minimap-container"><canvas id="mini-canvas" width="160" height="160"></canvas></div>
 
 <script>
-let canvas, ctx, miniCanvas, miniCtx, isRunning = false;
-let ticks = 420, world = {}, camX = 0, bType = 2, finalCount = 1;
+let canvas, ctx, miniCtx, isRunning = false;
+let ticks = 420, world = {}, camX = 0, bType = 2, playerCountFinal = 1;
 const TILE = 32, COLORS = { 1: '#8B4513', 2: '#228B22', 3: '#666' };
 let p = { x: 500, y: 0, w: 24, h: 44, vx: 0, vy: 0, hp: 100, ground: false, atk: 0 };
 let allies = [], mobs = [], keys = {};
 
-function openSelect(mode) {
+// 流程：選單 -> (選人數) -> 說明 -> 開始
+function goSelect(type) {
     document.getElementById('menu-layer').style.display = 'none';
-    if (mode === 1) {
-        finalCount = 1;
-        openInfo();
+    if (type === 'single') {
+        playerCountFinal = 1;
+        goInfo();
     } else {
         document.getElementById('select-layer').style.display = 'flex';
     }
 }
 
-function openInfo() {
-    if (finalCount !== 1) finalCount = parseInt(document.getElementById('pNum').value);
+function goInfo() {
+    if (document.getElementById('select-layer').style.display === 'flex') {
+        playerCountFinal = parseInt(document.getElementById('pNumInput').value);
+    }
     document.getElementById('select-layer').style.display = 'none';
     document.getElementById('info-layer').style.display = 'flex';
+    document.getElementById('modeText').innerText = "🎮 目前模式：" + playerCountFinal + " 人挑戰";
 }
 
-function startGame() {
+function startGameNow() {
     document.getElementById('info-layer').style.display = 'none';
     document.getElementById('hud').style.display = 'block';
     document.getElementById('minimap-container').style.display = 'block';
-    
+
     canvas = document.createElement('canvas');
     canvas.width = window.innerWidth;
     canvas.height = window.innerHeight;
@@ -83,30 +84,24 @@ function startGame() {
     ctx = canvas.getContext('2d');
     miniCtx = document.getElementById('mini-canvas').getContext('2d');
 
-    // 初始化位置：確保大家都在地表
-    p.y = getGroundY(p.x / TILE) * TILE - 100;
+    // 1. 初始化玩家位置
+    p.y = getGroundY(p.x/TILE) * TILE - 100;
 
-    // 關鍵修正：生成隊友並分散位置
+    // 2. 重置並生成隊友 (這是核心修正)
     allies = [];
-    for(let i=0; i < finalCount - 1; i++) {
-        let ax = p.x + (i + 1) * 80; // 橫向排開 80 像素
-        allies.push({ 
-            x: ax, 
-            y: getGroundY(ax / TILE) * TILE - 100, 
-            w: 24, h: 44, vx: 0, vy: 0, hp: 100, atk: 0, buildT: 0, dir: 1 
+    for(let i=0; i < playerCountFinal - 1; i++) {
+        let startX = p.x + (i + 1) * 70; 
+        allies.push({
+            x: startX, 
+            y: getGroundY(startX/TILE) * TILE - 100,
+            w: 24, h: 44, vx: 0, vy: 0, hp: 100, atk: 0, buildT: 0, dir: 1
         });
     }
 
     isRunning = true;
     window.onkeydown = e => { keys[e.code] = true; if(e.key==='1') bType=2; if(e.key==='2') bType=1; if(e.key==='3') bType=3; };
     window.onkeyup = e => keys[e.code] = false;
-    canvas.onmousedown = e => {
-        const rect = canvas.getBoundingClientRect();
-        const gx = Math.floor((e.clientX - rect.left + camX) / TILE);
-        const gy = Math.floor((e.clientY - rect.top) / TILE);
-        if (e.button === 0) world[`${gx}_${gy}`] = 0;
-        if (e.button === 2) world[`${gx}_${gy}`] = bType;
-    };
+    canvas.onmousedown = handleInput;
     canvas.oncontextmenu = e => e.preventDefault();
     requestAnimationFrame(loop);
 }
@@ -115,6 +110,14 @@ function getGroundY(gx) { return Math.floor(15 + Math.sin(gx * 0.08) * 4 + Math.
 function getB(gx, gy) { 
     if (world[`${gx}_${gy}`] !== undefined) return world[`${gx}_${gy}`];
     return gy < getGroundY(gx) ? 0 : (gy === getGroundY(gx) ? 2 : 1);
+}
+
+function handleInput(e) {
+    const rect = canvas.getBoundingClientRect();
+    const gx = Math.floor((e.clientX - rect.left + camX) / TILE);
+    const gy = Math.floor((e.clientY - rect.top) / TILE);
+    if (e.button === 0) world[`${gx}_${gy}`] = 0;
+    if (e.button === 2) world[`${gx}_${gy}`] = bType;
 }
 
 function physics(o, isPlayer) {
@@ -142,9 +145,7 @@ function loop() {
 
     allies.forEach(a => {
         physics(a, false);
-        // AI 跟隨玩家邏輯：如果離太遠就往玩家靠
-        if (Math.abs(a.x - p.x) > 300) a.dir = (a.x < p.x ? 3 : -3);
-        
+        if (Math.abs(a.x - p.x) > 250) a.dir = (a.x < p.x ? 3 : -3);
         a.buildT++;
         if (a.buildT > 300) {
             let gx = Math.floor(a.x / TILE), gy = Math.floor(a.y / TILE);
@@ -187,16 +188,14 @@ function render() {
     }
     allies.forEach(a => {
         ctx.fillStyle = "#f1c40f"; ctx.fillRect(a.x-camX, a.y, a.w, a.h);
-        ctx.fillStyle = "white"; ctx.fillText(`HP:${Math.ceil(a.hp)}`, a.x-camX-5, a.y-10);
+        ctx.fillStyle = "white"; ctx.font = "12px Arial"; ctx.fillText("HP:" + Math.ceil(a.hp), a.x-camX-5, a.y-10);
     });
     mobs.forEach(m => { ctx.fillStyle = "#2ecc71"; ctx.fillRect(m.x-camX, m.y, m.w, m.h); });
     ctx.fillStyle = "#FF5733"; ctx.fillRect(p.x-camX, p.y, p.w, p.h);
-    if (p.atk > 5) { ctx.fillStyle = "white"; ctx.fillRect(p.x-camX+(p.vx>=0?25:-25), p.y+10, 25, 10); }
 
     document.getElementById('hp').innerText = Math.ceil(p.hp);
-    document.getElementById('time').innerText = `${Math.floor(hr).toString().padStart(2,'0')}:${Math.floor(ticks%60).toString().padStart(2,'0')}`;
+    document.getElementById('time').innerText = Math.floor(hr).toString().padStart(2,'0') + ":" + Math.floor(ticks%60).toString().padStart(2,'0');
 
-    // 小地圖
     miniCtx.fillStyle = "black"; miniCtx.fillRect(0,0,160,160);
     const drawDot = (ox, oy, c) => {
         let dx = 80 + (ox - p.x) * 0.12, dy = 80 + (oy - p.y) * 0.12;
