@@ -2,89 +2,55 @@
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
-    <title>Super Human - 建築與挖掘版</title>
+    <title>Super Human - Keyboard Boot</title>
     <style>
-        body, html { margin: 0; padding: 0; width: 100%; height: 100%; background: #1a1a1a; overflow: hidden; font-family: sans-serif; }
-        
-        /* 選單：最簡單的結構，保證點得到 */
-        #boot-screen {
+        body, html { margin: 0; padding: 0; width: 100%; height: 100%; background: #000; color: #f1c40f; overflow: hidden; font-family: sans-serif; }
+        #boot-msg {
             position: fixed; inset: 0; display: flex; flex-direction: column;
-            align-items: center; justify-content: center; z-index: 9999; background: #222;
+            align-items: center; justify-content: center; text-align: center; z-index: 10000;
         }
-        .start-btn {
-            width: 280px; height: 80px; margin: 20px; font-size: 28px; font-weight: bold;
-            cursor: pointer; background: #f1c40f; border: 4px solid #fff; border-radius: 20px;
-        }
-        .start-btn:hover { background: #fff; }
-
-        #hud { position: fixed; top: 10px; left: 10px; color: #fff; background: rgba(0,0,0,0.7); padding: 10px; border-radius: 8px; display: none; z-index: 1000; pointer-events: none; }
+        .blink { animation: blinker 1.5s linear infinite; font-size: 32px; color: white; }
+        @keyframes blinker { 50% { opacity: 0; } }
         
-        /* 物品欄：點擊 1-4 換磚 */
-        #inv { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); display: none; gap: 10px; z-index: 1000; }
-        .slot { width: 55px; height: 55px; background: #333; border: 3px solid #777; border-radius: 10px; display: flex; flex-direction: column; align-items: center; justify-content: center; color: #fff; font-size: 11px; }
-        .slot.active { border-color: #f1c40f; transform: scale(1.1); background: #444; }
-        
-        canvas { display: none; background: #87ceeb; }
+        #hud { position: fixed; top: 10px; left: 10px; color: #fff; background: rgba(0,0,0,0.7); padding: 10px; display: none; z-index: 1000; }
+        #inv { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); display: none; gap: 8px; z-index: 1000; }
+        .slot { width: 50px; height: 50px; background: #333; border: 2px solid #777; display: flex; align-items: center; justify-content: center; font-size: 10px; }
+        .slot.active { border-color: #f1c40f; transform: scale(1.1); }
+        canvas { display: none; }
     </style>
 </head>
 <body>
 
-    <div id="boot-screen">
-        <h1 style="color:#f1c40f; font-size: 45px; margin-bottom: 40px;">SUPER HUMAN</h1>
-        <button class="start-btn" onclick="startGame(1)">單人模式</button>
-        <button class="start-btn" style="background:#3498db; color:#fff;" onclick="startGame(5)">多人連線 (5人)</button>
-        <p style="color:#aaa;">如果點不動，請嘗試點擊按鈕正中央</p>
+    <div id="boot-msg">
+        <h1 style="font-size: 50px;">SUPER HUMAN</h1>
+        <p class="blink">請按下鍵盤上的 【Enter】 開始遊戲</p>
+        <p style="color: #666; margin-top: 20px;">(或是點擊畫面任何地方嘗試啟動)</p>
     </div>
 
     <div id="hud">❤️ <span id="hp">100</span> | ⚔️ K 攻擊 | ⛏️ 左挖 / 右蓋</div>
 
     <div id="inv">
-        <div class="slot active" id="s1"><div style="width:15px;height:15px;background:#8B4513"></div>1:泥土</div>
-        <div class="slot" id="s2"><div style="width:15px;height:15px;background:#228B22"></div>2:草地</div>
-        <div class="slot" id="s3"><div style="width:15px;height:15px;background:#666"></div>3:石頭</div>
-        <div class="slot" id="s4"><div style="width:15px;height:15px;background:#cd853f"></div>4:木頭</div>
+        <div class="slot active" id="s1">1:土</div>
+        <div class="slot" id="s2">2:草</div>
+        <div class="slot" id="s3">3:石</div>
+        <div class="slot" id="s4">4:木</div>
     </div>
 
-    <canvas id="gameCanvas"></canvas>
+    <canvas id="gCanvas"></canvas>
 
 <script>
-let canvas, ctx, isRunning = false;
-let ticks = 420, world = {}, camX = 0, camY = 0;
-const TILE = 32, COLORS = { 1: '#8B4513', 2: '#228B22', 3: '#666', 4: '#cd853f' };
+let cvs, ctx, isRunning = false;
+let world = {}, camX = 0, camY = 0, curB = 1;
 let p = { x: 500, y: 0, w: 22, h: 42, vx: 0, vy: 0, hp: 100, ground: false, atk: 0 };
-let agents = [], keys = {}, curB = 1;
+let agents = [], keys = {};
+const TILE = 32, COLORS = { 1: '#8B4513', 2: '#228B22', 3: '#666', 4: '#cd853f' };
 
-function getGY(gx) { return Math.floor(35 + Math.sin(gx*0.05)*12 + Math.cos(gx*0.02)*15); }
-function getB(gx, gy) {
-    if(world[gx+'_'+gy] !== undefined) return world[gx+'_'+gy];
-    let fY = getGY(gx); return gy < fY ? 0 : (gy === fY ? 2 : 1);
-}
-
-// 點擊後啟動
-function startGame(num) {
-    document.getElementById('boot-screen').remove(); // 徹底刪除選單
-    document.getElementById('hud').style.display = 'block';
-    document.getElementById('inv').style.display = 'flex';
-    
-    canvas = document.getElementById('gameCanvas');
-    canvas.style.display = 'block';
-    canvas.width = window.innerWidth;
-    canvas.height = window.innerHeight;
-    ctx = canvas.getContext('2d');
-
-    p.y = getGY(p.x/TILE)*TILE - 150;
-    for(let i=0; i<num-1; i++) {
-        agents.push({x:600+i*150, y:-100, w:22, h:42, vx:0, vy:0, hp:100, dir:1, sTimer:30});
+// === 啟動邏輯：偵測 Enter 鍵 ===
+window.addEventListener('keydown', (e) => {
+    if(!isRunning && e.code === 'Enter') {
+        boot();
     }
-
-    // 事件監聽
-    window.addEventListener('mousedown', (e) => {
-        let gx = Math.floor((e.clientX + camX)/TILE), gy = Math.floor((e.clientY + camY)/TILE);
-        if(e.button === 0) world[gx+'_'+gy] = 0; // 左挖
-        if(e.button === 2) { if(getB(gx, gy)===0) world[gx+'_'+gy] = curB; } // 右蓋
-    });
-    window.oncontextmenu = (e) => e.preventDefault();
-    window.onkeydown = e => {
+    if(isRunning) {
         keys[e.code] = true;
         if(e.code === 'KeyK') p.atk = 10;
         if(['Digit1','Digit2','Digit3','Digit4'].includes(e.code)) {
@@ -92,11 +58,41 @@ function startGame(num) {
             document.querySelectorAll('.slot').forEach(s => s.classList.remove('active'));
             document.getElementById('s'+curB).classList.add('active');
         }
-    };
-    window.onkeyup = e => keys[e.code] = false;
+    }
+});
 
+// 也保留點擊啟動作為備案
+window.addEventListener('mousedown', () => { if(!isRunning) boot(); });
+
+function boot() {
     isRunning = true;
+    document.getElementById('boot-msg').style.display = 'none';
+    document.getElementById('hud').style.display = 'block';
+    document.getElementById('inv').style.display = 'flex';
+    
+    cvs = document.getElementById('gCanvas');
+    cvs.style.display = 'block';
+    cvs.width = window.innerWidth;
+    cvs.height = window.innerHeight;
+    ctx = cvs.getContext('2d');
+
+    p.y = getGY(p.x/TILE)*TILE - 150;
+    for(let i=0; i<4; i++) agents.push({x:600+i*150, y:-100, w:22, h:42, vx:0, vy:0, hp:100, dir:1, sTimer:30});
+
+    cvs.addEventListener('mousedown', (e) => {
+        let gx = Math.floor((e.clientX + camX)/TILE), gy = Math.floor((e.clientY + camY)/TILE);
+        if(e.button === 0) world[gx+'_'+gy] = 0; // 左挖
+        if(e.button === 2) { if(getB(gx, gy)===0) world[gx+'_'+gy] = curB; } // 右蓋
+    });
+    window.oncontextmenu = (e) => e.preventDefault();
+    window.onkeyup = e => keys[e.code] = false;
     requestAnimationFrame(loop);
+}
+
+function getGY(gx) { return Math.floor(35 + Math.sin(gx*0.05)*12 + Math.cos(gx*0.02)*15); }
+function getB(gx, gy) {
+    if(world[gx+'_'+gy] !== undefined) return world[gx+'_'+gy];
+    let fY = getGY(gx); return gy < fY ? 0 : (gy === fY ? 2 : 1);
 }
 
 function phys(o, isP) {
@@ -118,13 +114,13 @@ function phys(o, isP) {
 }
 
 function loop() {
-    ctx.fillStyle = '#87ceeb'; ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.fillStyle = '#87ceeb'; ctx.fillRect(0, 0, cvs.width, cvs.height);
     phys(p, true);
-    camX += (p.x - canvas.width/2 - camX) * 0.1; camY += (p.y - canvas.height/2 - camY) * 0.1;
+    camX += (p.x - cvs.width/2 - camX) * 0.1; camY += (p.y - cvs.height/2 - camY) * 0.1;
     let cx = Math.floor(camX), cy = Math.floor(camY);
 
-    for(let x=Math.floor(cx/TILE); x<Math.floor((cx+canvas.width)/TILE)+1; x++) {
-        for(let y=Math.floor(cy/TILE); y<Math.floor((cy+canvas.height)/TILE)+1; y++) {
+    for(let x=Math.floor(cx/TILE); x<Math.floor((cx+cvs.width)/TILE)+1; x++) {
+        for(let y=Math.floor(cy/TILE); y<Math.floor((cy+cvs.height)/TILE)+1; y++) {
             let b = getB(x, y);
             if(b!==0) { ctx.fillStyle = COLORS[b]; ctx.fillRect(x*TILE-cx, y*TILE-cy, TILE, TILE); }
         }
@@ -132,4 +128,14 @@ function loop() {
     agents.forEach((a, i) => {
         phys(a, false);
         ctx.fillStyle = "#fff"; ctx.fillRect(a.x-cx, a.y-cy, a.w, a.h);
-        if(p.atk > 0 && Math.abs(a.x-p.x)<50 && Math.abs(a.y
+        if(p.atk > 0 && Math.abs(a.x-p.x)<50 && Math.abs(a.y-p.y)<50) {
+            a.hp -= 5; a.x += (a.x>p.x?20:-20); if(a.hp <= 0) agents.splice(i, 1);
+        }
+    });
+    ctx.fillStyle = "#FF5733"; ctx.fillRect(p.x-cx, p.y-cy, p.w, p.h);
+    if(p.atk > 0) { ctx.strokeStyle = "#fff"; ctx.lineWidth = 3; ctx.strokeRect(p.x-cx-10, p.y-cy-10, p.w+20, p.h+20); }
+    requestAnimationFrame(loop);
+}
+</script>
+</body>
+</html>
