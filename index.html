@@ -2,9 +2,9 @@
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
-    <title>Super Human - 自主 AI 社會版</title>
+    <title>Super Human - 終極穩定版</title>
     <style>
-        body, html { margin: 0; padding: 0; width: 100%; height: 100%; background: #000; overflow: hidden; font-family: sans-serif; color: white; }
+        body, html { margin: 0; padding: 0; width: 100%; height: 100%; background: #000; overflow: hidden; font-family: "Microsoft JhengHei", sans-serif; color: white; }
         .layer { position: fixed; top: 0; left: 0; width: 100%; height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; background: #111; z-index: 9999; }
         .btn { padding: 18px 60px; font-size: 26px; cursor: pointer; margin: 15px; background: #f1c40f; border: none; font-weight: bold; border-radius: 12px; color: black; transition: 0.2s; }
         .btn:hover { background: #fff; transform: scale(1.05); }
@@ -17,7 +17,31 @@
 
     <div id="layer-home" class="layer">
         <h1 style="font-size: 48px; color: #f1c40f; margin-bottom: 30px;">未來的 Super Human</h1>
-        <button class="btn" id="btn-start-ai">進入自主 AI 世界</button>
+        <button class="btn" id="btn-single">單人探險</button>
+        <button class="btn" id="btn-multi" style="background:#3498db; color:white;">多人連線 (AI 全能)</button>
+    </div>
+
+    <div id="layer-select" class="layer" style="display:none;">
+        <h1>選擇小隊人數</h1>
+        <select id="pNumInput" style="font-size:30px; padding:15px; margin:25px; border-radius:10px;">
+            <option value="2">2 人</option>
+            <option value="5" selected>5 人</option>
+            <option value="10">10 人</option>
+        </select>
+        <button class="btn" id="btn-confirm">確定人數</button>
+    </div>
+
+    <div id="layer-info" class="layer" style="display:none;">
+        <div style="background:#222; padding:40px; border:3px solid #f1c40f; border-radius:25px; text-align:center;">
+            <h2 id="modeTitle" style="color:#f1c40f;">模式確認</h2>
+            <p>包含：高山、村莊、村民、動物、下雨與古蹟</p>
+            <ul style="text-align:left; font-size:18px;">
+                <li><b>WASD / 空白</b>：移動與跳躍</li>
+                <li><b>滑鼠左鍵</b>：挖掘 / <b>右鍵</b>：建築</li>
+                <li><b>K 鍵</b>：手動攻擊</li>
+            </ul>
+            <button class="btn" id="btn-start">正式開始</button>
+        </div>
     </div>
 
     <div id="hud">❤️ 血量: <span id="hp">100</span> | 🕒 <span id="time">07:00</span> <span id="wea">☀️</span></div>
@@ -25,16 +49,32 @@
 
 <script>
 let canvas, ctx, miniCtx, isRunning = false;
-let ticks = 420, world = {}, camX = 0, camY = 0, bType = 2;
+let ticks = 420, world = {}, camX = 0, camY = 0, bType = 2, fCount = 1;
 const TILE = 32, COLORS = { 1: '#8B4513', 2: '#228B22', 3: '#666', 4: '#cd853f', 5: '#444' };
-let p = { x: 500, y: 0, w: 24, h: 44, vx: 0, vy: 0, hp: 100, ground: false };
-let agents = [], mobs = [], keys = {}, isRain = false, rTimer = 0;
+let p = { x: 500, y: 0, w: 24, h: 44, vx: 0, vy: 0, hp: 100, ground: false, atk: 0 };
+let allies = [], vils = [], anis = [], mobs = [], keys = {}, isRain = false, rTimer = 0;
 
-// 按鈕綁定
-document.getElementById('btn-start-ai').addEventListener('click', () => { launch(); });
-
-function launch() {
+// === 按鈕監聽器 (保證點得進去) ===
+document.getElementById('btn-single').addEventListener('click', () => { fCount = 1; showRules(); });
+document.getElementById('btn-multi').addEventListener('click', () => { 
     document.getElementById('layer-home').style.display = 'none';
+    document.getElementById('layer-select').style.display = 'flex';
+});
+document.getElementById('btn-confirm').addEventListener('click', () => {
+    fCount = parseInt(document.getElementById('pNumInput').value);
+    showRules();
+});
+document.getElementById('btn-start').addEventListener('click', () => { launchGame(); });
+
+function showRules() {
+    document.getElementById('layer-home').style.display = 'none';
+    document.getElementById('layer-select').style.display = 'none';
+    document.getElementById('layer-info').style.display = 'flex';
+    document.getElementById('modeTitle').innerText = fCount + " 人探險模式";
+}
+
+function launchGame() {
+    document.getElementById('layer-info').style.display = 'none';
     document.getElementById('hud').style.display = 'block';
     document.getElementById('minimap-container').style.display = 'block';
     
@@ -44,4 +84,93 @@ function launch() {
     ctx = canvas.getContext('2d');
     miniCtx = document.getElementById('mini-canvas').getContext('2d');
     
-    p.y = getGY(p.x/TILE)*TILE - 2
+    p.y = getGY(p.x/TILE)*TILE - 200;
+    for(let i=0; i<fCount-1; i++) allies.push({x: p.x+60+i*40, y: p.y, w:24, h:44, vx:0, vy:0, hp:100, max:100, atk:0, type:'ally'});
+    
+    // 生成世界物件
+    for(let i=0; i<10; i++) {
+        let gx = (Math.random()-0.5)*3000 + 500;
+        let rand = Math.random();
+        if(rand < 0.3) spawnV(gx); 
+        else if(rand < 0.5) spawnR(gx);
+        spawnVi(gx + 50); spawnA(gx - 50);
+    }
+
+    isRunning = true;
+    window.onkeydown = e => { keys[e.code] = true; if(e.key==='1') bType=2; if(e.key==='2') bType=1; if(e.key==='3') bType=3; };
+    window.onkeyup = e => keys[e.code] = false;
+    canvas.onmousedown = e => {
+        const rect = canvas.getBoundingClientRect();
+        const gx = Math.floor((e.clientX-rect.left+camX)/TILE), gy = Math.floor((e.clientY-rect.top+camY)/TILE);
+        if(e.button===0) world[`${gx}_${gy}`] = 0; else if(e.button===2) world[`${gx}_${gy}`] = bType;
+    };
+    canvas.oncontextmenu = e => e.preventDefault();
+    requestAnimationFrame(loop);
+}
+
+// 地形函數
+function getGY(gx) { return Math.floor(35 + Math.sin(gx*0.05)*15 + Math.cos(gx*0.02)*20); }
+function getB(gx, gy) { if(world[`${gx}_${gy}`]!==undefined) return world[`${gx}_${gy}`]; return gy<getGY(gx)?0:(gy===getGY(gx)?2:1); }
+
+function spawnV(gx) {
+    gx = Math.floor(gx); let gy = getGY(gx);
+    for(let w=0; w<6; w++) { for(let r=1; r<5; r++) world[`${gx+w}_${gy-r}`]=4; world[`${gx+w}_${gy-5}`]=3; }
+    world[`${gx+2}_${gy-1}`]=0; world[`${gx+2}_${gy-2}`]=0;
+}
+function spawnR(gx) {
+    gx = Math.floor(gx); let gy = getGY(gx);
+    for(let i=0; i<3; i++) { for(let r=1; r<Math.random()*8+4; r++) world[`${gx+i*3}_${gy-r}`]=5; }
+}
+function spawnVi(gx) { vils.push({x:gx,y:-300,w:24,h:44,vx:0,vy:0,dir:1,type:'vil'}); }
+function spawnA(gx) { anis.push({x:gx,y:-300,w:20,h:20,vx:0,vy:0,dir:1,type:'ani'}); }
+
+function phys(o, isP) {
+    if(isP) { o.vx=(keys['KeyA']?-5:keys['KeyD']?5:0); if((keys['Space']||keys['KeyW'])&&o.ground) o.vy=-13; }
+    else {
+        if(o.type==='ally') {
+            let d = p.x-o.x; o.vx = Math.abs(d)>100?(d>0?3.5:-3.5):0;
+            let ax = Math.floor((o.x+(o.vx>=0?30:-10))/TILE), ay = Math.floor((o.y+o.h-5)/TILE);
+            if(getB(ax,ay)!==0) { if(o.ground)o.vy=-13; if(Math.random()<0.03)world[`${ax}_${ay}`]=0; }
+        } else { if(Math.random()<0.01) o.dir*=-1; o.vx=o.dir*1.5; if(getB(Math.floor((o.x+(o.vx>=0?25:-10))/TILE),Math.floor((o.y+o.h-5)/TILE))!==0&&o.ground) o.vy=-10; }
+    }
+    o.vy+=0.7; let nx=o.x+o.vx, gx=(o.vx>0?Math.floor((nx+o.w)/TILE):Math.floor(nx/TILE)), ty=Math.floor(o.y/TILE), by=Math.floor((o.y+o.h-5)/TILE);
+    if(getB(gx,ty)===0&&getB(gx,by)===0) o.x=nx;
+    o.y+=o.vy; o.ground=false;
+    let lx=Math.floor(o.x/TILE), rx=Math.floor((o.x+o.w-1)/TILE), fy=Math.floor((o.y+o.h)/TILE);
+    if(getB(lx,fy)!==0||getB(rx,fy)!==0) { o.y=fy*TILE-o.h; o.vy=0; o.ground=true; }
+}
+
+function loop() {
+    if(!isRunning) return;
+    ticks=(ticks+0.3)%1440; rTimer++; if(rTimer>1500){isRain=!isRain; rTimer=0; document.getElementById('wea').innerText=isRain?'🌧️':'☀️';}
+    phys(p, true); camX+=(p.x-canvas.width/2-camX)*0.1; camY+=(p.y-canvas.height/2-camY)*0.1;
+    allies.forEach((a,i)=>{ phys(a,false); mobs.forEach(m=>{if(Math.abs(m.x-a.x)<40){a.hp-=0.05; a.atk=10; m.hp-=5;}}); if(a.hp<=0) allies.splice(i,1); });
+    vils.forEach(v=>phys(v,false)); anis.forEach(an=>phys(an,false));
+    let hr=ticks/60; if(hr<7||hr>18) { if(Math.random()<0.02) mobs.push({x:p.x+(Math.random()-0.5)*1500,y:p.y-500,w:24,h:44,vx:0,vy:0,hp:20}); }
+    mobs.forEach((m,i)=>{ m.vx=(m.x<p.x?2.5:-2.5); phys(m,false); if(Math.abs(m.x-p.x)<30) p.hp-=0.2; if(m.hp<=0||(hr>=7&&hr<18)) mobs.splice(i,1); });
+    if(keys['KeyK']&&p.atk<=0){p.atk=15; mobs.forEach(m=>{if(Math.abs(m.x-p.x)<80)m.hp-=10;});} if(p.atk>0)p.atk--;
+    if(p.hp<=0){alert("重生中..."); location.reload();}
+    render(); if(isRain) drawR();
+    requestAnimationFrame(loop);
+}
+
+function render() {
+    let hr=ticks/60; let sky=(hr>7&&hr<17)?'#87ceeb':(hr>=17&&hr<18.5)?'#ff7832':'#050515';
+    if(isRain) sky='#4a4e5a'; ctx.fillStyle=sky; ctx.fillRect(0,0,canvas.width,canvas.height);
+    let sx=Math.floor(camX/TILE), ex=sx+Math.ceil(canvas.width/TILE)+1, sy=Math.floor(camY/TILE), ey=sy+Math.ceil(canvas.height/TILE)+1;
+    for(let x=sx;x<ex;x++){for(let y=sy;y<ey;y++){let b=getB(x,y);if(b!==0){ctx.fillStyle=COLORS[b];ctx.fillRect(x*TILE-camX,y*TILE-camY,TILE,TILE);}}}
+    allies.forEach(a=>{ctx.fillStyle="#f1c40f";ctx.fillRect(a.x-camX,a.y-camY,a.w,a.h);ctx.fillStyle="red";ctx.fillRect(a.x-camX-5,a.y-camY-15,34,5);ctx.fillStyle="#2ecc71";ctx.fillRect(a.x-camX-5,a.y-camY-15,34*(a.hp/100),5);});
+    vils.forEach(v=>{ctx.fillStyle="#3498db";ctx.fillRect(v.x-camX,v.y-camY,v.w,v.h);});
+    anis.forEach(an=>{ctx.fillStyle="#fff";ctx.fillRect(an.x-camX,an.y-camY,an.w,an.h);});
+    mobs.forEach(m=>{ctx.fillStyle="#2ecc71";ctx.fillRect(m.x-camX,m.y-camY,m.w,m.h);});
+    ctx.fillStyle="#FF5733";ctx.fillRect(p.x-camX,p.y-camY,p.w,p.h);
+    document.getElementById('hp').innerText=Math.ceil(p.hp);
+    document.getElementById('time').innerText=Math.floor(hr).toString().padStart(2,'0')+":"+Math.floor(ticks%60).toString().padStart(2,'0');
+    miniCtx.fillStyle="black"; miniCtx.fillRect(0,0,160,160);
+    const dD=(ox,oy,c)=>{let dx=80+(ox-p.x)*0.1,dy=80+(oy-p.y)*0.1; if(Math.hypot(dx-80,dy-80)<75){miniCtx.fillStyle=c;miniCtx.beginPath();miniCtx.arc(dx,dy,4,0,7);miniCtx.fill();}};
+    allies.forEach(a=>dD(a.x,a.y,"#f1c40f")); vils.forEach(v=>dD(v.x,v.y,"#3498db")); anis.forEach(an=>dD(an.x,an.y,"#fff")); mobs.forEach(m=>dD(m.x,m.y,"#2ecc71")); dD(p.x,p.y,"#FF5733");
+}
+function drawR(){ctx.strokeStyle="rgba(150,200,255,0.4)";for(let i=0;i<50;i++){let x=Math.random()*canvas.width,y=Math.random()*canvas.height;ctx.beginPath();ctx.moveTo(x,y);ctx.lineTo(x-2,y+12);ctx.stroke();}}
+</script>
+</body>
+</html>
