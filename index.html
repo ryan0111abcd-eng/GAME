@@ -2,218 +2,94 @@
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
-    <title>Super Human - 全能 AI 與高山版</title>
+    <title>未來的 Super Human</title>
     <style>
-        body, html { margin: 0; padding: 0; width: 100%; height: 100%; background: #000; overflow: hidden; font-family: sans-serif; color: white; }
-        .layer { position: fixed; top: 0; left: 0; width: 100%; height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; background: #111; z-index: 9000; }
-        .btn { padding: 15px 50px; font-size: 24px; cursor: pointer; margin: 10px; background: #f1c40f; border: none; font-weight: bold; border-radius: 10px; color: black; }
-        #hud { position: fixed; top: 10px; left: 10px; background: rgba(0,0,0,0.8); padding: 12px; border: 2px solid #f1c40f; display: none; z-index: 5000; border-radius: 10px; }
-        #minimap-container { position: fixed; top: 20px; right: 20px; width: 160px; height: 160px; border: 3px solid white; border-radius: 50%; overflow: hidden; background: #000; display: none; z-index: 5000; }
-        canvas { display: block; }
+        body, html { margin: 0; padding: 0; width: 100%; height: 100%; background: #000; overflow: hidden; font-family: "Microsoft JhengHei", sans-serif; color: white; }
+        .layer { position: fixed; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; background: #1a1a1a; z-index: 9999; }
+        .btn { padding: 15px 40px; font-size: 24px; cursor: pointer; margin: 10px; background: #f1c40f; border: none; font-weight: bold; border-radius: 12px; color: black; box-shadow: 0 5px 0 #b8860b; }
+        .btn:hover { background: #fff; }
+        
+        /* HUD & 小地圖 */
+        #hud { position: fixed; top: 10px; left: 10px; background: rgba(0,0,0,0.7); padding: 10px; border-radius: 8px; display: none; z-index: 5000; }
+        #minimap { position: fixed; top: 10px; right: 10px; width: 150px; height: 150px; border-radius: 50%; border: 3px solid #fff; background: rgba(0,0,0,0.5); overflow: hidden; display: none; z-index: 5000; }
+        
+        /* ESC 選單 */
+        #esc-menu { position: fixed; inset: 0; background: rgba(0,0,0,0.8); display: none; flex-direction: column; align-items: center; justify-content: center; z-index: 10000; }
+        
+        #inv { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); display: none; gap: 8px; z-index: 5000; }
+        .slot { width: 40px; height: 40px; border: 2px solid #777; background: #333; display: flex; align-items: center; justify-content: center; font-size: 12px; }
+        .slot.active { border-color: #f1c40f; transform: scale(1.1); }
+        
+        canvas { display: none; }
     </style>
 </head>
 <body>
 
-    <div id="menu-layer" class="layer">
-        <h1 style="font-size: 42px; color: #f1c40f;">未來的 Super Human</h1>
-        <button class="btn" onclick="setMode('single')">單人探險</button>
-        <button class="btn" style="background:#3498db; color:white;" onclick="setMode('multi')">多人連線 (AI 協力)</button>
+    <div id="ui-main" class="layer">
+        <h1 style="color:#f1c40f; font-size: 50px;">未來的 SUPER HUMAN</h1>
+        <button class="btn" onclick="boot(1)">開始鍵</button>
+        <button class="btn" onclick="showMulti()" style="background:#3498db; color:white;">多人連線鍵</button>
     </div>
 
-    <div id="select-layer" class="layer" style="display:none;">
-        <h1>選擇小隊人數</h1>
-        <select id="pNumInput" style="font-size:28px; padding:10px; margin:20px; border-radius:10px;">
-            <option value="2">2 人</option>
-            <option value="5" selected>5 人</option>
-            <option value="10">10 人</option>
-        </select>
-        <button class="btn" onclick="showRules()">確定</button>
+    <div id="ui-multi" class="layer" style="display:none;">
+        <h2>選擇人數 (2-10人)</h2>
+        <input type="range" id="p-range" min="2" max="10" value="5" oninput="document.getElementById('pv').innerText=this.value">
+        <p style="font-size:24px;">當前選擇: <span id="pv" style="color:#f1c40f;">5</span></p>
+        <button class="btn" onclick="boot(document.getElementById('p-range').value)">開始</button>
     </div>
 
-    <div id="info-layer" class="layer" style="display:none;">
-        <div style="background:#222; padding:30px; border:2px solid #f1c40f; border-radius:20px; text-align:center;">
-            <h2 id="modeTitle" style="color:#f1c40f;">模式確認</h2>
-            <p>你的隊友現在擁有跟你一樣的 AI 智慧！</p>
-            <ul style="text-align:left; font-size:18px; line-height:1.6;">
-                <li><b>A / D / 空白</b>：移動與跳躍</li>
-                <li><b>滑鼠左右鍵</b>：挖掘與建築</li>
-                <li><b>K 鍵</b>：攻擊 (隊友也會自動戰鬥)</li>
-                <li><b>高山地形</b>：攝影機會自動跟隨高度</li>
-            </ul>
-            <button class="btn" onclick="startGame()">正式進入世界</button>
-        </div>
+    <div id="esc-menu">
+        <h1 style="font-size: 40px;">遊戲暫停</h1>
+        <button class="btn" onclick="location.reload()">離開遊戲 (重新開始)</button>
+        <p>按 ESC 回到遊戲</p>
     </div>
 
-    <div id="hud">❤️ 血量: <span id="hp">100</span> | 🕒 <span id="time">07:00</span></div>
-    <div id="minimap-container"><canvas id="mini-canvas" width="160" height="160"></canvas></div>
+    <div id="hud">
+        📍 X: <span id="posX">0</span> Y: <span id="posY">0</span><br>
+        ❤️ HP: <span id="hp">100</span> | 🕒 <span id="time">07:00</span>
+    </div>
+    <canvas id="minimap-canvas" id="minimap"></canvas>
+    <div id="minimap"><canvas id="m-cvs" width="150" height="150"></canvas></div>
+
+    <div id="inv">
+        <div class="slot active" id="sl1">1:土</div>
+        <div class="slot" id="sl2">2:草</div>
+        <div class="slot" id="sl3">3:石</div>
+        <div class="slot" id="sl4">4:木</div>
+    </div>
+
+    <canvas id="gCvs"></canvas>
 
 <script>
-let canvas, ctx, miniCtx, isRunning = false;
-let ticks = 420, world = {}, camX = 0, camY = 0, bType = 2, finalPCount = 1;
-const TILE = 32, COLORS = { 1: '#8B4513', 2: '#228B22', 3: '#666' };
-let p = { x: 500, y: 0, w: 24, h: 44, vx: 0, vy: 0, hp: 100, ground: false, atk: 0 };
-let allies = [], mobs = [], keys = {};
+const cvs = document.getElementById('gCvs'), ctx = cvs.getContext('2d');
+const mcvs = document.getElementById('m-cvs'), mctx = mcvs.getContext('2d');
+let isRunning = false, isEsc = false;
+let time = 420, world = {}, camX = 0, camY = 0;
+let p = { x: 500, y: 0, w: 20, h: 40, vx: 0, vy: 0, hp: 100, ground: false, atk: 0 };
+let agents = [], keys = {}, curB = 1;
+const TILE = 32, COLORS = { 1: '#8B4513', 2: '#228B22', 3: '#666', 4: '#cd853f' };
 
-function setMode(m) {
-    document.getElementById('menu-layer').style.display = 'none';
-    if(m === 'single') { finalPCount = 1; showRules(); } 
-    else { document.getElementById('select-layer').style.display = 'flex'; }
-}
+function showMulti() { document.getElementById('ui-main').style.display='none'; document.getElementById('ui-multi').style.display='flex'; }
 
-function showRules() {
-    if(document.getElementById('select-layer').style.display !== 'none') {
-        finalPCount = parseInt(document.getElementById('pNumInput').value);
-    }
-    document.getElementById('select-layer').style.display = 'none';
-    document.getElementById('info-layer').style.display = 'flex';
-    document.getElementById('modeTitle').innerText = `🎮 ${finalPCount} 人模式 (AI 全能啟動)`;
-}
-
-function startGame() {
-    document.getElementById('info-layer').style.display = 'none';
-    document.getElementById('hud').style.display = 'block';
-    document.getElementById('minimap-container').style.display = 'block';
-
-    canvas = document.createElement('canvas');
-    canvas.width = window.innerWidth;
-    canvas.height = window.innerHeight;
-    document.body.appendChild(canvas);
-    ctx = canvas.getContext('2d');
-    miniCtx = document.getElementById('mini-canvas').getContext('2d');
-
-    p.y = getGroundY(p.x/TILE) * TILE - 100;
-    for(let i=0; i < finalPCount - 1; i++){
-        let ax = p.x + (i + 1) * 60;
-        allies.push({ x: ax, y: p.y, w: 24, h: 44, vx: 0, vy: 0, hp: 100, atk: 0, dir: 1, timer: 0 });
-    }
-
-    isRunning = true;
-    window.onkeydown = e => { keys[e.code] = true; if(e.key==='1') bType=2; if(e.key==='2') bType=1; if(e.key==='3') bType=3; };
-    window.onkeyup = e => keys[e.code] = false;
-    canvas.onmousedown = (e) => {
-        const rect = canvas.getBoundingClientRect();
-        const gx = Math.floor((e.clientX - rect.left + camX) / TILE);
-        const gy = Math.floor((e.clientY - rect.top + camY) / TILE);
-        if (e.button === 0) world[`${gx}_${gy}`] = 0;
-        if (e.button === 2) world[`${gx}_${gy}`] = bType;
-    };
-    canvas.oncontextmenu = e => e.preventDefault();
-    requestAnimationFrame(loop);
-}
-
-// 高山地形公式 (大幅度起伏但平滑)
-function getGroundY(gx) {
-    let hill = Math.sin(gx * 0.05) * 10;
-    let mountain = Math.cos(gx * 0.02) * 15;
-    return Math.floor(30 + hill + mountain); 
-}
-
+// 地圖生成函數 (無限延伸)
+function getGY(gx) { return Math.floor(35 + Math.sin(gx*0.05)*8 + Math.cos(gx*0.02)*10); }
 function getB(gx, gy) {
-    if (world[`${gx}_${gy}`] !== undefined) return world[`${gx}_${gy}`];
-    let gY = getGroundY(gx);
-    return gy < gY ? 0 : (gy === gY ? 2 : 1);
+    if(world[gx+'_'+gy] !== undefined) return world[gx+'_'+gy];
+    let fY = getGY(gx); return gy < fY ? 0 : (gy === fY ? 2 : 1);
 }
 
-function physics(o, isPlayer) {
-    if (isPlayer) {
-        o.vx = (keys['KeyA'] ? -5 : keys['KeyD'] ? 5 : 0);
-        if (keys['Space'] && o.ground) o.vy = -12;
-    } else {
-        // AI 全能邏輯
-        let dist = p.x - o.x;
-        if (Math.abs(dist) > 100) o.vx = (dist > 0 ? 3.5 : -3.5); else o.vx = 0;
-        
-        // AI 遇到牆壁自動跳躍或挖掘
-        let aheadX = Math.floor((o.x + (o.vx > 0 ? 30 : -10)) / TILE);
-        let footY = Math.floor((o.y + o.h - 5) / TILE);
-        if (getB(aheadX, footY) !== 0) {
-            if (o.ground) o.vy = -12; // 跳躍
-            if (Math.random() < 0.05) world[`${aheadX}_${footY}`] = 0; // 挖掘
-        }
-        // AI 掉下坑洞自動墊腳
-        if (o.vy > 5 && Math.random() < 0.1) world[`${Math.floor(o.x/TILE)}_${footY+1}`] = 3;
+function boot(num) {
+    document.querySelectorAll('.layer').forEach(l=>l.style.display='none');
+    document.getElementById('hud').style.display='block';
+    document.getElementById('minimap').style.display='block';
+    document.getElementById('inv').style.display='flex';
+    cvs.style.display='block';
+    cvs.width = window.innerWidth; cvs.height = window.innerHeight;
+
+    p.y = getGY(Math.floor(p.x/TILE))*TILE - 100;
+    
+    // 生成隊友、村民、動物
+    for(let i=0; i<num-1; i++) {
+        agents.push({x: p.x + (i+1)*150, y:-100, w:20, h:40, vx:0, vy:0, hp:100, type:i%2===0?'villager':'ally', dir:1, sTimer:60});
     }
-    
-    o.vy += 0.6;
-    let nx = o.x + o.vx, gx = (o.vx > 0) ? Math.floor((nx + o.w) / TILE) : Math.floor(nx / TILE);
-    let ty = Math.floor(o.y / TILE), by = Math.floor((o.y + o.h - 5) / TILE);
-    if (getB(gx, ty) === 0 && getB(gx, by) === 0) o.x = nx;
-    
-    o.y += o.vy; o.ground = false;
-    let lx = Math.floor(o.x/TILE), rx = Math.floor((o.x+o.w-1)/TILE), fy = Math.floor((o.y+o.h)/TILE);
-    if (getB(lx, fy) !== 0 || getB(rx, fy) !== 0) { o.y = fy*TILE-o.h; o.vy = 0; o.ground = true; }
-}
-
-function loop() {
-    if (!isRunning) return;
-    ticks = (ticks + 0.4) % 1440;
-    physics(p, true);
-
-    // 攝影機平滑跟隨 (包含 X 和 Y)
-    camX += (p.x - canvas.width / 2 - camX) * 0.1;
-    camY += (p.y - canvas.height / 2 - camY) * 0.1;
-
-    allies.forEach(a => {
-        physics(a, false);
-        mobs.forEach(m => {
-            if(Math.abs(m.x - a.x) < 60) { a.atk = 10; m.hp -= 5; }
-        });
-        if(a.atk > 0) a.atk--;
-    });
-
-    let isDay = (ticks/60 >= 7 && ticks/60 < 17.5);
-    if (!isDay && Math.random() < 0.02) mobs.push({ x: p.x + (Math.random()-0.5)*1200, y: p.y-400, w: 24, h: 44, vx: 0, vy: 0, hp: 20 });
-    
-    mobs.forEach((m, i) => {
-        if (isDay) m.hp -= 0.5;
-        m.vx = (m.x < p.x) ? 2.5 : -2.5;
-        physics(m, false);
-        if (Math.abs(m.x - p.x) < 30 && Math.abs(m.y - p.y) < 30) p.hp -= 0.3;
-        if (m.hp <= 0) mobs.splice(i, 1);
-    });
-
-    if (keys['KeyK'] && p.atk <= 0) { p.atk = 15; mobs.forEach(m => { if(Math.abs(m.x-p.x)<70) m.hp -= 10; }); }
-    if (p.atk > 0) p.atk--;
-    if (p.hp <= 0) { alert("遊戲結束"); location.reload(); }
-
-    render();
-    requestAnimationFrame(loop);
-}
-
-function render() {
-    let hr = ticks / 60;
-    ctx.fillStyle = (hr > 7 && hr < 17) ? "#87ceeb" : (hr >= 17 && hr < 18.5) ? "#ff7832" : "#050515";
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
-    
-    let sx = Math.floor(camX / TILE), ex = sx + Math.ceil(canvas.width / TILE) + 1;
-    let sy = Math.floor(camY / TILE), ey = sy + Math.ceil(canvas.height / TILE) + 1;
-
-    for (let x = sx; x < ex; x++) {
-        for (let y = sy; y < ey; y++) {
-            let b = getB(x, y);
-            if (b !== 0) { ctx.fillStyle = COLORS[b]; ctx.fillRect(x*TILE-camX, y*TILE-camY, TILE, TILE); }
-        }
-    }
-    allies.forEach(a => {
-        ctx.fillStyle = "#f1c40f"; ctx.fillRect(a.x-camX, a.y-camY, a.w, a.h);
-        if(a.atk > 0) { ctx.fillStyle = "white"; ctx.fillRect(a.x-camX+(a.vx>=0?25:-20), a.y-camY+10, 20, 5); }
-    });
-    mobs.forEach(m => { ctx.fillStyle = "#2ecc71"; ctx.fillRect(m.x-camX, m.y-camY, m.w, m.h); });
-    ctx.fillStyle = "#FF5733"; ctx.fillRect(p.x-camX, p.y-camY, p.w, p.h);
-    if (p.atk > 5) { ctx.fillStyle = "white"; ctx.fillRect(p.x-camX+(p.vx>=0?25:-25), p.y-camY+10, 25, 10); }
-
-    document.getElementById('hp').innerText = Math.ceil(p.hp);
-    document.getElementById('time').innerText = Math.floor(hr).toString().padStart(2,'0') + ":" + Math.floor(ticks%60).toString().padStart(2,'0');
-
-    miniCtx.fillStyle = "black"; miniCtx.fillRect(0,0,160,160);
-    const drawDot = (ox, oy, c) => {
-        let dx = 80 + (ox - p.x) * 0.1, dy = 80 + (oy - p.y) * 0.1;
-        if (Math.hypot(dx-80, dy-80) < 75) { miniCtx.fillStyle = c; miniCtx.beginPath(); miniCtx.arc(dx, dy, 4, 0, 7); miniCtx.fill(); }
-    };
-    allies.forEach(a => drawDot(a.x, a.y, "#f1c40f"));
-    mobs.forEach(m => drawDot(m.x, m.y, "#2ecc71"));
-    drawDot(p.x, p.y, "#FF5733");
-}
-</script>
-</body>
-</html>
+    for(let i=0; i<3; i++) agents.push({x: p.x - 500 - i*200, y:-100, w:20, h:20, vx:0, vy:0, hp:20, type:'animal', dir:1, s
