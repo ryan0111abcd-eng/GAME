@@ -3,12 +3,17 @@ const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
 
 let isStarted = false, ticks = 420; 
-let camX = 0, world = {}, selBlock = 2;
+let world = {}, selBlock = 2;
 const tileSize = 32;
-const mapWidth = 2560; // 地圖總長度 (80格)，走完一圈回到原點
+const WORLD_COLS = 100; // 球體一圈的格數
+const WORLD_PX = WORLD_COLS * tileSize;
 const colors = { 1: '#8B4513', 2: '#228B22', 3: '#666' };
 
-let p = { x: 300, y: 0, w: 24, h: 44, vx: 0, vy: 0, hp: 100, grounded: false, atk: 0 };
+// 星球中心點與半徑
+let centerX, centerY;
+const planetRadius = 250; // 地核半徑
+
+let p = { x: 300, y: 0, w: 20, h: 35, vx: 0, vy: 0, hp: 100, grounded: false, atk: 0 };
 let teams = [], vils = [], anis = [], mobs = [];
 
 function showMulti() {
@@ -21,157 +26,123 @@ function preStart(n) {
     document.getElementById('ui-bar').style.display = 'block';
     document.getElementById('hotbar').style.display = 'flex';
     
-    for(let i=0; i < n-1; i++) teams.push({ x: 300 + Math.random()*200, y: 0, w: 24, h: 44, vx: 0, vy: 0, grounded: false });
-    for(let i=0; i<6; i++) vils.push({ x: 1500 + i*180, y: 0, w: 24, h: 44, vx: 0, vy: 0, grounded: false });
-    for(let i=0; i<8; i++) anis.push({ x: 600 + i*350, y: 0, w: 20, h: 20, vx: 0, vy: 0, grounded: false });
-
+    // 初始化位置
+    p.y = 0;
+    for(let i=0; i < n-1; i++) teams.push({ x: 300 + Math.random()*200, y: 0, w: 20, h: 35, vx: 0, vy: 0 });
     isStarted = true; resize(); loop();
 }
 
-// 核心：環狀地圖獲取方塊
 function getB(gx, gy) {
-    // 讓 X 座標循環 (0~79格)
-    gx = ((gx % 80) + 80) % 80; 
-    const key = `${gx}_${gy}`;
+    let wrapX = ((gx % WORLD_COLS) + WORLD_COLS) % WORLD_COLS;
+    const key = `${wrapX}_${gy}`;
     if (world[key] !== undefined) return world[key];
-    let g = Math.floor(12 + Math.sin(gx * 0.3) * 2); // 地形起伏
+    // 星球表面起伏
+    let g = Math.floor(5 + Math.sin(wrapX * 0.2) * 2); 
     return gy < g ? 0 : (gy === g ? 2 : 1);
 }
 
-// 強化版物理 (支援環狀座標)
 function physics(o) {
-    o.vy += 0.6;
-    o.x = ((o.x + o.vx) % mapWidth + mapWidth) % mapWidth; // X 軸循環
-
+    o.vy += 0.5; // 重力指向球心
+    o.x = ((o.x + o.vx) % WORLD_PX + WORLD_PX) % WORLD_PX;
     o.y += o.vy;
-    o.grounded = false;
     
-    // 碰撞檢測
-    let gx_l = Math.floor(o.x / tileSize);
-    let gx_r = Math.floor((o.x + o.w - 1) / tileSize);
-    let gy_f = Math.floor((o.y + o.h) / tileSize);
+    o.grounded = false;
+    let gx = Math.floor((o.x + o.w/2) / tileSize);
+    let gy = Math.floor((o.y + o.h) / tileSize);
 
-    if (getB(gx_l, gy_f) !== 0 || getB(gx_r, gy_f) !== 0) {
-        o.y = gy_f * tileSize - o.h;
+    if (getB(gx, gy) !== 0) {
+        o.y = gy * tileSize - o.h;
         o.vy = 0;
         o.grounded = true;
     }
+    // 防止掉進地核太深
+    if (o.y > 400) o.y = 400;
 }
 
 let keys = {};
-window.onkeydown = (e) => {
-    keys[e.code] = true;
-    if (e.key === '1') { selBlock = 2; updateSlot(1); }
-    if (e.key === '2') { selBlock = 1; updateSlot(2); }
-    if (e.key === '3') { selBlock = 3; updateSlot(3); }
+window.onkeydown = e => { 
+    keys[e.code] = true; 
+    if (e.key >= '1' && e.key <= '3') { selBlock = [0, 2, 1, 3][e.key]; updateSlot(e.key); }
 };
-window.onkeyup = (e) => keys[e.code] = false;
+window.onkeyup = e => keys[e.code] = false;
 
 function updateSlot(idx) {
     document.querySelectorAll('.slot').forEach(s => s.classList.remove('active'));
     document.getElementById('slot'+idx).classList.add('active');
 }
 
-canvas.onmousedown = (e) => {
-    if (!isStarted) return;
-    const rect = canvas.getBoundingClientRect();
-    const gx = Math.floor(((e.clientX - rect.left + camX) % mapWidth + mapWidth) % mapWidth / tileSize);
-    const gy = Math.floor((e.clientY - rect.top) / tileSize);
-    if (e.button === 0) world[`${gx}_${gy}`] = 0;
-    if (e.button === 2) world[`${gx}_${gy}`] = selBlock;
-};
-canvas.oncontextmenu = e => e.preventDefault();
-
 function loop() {
     if (!isStarted) return;
-    ticks = (ticks + 0.4) % 1440;
-    let hr = Math.floor(ticks / 60);
-
-    p.vx = (keys['KeyA'] ? -5 : keys['KeyD'] ? 5 : 0);
-    if (keys['Space'] && p.grounded) p.vy = -12;
+    ticks = (ticks + 0.2) % 1440;
     
-    // 攻擊判斷
-    if (keys['KeyK'] && p.atk <= 0) {
-        p.atk = 15;
-        mobs.forEach(m => { 
-            let dist = Math.abs(m.x - p.x);
-            if (dist > mapWidth/2) dist = mapWidth - dist; // 處理跨越邊界的距離
-            if(dist < 70) { m.hp -= 10; m.vx = (m.x > p.x ? 8 : -8); } 
-        });
-    }
-    if (p.atk > 0) p.atk--;
-
+    p.vx = (keys['KeyA'] ? -4 : keys['KeyD'] ? 4 : 0);
+    if (keys['Space'] && p.grounded) p.vy = -10;
+    
     physics(p);
-    // 平滑攝像機跟隨
-    camX = p.x - canvas.width/2;
+    [...teams, ...vils, ...anis, ...mobs].forEach(e => physics(e));
 
-    // AI 更新 (簡單循環處理)
-    [...teams, ...vils, ...anis].forEach(e => {
-        if(Math.random()<0.01) e.vx = (Math.random()-0.5)*3;
-        physics(e);
-    });
-
-    if ((hr >= 18 || hr < 6) && Math.random() < 0.01) {
-        mobs.push({ x: (p.x + 600) % mapWidth, y: 0, w: 24, h: 44, vx: 0, vy: 0, hp: 20 });
-    }
-    mobs.forEach((m, i) => {
-        let diff = p.x - m.x;
-        if (Math.abs(diff) > mapWidth/2) diff = (diff > 0) ? diff - mapWidth : diff + mapWidth;
-        m.vx = diff > 0 ? 2 : -2;
-        physics(m);
-        if (Math.abs(diff) < 25 && Math.abs(m.y - p.y) < 30) p.hp -= 0.5;
-        if (m.hp <= 0) mobs.splice(i, 1);
-    });
-
-    if (p.hp <= 0) { alert("Game Over!"); location.reload(); }
     render();
     requestAnimationFrame(loop);
 }
 
 function render() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    centerX = canvas.width / 2;
+    centerY = canvas.height / 2;
+
+    // 繪製背景 (外太空)
     let hr = Math.floor(ticks / 60);
-    let bg = (hr >= 18 || hr < 6) ? "#050515" : (hr >= 17 ? "#ff7832" : "#87ceeb");
-    ctx.fillStyle = bg;
+    ctx.fillStyle = (hr >= 18 || hr < 6) ? "#020210" : "#87ceeb";
     ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-    // 渲染世界：為了環狀無縫，我們畫兩次或計算偏移
-    let startGX = Math.floor(camX / tileSize);
-    let endGX = startGX + Math.ceil(canvas.width / tileSize) + 1;
+    // --- 星球繪製核心邏輯 ---
+    // 我們以玩家為中心旋轉整個世界
+    ctx.save();
+    ctx.translate(centerX, centerY);
+    // 計算玩家的角度：玩家的 X 座標決定了星球旋轉的角度
+    let playerAngle = (p.x / WORLD_PX) * Math.PI * 2;
+    ctx.rotate(-playerAngle + Math.PI); // 讓玩家永遠在正上方
 
-    for (let gx = startGX; gx < endGX; gx++) {
-        for (let gy = 0; gy < 25; gy++) {
+    // 繪製方塊
+    for (let gx = 0; gx < WORLD_COLS; gx++) {
+        for (let gy = 0; gy < 15; gy++) {
             let b = getB(gx, gy);
             if (b !== 0) {
+                let angle = (gx / WORLD_COLS) * Math.PI * 2;
+                let dist = planetRadius + gy * tileSize;
+                
+                ctx.save();
+                ctx.rotate(angle);
                 ctx.fillStyle = colors[b];
-                // 關鍵：繪製座標保持線性
-                ctx.fillRect(gx * tileSize - camX, gy * tileSize, tileSize, tileSize);
+                // 將方塊畫在對應的角度和半徑上
+                ctx.fillRect(-tileSize/2, dist, tileSize + 1, tileSize + 1);
+                ctx.restore();
             }
         }
     }
 
-    // 繪製所有實體
-    const drawEntity = (e, col) => {
-        // 處理跨邊界渲染：如果實體距離攝像機太遠，但在另一頭很近，就畫在那頭
-        let drawX = e.x - camX;
-        if (drawX < -mapWidth/2) drawX += mapWidth;
-        if (drawX > mapWidth * 1.5) drawX -= mapWidth;
-        
+    // 繪製玩家與實體 (他們現在都相對於世界座標旋轉)
+    const drawOnPlanet = (e, col) => {
+        let angle = (e.x / WORLD_PX) * Math.PI * 2;
+        let dist = planetRadius + e.y;
+        ctx.save();
+        ctx.rotate(angle);
         ctx.fillStyle = col;
-        ctx.fillRect(drawX, e.y, e.w, e.h);
+        ctx.fillRect(-e.w/2, dist, e.w, e.h);
+        ctx.restore();
     };
 
-    teams.forEach(t => drawEntity(t, "#f1c40f"));
-    vils.forEach(v => drawEntity(v, "#3498db"));
-    anis.forEach(a => drawEntity(a, "#ffffff"));
-    mobs.forEach(m => drawEntity(m, "#2ecc71"));
-    drawEntity(p, "#FF5733");
+    teams.forEach(t => drawOnPlanet(t, "#f1c40f"));
+    drawOnPlanet(p, "#FF5733");
+
+    ctx.restore();
 
     // UI 更新
-    document.getElementById('time-val').innerText = `${hr.toString().padStart(2,'0')}:${Math.floor(ticks%60).toString().padStart(2,'0')}`;
     document.getElementById('hp-val').innerText = Math.ceil(p.hp);
-    document.getElementById('pos-val').innerText = `${Math.floor(p.x/32)}, ${Math.floor(p.y/32)}`;
+    document.getElementById('pos-val').innerText = `星球座標: ${Math.floor(p.x/tileSize)}`;
 }
 
 function resize() { canvas.width = window.innerWidth; canvas.height = window.innerHeight; }
 window.onresize = resize;
+resize();
 </script>
