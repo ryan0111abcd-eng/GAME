@@ -2,17 +2,18 @@
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
-    <title>Super Human - 建築與生存版</title>
+    <title>Super Human - 建築大師版</title>
     <style>
-        body, html { margin: 0; padding: 0; width: 100%; height: 100%; background: #000; overflow: hidden; font-family: "Microsoft JhengHei", sans-serif; color: white; }
+        body, html { margin: 0; padding: 0; width: 100%; height: 100%; background: #000; overflow: hidden; font-family: sans-serif; color: white; }
         .layer { position: fixed; top: 0; left: 0; width: 100%; height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; background: #1a1a1a; z-index: 9999; }
-        .btn { padding: 18px 45px; font-size: 24px; cursor: pointer; margin: 10px; background: #f1c40f; border: none; font-weight: bold; border-radius: 12px; color: black; transition: 0.2s; }
+        .btn { padding: 18px 45px; font-size: 24px; cursor: pointer; margin: 10px; background: #f1c40f; border: none; font-weight: bold; border-radius: 12px; transition: 0.2s; }
         .btn:hover { background: #fff; transform: scale(1.05); }
         #hud { position: fixed; top: 10px; left: 10px; background: rgba(0,0,0,0.8); padding: 12px; border: 2px solid #f1c40f; display: none; z-index: 5000; border-radius: 10px; pointer-events: none; }
-        #inventory { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); display: none; gap: 10px; background: rgba(0,0,0,0.6); padding: 10px; border-radius: 10px; z-index: 5000; }
-        .slot { width: 40px; height: 40px; border: 2px solid #fff; display: flex; align-items: center; justify-content: center; font-weight: bold; }
-        .slot.active { border-color: #f1c40f; background: rgba(241,196,15,0.3); }
-        select { padding: 10px; font-size: 20px; border-radius: 8px; margin: 10px; }
+        #inventory { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); display: none; gap: 10px; background: rgba(0,0,0,0.7); padding: 10px; border-radius: 10px; z-index: 5000; border: 1px solid #555; }
+        .slot { width: 50px; height: 50px; border: 2px solid #555; display: flex; flex-direction: column; align-items: center; justify-content: center; font-size: 12px; background: #333; transition: 0.2s; }
+        .slot.active { border-color: #f1c40f; background: #555; box-shadow: 0 0 10px #f1c40f; transform: translateY(-5px); }
+        .block-preview { width: 20px; height: 20px; margin-bottom: 2px; }
+        select { padding: 10px; font-size: 20px; margin: 10px; }
     </style>
 </head>
 <body>
@@ -24,154 +25,64 @@
     </div>
 
     <div id="layer-select" class="layer" style="display:none;">
-        <h2>選擇多人連線人數 (2-10人)</h2>
+        <h2>選擇連線人數 (2-10人)</h2>
         <select id="p-count">
-            <option value="2">2 人小隊</option>
-            <option value="5" selected>5 人小隊</option>
-            <option value="10">10 人大戰隊</option>
+            <option value="2">2 人</option><option value="5" selected>5 人</option><option value="10">10 人</option>
         </select>
-        <button class="btn" id="start-multi">確認並開始</button>
+        <button class="btn" id="start-multi">開始遊戲</button>
     </div>
 
-    <div id="hud">❤️ 血量: <span id="hp">100</span> | 🕒 <span id="time">07:00</span> | ⚔️ K 攻擊 | ⛏️ 左鍵挖 / 右鍵蓋</div>
+    <div id="hud">❤️ 血量: <span id="hp">100</span> | 🕒 <span id="time">07:00</span> | ⚔️ K 攻擊 | ⛏️ 左挖右蓋</div>
 
     <div id="inventory">
-        <div class="slot active" id="s1">1</div>
-        <div class="slot" id="s2">2</div>
-        <div class="slot" id="s3">3</div>
-        <div class="slot" id="s4">4</div>
+        <div class="slot active" id="slot-1"><div class="block-preview" style="background:#8B4513"></div>1:泥土</div>
+        <div class="slot" id="slot-2"><div class="block-preview" style="background:#228B22"></div>2:草地</div>
+        <div class="slot" id="slot-3"><div class="block-preview" style="background:#666"></div>3:石頭</div>
+        <div class="slot" id="slot-4"><div class="block-preview" style="background:#cd853f"></div>4:木頭</div>
     </div>
 
 <script>
 let canvas, ctx, isRunning = false;
 let ticks = 420, world = {}, camX = 0, camY = 0;
-const TILE = 32;
-const COLORS = { 1: '#8B4513', 2: '#228B22', 3: '#666', 4: '#cd853f', 5: '#444' };
-let p = { x: 500, y: 0, w: 22, h: 42, vx: 0, vy: 0, hp: 100, maxHp: 100, ground: false, atkTimer: 0 };
-let agents = [], keys = {}, curBlock = 2;
+const TILE = 32, COLORS = { 1: '#8B4513', 2: '#228B22', 3: '#666', 4: '#cd853f', 5: '#444' };
+let p = { x: 500, y: 0, w: 22, h: 42, vx: 0, vy: 0, hp: 100, ground: false, atkTimer: 0 };
+let agents = [], keys = {}, curBlock = 1;
 
-document.getElementById('start-single').addEventListener('click', () => { initGame(1); });
-document.getElementById('go-to-select').addEventListener('click', () => { document.getElementById('layer-main').style.display = 'none'; document.getElementById('layer-select').style.display = 'flex'; });
-document.getElementById('start-multi').addEventListener('click', () => { initGame(parseInt(document.getElementById('p-count').value)); });
+document.getElementById('start-single').onclick = () => initGame(1);
+document.getElementById('go-to-select').onclick = () => { document.getElementById('layer-main').style.display='none'; document.getElementById('layer-select').style.display='flex'; };
+document.getElementById('start-multi').onclick = () => initGame(parseInt(document.getElementById('p-count').value));
 
-function getGY(gx) { return Math.floor(35 + Math.sin(gx * 0.05) * 12 + Math.cos(gx * 0.02) * 15); }
+function getGY(gx) { return Math.floor(35 + Math.sin(gx*0.05)*12 + Math.cos(gx*0.02)*15); }
 function getB(gx, gy) {
     if(world[`${gx}_${gy}`] !== undefined) return world[`${gx}_${gy}`];
-    let floorY = getGY(gx);
-    return gy < floorY ? 0 : (gy === floorY ? 2 : 1);
+    let fY = getGY(gx); return gy < fY ? 0 : (gy === fY ? 2 : 1);
 }
 
 function initGame(num) {
-    document.querySelectorAll('.layer').forEach(l => l.style.display = 'none');
-    document.getElementById('hud').style.display = 'block';
-    document.getElementById('inventory').style.display = 'flex';
-    
+    document.querySelectorAll('.layer').forEach(l => l.style.display='none');
+    document.getElementById('hud').style.display='block';
+    document.getElementById('inventory').style.display='flex';
     canvas = document.createElement('canvas');
     canvas.width = window.innerWidth; canvas.height = window.innerHeight;
-    document.body.appendChild(canvas);
-    ctx = canvas.getContext('2d');
-    
+    document.body.appendChild(canvas); ctx = canvas.getContext('2d');
     p.y = getGY(p.x/TILE)*TILE - 150;
     if(num > 1) {
-        const types = ['ally', 'vil', 'ani'];
-        for(let i=0; i < num - 1; i++) {
-            agents.push({ x: 600 + i * 150, y: -200, w: 22, h: 42, vx: 0, vy: 0, hp: 100, maxHp: 100, type: types[i%3], dir: 1, state: 'idle', sTimer: Math.random()*100 });
-        }
+        for(let i=0; i<num-1; i++) agents.push({x:600+i*150, y:-200, w:22, h:42, vx:0, vy:0, hp:100, max:100, type:['ally','vil','ani'][i%3], dir:1, state:'idle', sTimer:Math.random()*100});
     }
 
-    // 挖掘與放置邏輯
+    // 滑鼠監聽
     window.addEventListener('mousedown', (e) => {
         if(!isRunning) return;
-        const rect = canvas.getBoundingClientRect();
-        const mouseX = e.clientX - rect.left + camX;
-        const mouseY = e.clientY - rect.top + camY;
-        const gx = Math.floor(mouseX / TILE);
-        const gy = Math.floor(mouseY / TILE);
-
-        if(e.button === 0) world[`${gx}_${gy}`] = 0; // 左鍵：移除
-        if(e.button === 2) { // 右鍵：放置
-            if(getB(gx, gy) === 0) world[`${gx}_${gy}`] = curBlock;
-        }
+        const gx = Math.floor((e.clientX + camX) / TILE), gy = Math.floor((e.clientY + camY) / TILE);
+        if(e.button === 0) world[`${gx}_${gy}`] = 0;
+        if(e.button === 2) { if(getB(gx, gy) === 0) world[`${gx}_${gy}`] = curBlock; }
     });
     window.oncontextmenu = (e) => e.preventDefault();
 
-    window.onkeydown = e => { 
-        keys[e.code] = true; 
+    // 鍵盤監聽與方塊切換
+    window.onkeydown = e => {
+        keys[e.code] = true;
         if(e.code === 'KeyK') p.atkTimer = 10;
-        if(['Digit1','Digit2','Digit3','Digit4'].includes(e.code)) {
-            curBlock = parseInt(e.key);
-            document.querySelectorAll('.slot').forEach(s => s.classList.remove('active'));
-            document.getElementById('s' + e.key).classList.add('active');
-        }
-    };
-    window.onkeyup = e => keys[e.code] = false;
-    isRunning = true;
-    requestAnimationFrame(loop);
-}
-
-function phys(o, isP) {
-    if(isP) {
-        o.vx = (keys['KeyA'] ? -5 : keys['KeyD'] ? 5 : 0);
-        if((keys['Space'] || keys['KeyW']) && o.ground) o.vy = -12;
-        if(o.atkTimer > 0) o.atkTimer--;
-    } else {
-        o.sTimer--;
-        if(o.sTimer <= 0) { o.state = Math.random() < 0.6 ? 'walk' : 'idle'; o.dir = Math.random() > 0.5 ? 1 : -1; o.sTimer = 60 + Math.random()*150; }
-        if(o.state === 'walk') o.vx = o.dir * 2; else o.vx = 0;
-        let aheadX = Math.floor((o.x + (o.vx >= 0 ? o.w + 5 : -5)) / TILE);
-        let footY = Math.floor((o.y + o.h - 8) / TILE);
-        if(getB(aheadX, footY) > 0 && o.ground) o.vy = -11;
-    }
-    o.vy += 0.7;
-    let nx = o.x + o.vx, sideX = o.vx > 0 ? Math.floor((nx + o.w)/TILE) : Math.floor(nx/TILE);
-    let topY = Math.floor((o.y + 5)/TILE), botY = Math.floor((o.y + o.h - 5)/TILE);
-    if(getB(sideX, topY) === 0 && getB(sideX, botY) === 0) o.x = nx;
-    o.y += o.vy; o.ground = false;
-    let feetY = Math.floor((o.y + o.h)/TILE), lX = Math.floor((o.x + 2)/TILE), rX = Math.floor((o.x + o.w - 2)/TILE);
-    if(getB(lX, feetY) > 0 || getB(rX, feetY) > 0) { o.y = feetY * TILE - o.h; o.vy = 0; o.ground = true; }
-}
-
-function loop() {
-    if(!isRunning) return;
-    ticks = (ticks + 0.15) % 1440;
-    phys(p, true);
-    camX += (p.x - canvas.width/2 - camX) * 0.1;
-    camY += (p.y - canvas.height/2 - camY) * 0.1;
-    agents.forEach((a, i) => {
-        phys(a, false);
-        if(p.atkTimer > 0 && Math.abs(a.x - p.x) < 50 && Math.abs(a.y - p.y) < 50) {
-            a.hp -= 5; a.vx += (a.x > p.x ? 8 : -8);
-            if(a.hp <= 0) agents.splice(i, 1);
-        }
-    });
-    render();
-    requestAnimationFrame(loop);
-}
-
-function render() {
-    ctx.fillStyle = '#87ceeb'; ctx.fillRect(0, 0, canvas.width, canvas.height);
-    let cx = Math.floor(camX), cy = Math.floor(camY);
-    let sx = Math.floor(cx/TILE), ex = sx + Math.ceil(canvas.width/TILE)+1;
-    let sy = Math.floor(cy/TILE), ey = sy + Math.ceil(canvas.height/TILE)+1;
-
-    for(let x=sx; x<ex; x++) {
-        for(let y=sy; y<ey; y++) {
-            let b = getB(x, y);
-            if(b !== 0) { ctx.fillStyle = COLORS[b]; ctx.fillRect(x*TILE - cx, y*TILE - cy, TILE, TILE); }
-        }
-    }
-    agents.forEach(a => {
-        let rx = a.x - cx, ry = a.y - cy;
-        ctx.fillStyle = a.type==='ally'?'#f1c40f':(a.type==='vil'?'#3498db':'#fff'); ctx.fillRect(rx, ry, a.w, a.h);
-        ctx.fillStyle = '#555'; ctx.fillRect(rx - 4, ry - 12, a.w + 8, 5);
-        ctx.fillStyle = '#2ecc71'; ctx.fillRect(rx - 4, ry - 12, (a.hp/a.maxHp)*(a.w+8), 5);
-    });
-    ctx.fillStyle = "#FF5733"; ctx.fillRect(p.x-cx, p.y-cy, p.w, p.h);
-    if(p.atkTimer > 0) { ctx.strokeStyle = "white"; ctx.strokeRect(p.x-cx-10, p.y-cy-10, p.w+20, p.h+20); }
-
-    document.getElementById('hp').innerText = Math.ceil(p.hp);
-    document.getElementById('time').innerText = Math.floor(ticks/60).toString().padStart(2,'0') + ":" + Math.floor(ticks%60).toString().padStart(2,'0');
-}
-</script>
-</body>
-</html>
+        // 切換方塊邏輯
+        let numKey = e.key;
+        if(['1','2','
