@@ -2,55 +2,67 @@
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
-    <title>Super Human - 建築大師版</title>
+    <title>Super Human - 終極穩定版</title>
     <style>
-        body, html { margin: 0; padding: 0; width: 100%; height: 100%; background: #000; overflow: hidden; font-family: sans-serif; color: white; }
-        .layer { position: fixed; top: 0; left: 0; width: 100%; height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; background: #1a1a1a; z-index: 9999; }
-        .btn { padding: 18px 45px; font-size: 24px; cursor: pointer; margin: 10px; background: #f1c40f; border: none; font-weight: bold; border-radius: 12px; transition: 0.2s; }
-        .btn:hover { background: #fff; transform: scale(1.05); }
-        #hud { position: fixed; top: 10px; left: 10px; background: rgba(0,0,0,0.8); padding: 12px; border: 2px solid #f1c40f; display: none; z-index: 5000; border-radius: 10px; pointer-events: none; }
-        #inventory { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); display: none; gap: 10px; background: rgba(0,0,0,0.7); padding: 10px; border-radius: 10px; z-index: 5000; border: 1px solid #555; }
-        .slot { width: 50px; height: 50px; border: 2px solid #555; display: flex; flex-direction: column; align-items: center; justify-content: center; font-size: 12px; background: #333; transition: 0.2s; }
-        .slot.active { border-color: #f1c40f; background: #555; box-shadow: 0 0 10px #f1c40f; transform: translateY(-5px); }
-        .block-preview { width: 20px; height: 20px; margin-bottom: 2px; }
-        select { padding: 10px; font-size: 20px; margin: 10px; }
+        body, html { margin: 0; padding: 0; width: 100%; height: 100%; background: #000; overflow: hidden; font-family: sans-serif; }
+        /* 確保選單在最上層 */
+        .layer { position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; background: #111; z-index: 10000; color: white; }
+        .btn { padding: 20px 60px; font-size: 28px; cursor: pointer; margin: 15px; background: #f1c40f; border: none; font-weight: bold; border-radius: 15px; color: black; box-shadow: 0 5px 0 #b8860b; }
+        .btn:active { transform: translateY(4px); box-shadow: none; }
+        #hud { position: fixed; top: 10px; left: 10px; background: rgba(0,0,0,0.8); padding: 12px; border: 2px solid #f1c40f; display: none; z-index: 5000; color: white; border-radius: 10px; pointer-events: none; }
+        #inventory { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); display: none; gap: 10px; background: rgba(0,0,0,0.7); padding: 10px; border-radius: 10px; z-index: 5000; border: 2px solid #fff; }
+        .slot { width: 60px; height: 60px; border: 2px solid #555; display: flex; flex-direction: column; align-items: center; justify-content: center; font-size: 14px; color: white; background: #333; }
+        .slot.active { border-color: #f1c40f; background: #666; transform: scale(1.1); box-shadow: 0 0 15px #f1c40f; }
+        .b-img { width: 25px; height: 25px; margin-bottom: 4px; border: 1px solid #fff; }
+        select { padding: 10px; font-size: 22px; margin: 15px; border-radius: 8px; }
     </style>
 </head>
 <body>
 
-    <div id="layer-main" class="layer">
-        <h1 style="color:#f1c40f; font-size: 48px;">SUPER HUMAN</h1>
-        <button class="btn" id="start-single">單人探險</button>
-        <button class="btn" id="go-to-select" style="background:#3498db; color:white;">多人連線模式</button>
+    <div id="m-layer" class="layer">
+        <h1 style="font-size: 50px; color: #f1c40f; margin-bottom: 30px;">SUPER HUMAN</h1>
+        <button class="btn" id="go-single">單人探險模式</button>
+        <button class="btn" id="go-multi-menu" style="background:#3498db; color:white; box-shadow: 0 5px 0 #2980b9;">多人連線模式</button>
     </div>
 
-    <div id="layer-select" class="layer" style="display:none;">
-        <h2>選擇連線人數 (2-10人)</h2>
-        <select id="p-count">
-            <option value="2">2 人</option><option value="5" selected>5 人</option><option value="10">10 人</option>
+    <div id="s-layer" class="layer" style="display:none;">
+        <h2 style="font-size: 32px;">選擇連線人數 (2-10人)</h2>
+        <select id="p-num">
+            <option value="2">2 人</option>
+            <option value="5" selected>5 人</option>
+            <option value="10">10 人</option>
         </select>
         <button class="btn" id="start-multi">開始遊戲</button>
+        <button class="btn" id="back" style="background:#777; box-shadow: 0 5px 0 #444;">返回</button>
     </div>
 
     <div id="hud">❤️ 血量: <span id="hp">100</span> | 🕒 <span id="time">07:00</span> | ⚔️ K 攻擊 | ⛏️ 左挖右蓋</div>
 
     <div id="inventory">
-        <div class="slot active" id="slot-1"><div class="block-preview" style="background:#8B4513"></div>1:泥土</div>
-        <div class="slot" id="slot-2"><div class="block-preview" style="background:#228B22"></div>2:草地</div>
-        <div class="slot" id="slot-3"><div class="block-preview" style="background:#666"></div>3:石頭</div>
-        <div class="slot" id="slot-4"><div class="block-preview" style="background:#cd853f"></div>4:木頭</div>
+        <div class="slot active" id="sl-1"><div class="b-img" style="background:#8B4513"></div>1:泥土</div>
+        <div class="slot" id="sl-2"><div class="b-img" style="background:#228B22"></div>2:草地</div>
+        <div class="slot" id="sl-3"><div class="b-img" style="background:#666"></div>3:石頭</div>
+        <div class="slot" id="sl-4"><div class="b-img" style="background:#cd853f"></div>4:木頭</div>
     </div>
 
 <script>
 let canvas, ctx, isRunning = false;
 let ticks = 420, world = {}, camX = 0, camY = 0;
-const TILE = 32, COLORS = { 1: '#8B4513', 2: '#228B22', 3: '#666', 4: '#cd853f', 5: '#444' };
+const TILE = 32, COLORS = { 1: '#8B4513', 2: '#228B22', 3: '#666', 4: '#cd853f' };
 let p = { x: 500, y: 0, w: 22, h: 42, vx: 0, vy: 0, hp: 100, ground: false, atkTimer: 0 };
 let agents = [], keys = {}, curBlock = 1;
 
-document.getElementById('start-single').onclick = () => initGame(1);
-document.getElementById('go-to-select').onclick = () => { document.getElementById('layer-main').style.display='none'; document.getElementById('layer-select').style.display='flex'; };
-document.getElementById('start-multi').onclick = () => initGame(parseInt(document.getElementById('p-count').value));
+// === 修正：立即綁定按鈕 ===
+document.getElementById('go-single').onclick = () => launch(1);
+document.getElementById('go-multi-menu').onclick = () => {
+    document.getElementById('m-layer').style.display = 'none';
+    document.getElementById('s-layer').style.display = 'flex';
+};
+document.getElementById('back').onclick = () => {
+    document.getElementById('s-layer').style.display = 'none';
+    document.getElementById('m-layer').style.display = 'flex';
+};
+document.getElementById('start-multi').onclick = () => launch(parseInt(document.getElementById('p-num').value));
 
 function getGY(gx) { return Math.floor(35 + Math.sin(gx*0.05)*12 + Math.cos(gx*0.02)*15); }
 function getB(gx, gy) {
@@ -58,31 +70,12 @@ function getB(gx, gy) {
     let fY = getGY(gx); return gy < fY ? 0 : (gy === fY ? 2 : 1);
 }
 
-function initGame(num) {
-    document.querySelectorAll('.layer').forEach(l => l.style.display='none');
-    document.getElementById('hud').style.display='block';
-    document.getElementById('inventory').style.display='flex';
+function launch(num) {
+    document.getElementById('m-layer').style.display = 'none';
+    document.getElementById('s-layer').style.display = 'none';
+    document.getElementById('hud').style.display = 'block';
+    document.getElementById('inventory').style.display = 'flex';
+
     canvas = document.createElement('canvas');
     canvas.width = window.innerWidth; canvas.height = window.innerHeight;
-    document.body.appendChild(canvas); ctx = canvas.getContext('2d');
-    p.y = getGY(p.x/TILE)*TILE - 150;
-    if(num > 1) {
-        for(let i=0; i<num-1; i++) agents.push({x:600+i*150, y:-200, w:22, h:42, vx:0, vy:0, hp:100, max:100, type:['ally','vil','ani'][i%3], dir:1, state:'idle', sTimer:Math.random()*100});
-    }
-
-    // 滑鼠監聽
-    window.addEventListener('mousedown', (e) => {
-        if(!isRunning) return;
-        const gx = Math.floor((e.clientX + camX) / TILE), gy = Math.floor((e.clientY + camY) / TILE);
-        if(e.button === 0) world[`${gx}_${gy}`] = 0;
-        if(e.button === 2) { if(getB(gx, gy) === 0) world[`${gx}_${gy}`] = curBlock; }
-    });
-    window.oncontextmenu = (e) => e.preventDefault();
-
-    // 鍵盤監聽與方塊切換
-    window.onkeydown = e => {
-        keys[e.code] = true;
-        if(e.code === 'KeyK') p.atkTimer = 10;
-        // 切換方塊邏輯
-        let numKey = e.key;
-        if(['1','2','
+    document.body
