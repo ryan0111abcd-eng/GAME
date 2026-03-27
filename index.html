@@ -2,120 +2,49 @@
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
-    <title>未來的 Super Human - 冒險生存版</title>
+    <title>未來的 Super Human - 完美修復版</title>
     <style>
         body { margin: 0; overflow: hidden; background: #000; font-family: "Microsoft JhengHei", sans-serif; user-select: none; }
-        canvas { display: block; position: absolute; top: 0; left: 0; }
+        canvas { display: block; position: absolute; top: 0; left: 0; z-index: 1; }
         
-        /* 強制置頂選單 */
-        .ui-screen {
+        /* 選單容器：保證在最上層 */
+        .overlay-screen {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
             display: flex; flex-direction: column; align-items: center; justify-content: center;
-            background: rgba(0,0,0,0.95); color: white; z-index: 9999;
+            background: rgba(0,0,0,0.9); color: white; z-index: 99999;
         }
         h1 { font-size: 55px; color: #f1c40f; text-shadow: 0 0 20px #f1c40f; margin-bottom: 40px; }
         .btn {
-            padding: 18px 60px; margin: 15px; font-size: 26px; cursor: pointer;
+            padding: 20px 60px; margin: 15px; font-size: 28px; cursor: pointer;
             background: #f1c40f; border: none; color: #000; border-radius: 50px;
-            font-weight: bold; transition: 0.2s; pointer-events: auto;
+            font-weight: bold; transition: 0.2s; box-shadow: 0 4px 15px rgba(241, 196, 15, 0.4);
         }
-        .btn:hover { background: #fff; transform: scale(1.05); }
-        input { font-size: 30px; width: 100px; text-align: center; margin: 20px; border-radius: 10px; border: none; }
+        .btn:hover { background: #fff; transform: scale(1.1); }
+        .input-box { font-size: 30px; width: 100px; text-align: center; margin: 20px; border-radius: 10px; border: none; }
         
-        /* 遊戲內介面 */
-        #game-stats { position: absolute; top: 20px; left: 20px; color: white; background: rgba(0,0,0,0.7); padding: 15px; border-radius: 10px; z-index: 100; border: 1px solid #f1c40f; display: none; pointer-events: none; }
+        /* 遊戲內 UI */
+        #game-hud { position: absolute; top: 20px; left: 20px; color: white; background: rgba(0,0,0,0.75); padding: 15px; border-radius: 10px; z-index: 100; border: 1px solid #f1c40f; display: none; pointer-events: none; }
         #hotbar { position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%); display: none; gap: 10px; background: rgba(0,0,0,0.8); padding: 10px; border: 2px solid #fff; z-index: 100; }
-        .slot { width: 55px; height: 55px; border: 2px solid #555; display: flex; align-items: center; justify-content: center; color: white; }
-        .slot.active { border-color: #f1c40f; box-shadow: 0 0 10px #f1c40f; }
+        .slot { width: 60px; height: 60px; border: 3px solid #555; display: flex; align-items: center; justify-content: center; color: white; font-weight: bold; }
+        .slot.active { border-color: #f1c40f; box-shadow: 0 0 15px #f1c40f; }
     </style>
 </head>
 <body>
 
-    <div id="screen-main" class="ui-screen">
+    <div id="main-menu" class="overlay-screen">
         <h1>未來的 Super Human</h1>
-        <button class="btn" onclick="startNow(1)">開始遊戲</button>
-        <button class="btn" style="background:#3498db; color:white;" onclick="goMulti()">多人連線</button>
+        <button class="btn" onclick="launchGame(1)">開始遊戲</button>
+        <button class="btn" style="background:#3498db; color:white;" onclick="openMulti()">多人連線</button>
     </div>
 
-    <div id="screen-multi" class="ui-screen" style="display:none;">
-        <h1>設定總人數 (2-10人)</h1>
-        <input type="number" id="pCount" min="2" max="10" value="5">
-        <button class="btn" onclick="startNow(document.getElementById('pCount').value)">點此開始遊戲</button>
-        <button class="btn" style="background:#666; font-size: 18px;" onclick="location.reload()">返回</button>
+    <div id="multi-menu" class="overlay-screen" style="display:none;">
+        <h1>多人模式設定</h1>
+        <p style="font-size: 20px;">請輸入總人數 (2-10)：</p>
+        <input type="number" id="pNum" class="input-box" min="2" max="10" value="5">
+        <button class="btn" onclick="launchGame(document.getElementById('pNum').value)">點此開始遊戲</button>
+        <button class="btn" style="background:#666; font-size: 16px; padding: 10px 30px;" onclick="location.reload()">返回首頁</button>
     </div>
 
-    <div id="game-stats">
-        ❤️ 血量: <span id="hp-txt">100</span> | 🕒 時間: <span id="time-txt">07:00</span><br>
-        📍 座標: <span id="pos-txt">0,0</span> | ⚔️ 攻擊: [K 鍵] | 🛠️ 挖/蓋: 滑鼠
-    </div>
-
-    <div id="hotbar">
-        <div id="s1" class="slot active">草</div>
-        <div id="s2" class="slot">土</div>
-        <div id="s3" class="slot">石</div>
-    </div>
-
-    <canvas id="gameCanvas"></canvas>
-
-<script>
-const canvas = document.getElementById('gameCanvas');
-const ctx = canvas.getContext('2d');
-
-let isStarted = false;
-let gameTime = 420; // 07:00
-let camX = 0, worldData = {}, selBlock = 2;
-const TILE = 32;
-const COLORS = { 1: '#8B4513', 2: '#228B22', 3: '#666' };
-
-// 角色類別
-let player = { x: 400, y: 0, w: 24, h: 44, vx: 0, vy: 0, hp: 100, grounded: false, atk: 0 };
-let teams = [], vils = [], anis = [], mobs = [];
-
-function goMulti() {
-    document.getElementById('screen-main').style.display = 'none';
-    document.getElementById('screen-multi').style.display = 'flex';
-}
-
-function startNow(num) {
-    document.querySelectorAll('.ui-screen').forEach(s => s.style.display = 'none');
-    document.getElementById('game-stats').style.display = 'block';
-    document.getElementById('hotbar').style.display = 'flex';
-    
-    // 生成隊友 (黃色)
-    for(let i=0; i < num - 1; i++) {
-        teams.push({ x: 400 + Math.random()*400, y: -50, w: 24, h: 44, vx: 0, vy: 0, grounded: false, timer: 0 });
-    }
-    // 生成村民與動物
-    for(let i=0; i<6; i++) vils.push({ x: 1600 + i*250, y: -50, w: 24, h: 44, vx: 0, vy: 0, grounded: false });
-    for(let i=0; i<8; i++) anis.push({ x: 800 + i*400, y: -50, w: 20, h: 20, vx: 0, vy: 0, grounded: false });
-
-    isStarted = true;
-    resize();
-    gameLoop();
-}
-
-function getBlock(x, y) {
-    const key = `${Math.floor(x)}_${Math.floor(y)}`;
-    if (worldData[key] !== undefined) return worldData[key];
-    let ground = Math.floor(12 + Math.sin(x * 0.1) * 3);
-    return (y < ground) ? 0 : (y === ground ? 2 : 1);
-}
-
-// 核心物理：防穿牆與自動跳躍
-function physics(o) {
-    o.vy += 0.6;
-    let nX = o.x + o.vx;
-    let gX = (o.vx > 0) ? Math.floor((nX + o.w) / TILE) : Math.floor(nX / TILE);
-    let tY = Math.floor(o.y / TILE), bY = Math.floor((o.y + o.h - 5) / TILE);
-
-    if (getBlock(gX, tY) === 0 && getBlock(gX, bY) === 0) {
-        o.x = nX;
-    } else if (o.grounded) {
-        o.vy = -10; // 撞牆自動跳躍
-    }
-
-    o.y += o.vy;
-    o.grounded = false;
-    let lX = Math.floor(o.x / TILE), rX = Math.floor((o.x + o.w - 1) / TILE), fY = Math.floor((o.y + o.h) / TILE);
-    if (getBlock(lX, fY) !== 0 || getBlock(rX, fY) !== 0) {
-        o.y = fY * TILE - o.h; o.vy =
+    <div id="game-hud">
+        ❤️ 血量: <span id="hp-val">100</span> | 🕒 時間: <span id="time-val">07:00</span><br>
+        📍 座標: <span id="pos-val">
