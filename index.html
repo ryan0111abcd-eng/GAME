@@ -2,11 +2,12 @@
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
-    <title>Super Human - 無限延伸世界版</title>
+    <title>Super Human - 無限平原版</title>
     <style>
         body, html { margin: 0; padding: 0; width: 100%; height: 100%; background: #000; overflow: hidden; font-family: sans-serif; color: white; }
         .layer { position: fixed; top: 0; left: 0; width: 100%; height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; background: #111; z-index: 9000; }
-        .btn { padding: 15px 50px; font-size: 24px; cursor: pointer; margin: 10px; background: #f1c40f; border: none; font-weight: bold; border-radius: 10px; color: black; }
+        .btn { padding: 15px 50px; font-size: 24px; cursor: pointer; margin: 10px; background: #f1c40f; border: none; font-weight: bold; border-radius: 10px; color: black; box-shadow: 0 5px #b7950b; }
+        .btn:active { transform: translateY(3px); box-shadow: 0 2px #b7950b; }
         #hud { position: fixed; top: 10px; left: 10px; background: rgba(0,0,0,0.8); padding: 12px; border: 2px solid #f1c40f; display: none; z-index: 5000; pointer-events: none; border-radius: 10px; }
         #minimap-container { position: fixed; top: 20px; right: 20px; width: 160px; height: 160px; border: 3px solid white; border-radius: 50%; overflow: hidden; background: #000; display: none; z-index: 5000; }
         canvas { display: block; }
@@ -15,31 +16,32 @@
 <body>
 
     <div id="menu-layer" class="layer">
-        <h1 style="font-size: 40px; color: #f1c40f;">未來的 Super Human</h1>
-        <button class="btn" onclick="selectMode('single')">單人冒險</button>
-        <button class="btn" style="background:#3498db; color:white;" onclick="selectMode('multi')">多人連線</button>
+        <h1 style="font-size: 42px; color: #f1c40f;">未來的 Super Human</h1>
+        <p>—— 無限平原生存戰 ——</p>
+        <button class="btn" onclick="setMode('single')">單人冒險</button>
+        <button class="btn" style="background:#3498db; color:white; box-shadow:0 5px #2471a3;" onclick="setMode('multi')">多人連線</button>
     </div>
 
     <div id="select-layer" class="layer" style="display:none;">
-        <h1>選擇小隊人數</h1>
-        <select id="pNumInput" style="font-size:30px; padding:10px; margin:20px; border-radius:10px;">
-            <option value="2">2 人</option>
-            <option value="5" selected>5 人</option>
-            <option value="10">10 人</option>
+        <h1>你要帶多少隊友？</h1>
+        <select id="pNumInput" style="font-size:28px; padding:10px; margin:20px; border-radius:10px;">
+            <option value="2">2 人 (1位隊友)</option>
+            <option value="5" selected>5 人 (4位隊友)</option>
+            <option value="10">10 人 (9位隊友)</option>
         </select>
-        <button class="btn" onclick="showInstructions()">下一步</button>
+        <button class="btn" onclick="showRules()">確定人數</button>
     </div>
 
     <div id="info-layer" class="layer" style="display:none;">
-        <div style="background:#222; padding:30px; border:2px solid #f1c40f; border-radius:20px; text-align:center;">
-            <h2 id="modeConfirmed" style="color:#f1c40f;">確認模式中...</h2>
+        <div style="background:#222; padding:30px; border:2px solid #f1c40f; border-radius:20px; text-align:center; max-width:450px;">
+            <h2 id="finalModeDisplay" style="color:#f1c40f;">模式確認中...</h2>
             <ul style="text-align:left; font-size:18px; line-height:1.8;">
-                <li><b>A / D</b>：左右跑，<b>空白</b>：跳躍</li>
-                <li><b>滑鼠左鍵</b>：挖開地形 / <b>右鍵</b>：放置方塊</li>
-                <li><b>1, 2, 3</b>：切換方塊類型 (草、土、石)</li>
-                <li><b>K 鍵</b>：揮劍攻擊</li>
+                <li><b>A / D</b>：左右跑，<b>空白鍵</b>：跳躍</li>
+                <li><b>左鍵</b>：挖掘，<b>右鍵</b>：蓋房子 (1,2,3切換)</li>
+                <li><b>K 鍵</b>：近戰攻擊，<b>小地圖</b>：右上角</li>
+                <li>夜晚怪物會出現，白天 07:00 怪物會被燒死</li>
             </ul>
-            <button class="btn" onclick="initGame()">進入無限世界</button>
+            <button class="btn" onclick="bootGame()">進入平原世界</button>
         </div>
     </div>
 
@@ -48,27 +50,31 @@
 
 <script>
 let canvas, ctx, miniCtx, isRunning = false;
-let ticks = 420, world = {}, camX = 0, bType = 2, finalCount = 1;
+let ticks = 420, world = {}, camX = 0, bType = 2, finalPlayerCount = 1;
 const TILE = 32, COLORS = { 1: '#8B4513', 2: '#228B22', 3: '#666' };
 let p = { x: 500, y: 0, w: 24, h: 44, vx: 0, vy: 0, hp: 100, ground: false, atk: 0 };
 let allies = [], mobs = [], keys = {};
 
-function selectMode(m) {
+function setMode(m) {
     document.getElementById('menu-layer').style.display = 'none';
-    if(m==='single') { finalCount=1; showInstructions(); } 
-    else { document.getElementById('select-layer').style.display='flex'; }
+    if(m === 'single') {
+        finalPlayerCount = 1;
+        showRules();
+    } else {
+        document.getElementById('select-layer').style.display = 'flex';
+    }
 }
 
-function showInstructions() {
+function showRules() {
     if(document.getElementById('select-layer').style.display !== 'none') {
-        finalCount = parseInt(document.getElementById('pNumInput').value);
+        finalPlayerCount = parseInt(document.getElementById('pNumInput').value);
     }
     document.getElementById('select-layer').style.display = 'none';
     document.getElementById('info-layer').style.display = 'flex';
-    document.getElementById('modeConfirmed').innerText = "🎮 " + finalCount + " 人模式已就緒";
+    document.getElementById('finalModeDisplay').innerText = "🎮 " + finalPlayerCount + " 人團隊模式";
 }
 
-function initGame() {
+function bootGame() {
     document.getElementById('info-layer').style.display = 'none';
     document.getElementById('hud').style.display = 'block';
     document.getElementById('minimap-container').style.display = 'block';
@@ -80,11 +86,12 @@ function initGame() {
     ctx = canvas.getContext('2d');
     miniCtx = document.getElementById('mini-canvas').getContext('2d');
 
+    // 初始化位置：確保在平坦地表
     p.y = getGroundY(p.x/TILE) * TILE - 100;
     allies = [];
-    for(let i=0; i<finalCount-1; i++){
-        let ax = p.x + (i+1)*60;
-        allies.push({ x: ax, y: getGroundY(ax/TILE)*TILE-100, w:24, h:44, vx:0, vy:0, hp:100, atk:0, dir:1 });
+    for(let i=0; i < finalPlayerCount - 1; i++){
+        let ax = p.x + (i + 1) * 60;
+        allies.push({ x: ax, y: getGroundY(ax/TILE)*TILE-100, w: 24, h: 44, vx: 0, vy: 0, hp: 100, atk: 0, dir: 1 });
     }
 
     isRunning = true;
@@ -101,16 +108,17 @@ function initGame() {
     requestAnimationFrame(loop);
 }
 
-// 無限地形公式
+// 核心修正：極度平緩的地形公式 (移除盆地)
 function getGroundY(gx) {
-    return Math.floor(15 + Math.sin(gx * 0.08) * 4 + Math.sin(gx * 0.02) * 8);
+    // 只有微小的丘陵起伏，不再有深谷
+    return Math.floor(16 + Math.sin(gx * 0.1) * 2); 
 }
 
 function getB(gx, gy) {
     if (world[`${gx}_${gy}`] !== undefined) return world[`${gx}_${gy}`];
     let gY = getGroundY(gx);
     if (gy < gY) return 0;
-    return gy === gY ? 2 : 1;
+    return gy === gY ? 2 : 1; // 頂層草地，底層土
 }
 
 function physics(o, isPlayer) {
@@ -138,7 +146,7 @@ function loop() {
 
     allies.forEach(a => {
         physics(a, false);
-        if (Math.abs(a.x - p.x) > 300) a.dir = (a.x < p.x ? 3 : -3);
+        if (Math.abs(a.x - p.x) > 200) a.dir = (a.x < p.x ? 3 : -3);
     });
 
     let hr = ticks / 60;
@@ -154,7 +162,7 @@ function loop() {
 
     if (keys['KeyK'] && p.atk <= 0) { p.atk = 15; mobs.forEach(m => { if(Math.abs(m.x-p.x)<70) m.hp -= 10; }); }
     if (p.atk > 0) p.atk--;
-    if (p.hp <= 0) { alert("你被擊敗了！"); location.reload(); }
+    if (p.hp <= 0) { alert("遊戲結束！"); location.reload(); }
 
     render();
     requestAnimationFrame(loop);
@@ -165,12 +173,11 @@ function render() {
     ctx.fillStyle = (hr > 7 && hr < 17) ? "#87ceeb" : (hr >= 17 && hr < 18.5) ? "#ff7832" : "#050515";
     ctx.fillRect(0, 0, canvas.width, canvas.height);
     
-    // 關鍵渲染修正：根據 camX 計算當前應該繪製的範圍
     let startGX = Math.floor(camX / TILE);
     let endGX = startGX + Math.ceil(canvas.width / TILE) + 1;
 
     for (let x = startGX; x < endGX; x++) {
-        for (let y = 0; y < 30; y++) {
+        for (let y = 0; y < 25; y++) {
             let b = getB(x, y);
             if (b !== 0) {
                 ctx.fillStyle = COLORS[b];
