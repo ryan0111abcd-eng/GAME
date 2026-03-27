@@ -2,63 +2,63 @@
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
-    <title>Super Human - 自主 AI 與河流生態</title>
+    <title>Super Human - 終極 BUG 修復版</title>
     <style>
         body, html { margin: 0; padding: 0; width: 100%; height: 100%; background: #000; overflow: hidden; font-family: sans-serif; color: white; }
         .layer { position: fixed; top: 0; left: 0; width: 100%; height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; background: #111; z-index: 9999; }
         .btn { padding: 18px 60px; font-size: 26px; cursor: pointer; margin: 15px; background: #f1c40f; border: none; font-weight: bold; border-radius: 12px; color: black; }
-        #hud { position: fixed; top: 10px; left: 10px; background: rgba(0,0,0,0.8); padding: 12px; border: 2px solid #f1c40f; display: none; z-index: 5000; border-radius: 10px; }
-        #minimap-container { position: fixed; top: 20px; right: 20px; width: 160px; height: 160px; border: 3px solid white; border-radius: 50%; overflow: hidden; background: #000; display: none; z-index: 5000; }
+        #hud { position: fixed; top: 10px; left: 10px; background: rgba(0,0,0,0.8); padding: 12px; border: 2px solid #f1c40f; z-index: 5000; border-radius: 10px; pointer-events: none; }
     </style>
 </head>
 <body>
 
     <div id="layer-home" class="layer">
-        <h1 style="font-size: 40px; color: #f1c40f;">自主 AI 世界與河流系統</h1>
-        <button class="btn" id="start-btn">正式開始遊戲</button>
+        <h1 style="font-size: 40px; color: #f1c40f;">世界已修復完成</h1>
+        <button class="btn" id="start-btn">進入遊戲</button>
     </div>
 
     <div id="hud">❤️ 血量: <span id="hp">100</span> | 🕒 <span id="time">07:00</span> <span id="wea">☀️</span></div>
-    <div id="minimap-container"><canvas id="mini-canvas" width="160" height="160"></canvas></div>
 
 <script>
-let canvas, ctx, miniCtx, isRunning = false;
-let ticks = 420, world = {}, camX = 0, camY = 0, bType = 2;
-const TILE = 32, COLORS = { 1: '#8B4513', 2: '#228B22', 3: '#666', 4: '#cd853f', 5: '#444', 6: 'rgba(30, 144, 255, 0.7)' }; // 6是河水
-let p = { x: 500, y: 0, w: 24, h: 44, vx: 0, vy: 0, hp: 100, ground: false };
-let agents = [], mobs = [], keys = {}, isRain = false, rTimer = 0;
+let canvas, ctx, isRunning = false;
+let ticks = 420, world = {}, camX = 0, camY = 0;
+const TILE = 32;
+const COLORS = { 1: '#8B4513', 2: '#228B22', 3: '#666', 4: '#cd853f', 5: '#444', 6: '#1E90FF' };
+let p = { x: 500, y: 0, w: 22, h: 42, vx: 0, vy: 0, hp: 100, ground: false };
+let agents = [], keys = {};
 
-document.getElementById('start-btn').addEventListener('click', () => { launch(); });
+document.getElementById('start-btn').addEventListener('click', () => { 
+    document.getElementById('layer-home').style.display = 'none';
+    launch(); 
+});
 
-function getGY(gx) { return Math.floor(35 + Math.sin(gx*0.05)*15 + Math.cos(gx*0.02)*18); }
+function getGY(gx) { 
+    return Math.floor(35 + Math.sin(gx * 0.05) * 12 + Math.cos(gx * 0.02) * 15); 
+}
 
 function getB(gx, gy) {
     if(world[`${gx}_${gy}`] !== undefined) return world[`${gx}_${gy}`];
-    let gyFloor = getGY(gx);
-    // 生成河床邏輯：如果地面高度低於某個值，上方就是水
-    if (gyFloor > 45 && gy <= gyFloor && gy > 40) return 6; 
-    return gy < gyFloor ? 0 : (gy === gyFloor ? 2 : 1);
-}
-
-function spawnAgent(type, x) {
-    agents.push({ x, y: -500, w: 24, h: 44, vx: 0, vy: 0, hp: 100, type, dir: 1, state: 'idle', sTimer: 0 });
+    let floorY = getGY(gx);
+    // 修正河流範圍：河床低於 42 處填滿水
+    if (floorY > 42 && gy <= floorY && gy > 38) return 6; 
+    return gy < floorY ? 0 : (gy === floorY ? 2 : 1);
 }
 
 function launch() {
-    document.getElementById('layer-home').style.display = 'none';
-    document.getElementById('hud').style.display = 'block';
-    document.getElementById('minimap-container').style.display = 'block';
     canvas = document.createElement('canvas');
-    canvas.width = window.innerWidth; canvas.height = window.innerHeight;
+    canvas.width = window.innerWidth; 
+    canvas.height = window.innerHeight;
     document.body.appendChild(canvas);
     ctx = canvas.getContext('2d');
-    miniCtx = document.getElementById('mini-canvas').getContext('2d');
-
-    p.y = getGY(p.x/TILE)*TILE - 200;
-    // 生成電腦
-    for(let i=0; i<3; i++) spawnAgent('ally', p.x + 100 + i*60);
-    for(let i=0; i<5; i++) spawnAgent('vil', 1500 + i*200);
-    for(let i=0; i<6; i++) spawnAgent('ani', 1000 + i*300);
+    
+    p.y = getGY(p.x/TILE)*TILE - 150;
+    const types = ['ally', 'vil', 'ani'];
+    for(let i=0; i<10; i++) {
+        agents.push({
+            x: 700 + i * 200, y: -200, w: 22, h: 42, vx: 0, vy: 0, 
+            type: types[i%3], dir: 1, state: 'idle', sTimer: Math.random()*100
+        });
+    }
 
     isRunning = true;
     window.onkeydown = e => keys[e.code] = true;
@@ -67,85 +67,97 @@ function launch() {
 }
 
 function phys(o, isP) {
-    let inWater = getB(Math.floor((o.x+o.w/2)/TILE), Math.floor((o.y+o.h/2)/TILE)) === 6;
+    let midX = Math.floor((o.x + o.w/2)/TILE);
+    let midY = Math.floor((o.y + o.h/2)/TILE);
+    let inWater = getB(midX, midY) === 6;
 
     if(isP) {
         o.vx = (keys['KeyA'] ? -5 : keys['KeyD'] ? 5 : 0);
-        if(keys['Space'] && (o.ground || inWater)) o.vy = inWater ? -6 : -13;
+        if((keys['Space'] || keys['KeyW']) && (o.ground || inWater)) o.vy = inWater ? -4 : -12;
     } else {
-        // 自主 AI 決策系統
         o.sTimer--;
         if(o.sTimer <= 0) {
-            let rand = Math.random();
-            if(rand < 0.4) { o.state = 'walk'; o.dir = Math.random() > 0.5 ? 1 : -1; o.sTimer = 100; }
-            else if(rand < 0.7) { o.state = 'idle'; o.vx = 0; o.sTimer = 60; }
-            else if(o.type === 'ally') { o.state = 'work'; o.sTimer = 50; } // 隊友做自己的事（挖或蓋）
+            o.state = Math.random() < 0.5 ? 'walk' : 'idle';
+            o.dir = Math.random() > 0.5 ? 1 : -1;
+            o.sTimer = 60 + Math.random()*120;
         }
-
-        if(o.state === 'walk') o.vx = o.dir * 2;
-        if(o.state === 'work' && o.ground) {
-            let tx = Math.floor(o.x/TILE) + o.dir, ty = Math.floor(o.y/TILE) + 1;
-            if(Math.random() < 0.1) world[`${tx}_${ty}`] = 3; // 蓋方塊
-        }
+        if(o.state === 'walk') o.vx = o.dir * 2; else o.vx = 0;
         
-        // 遇到河或牆跳躍
-        let aheadX = Math.floor((o.x + (o.vx >= 0 ? 30 : -10)) / TILE);
-        let footY = Math.floor((o.y + o.h - 5) / TILE);
-        if((getB(aheadX, footY) !== 0 || inWater) && o.ground) o.vy = -10;
+        // AI 自動跳過障礙
+        let aheadX = Math.floor((o.x + (o.vx >= 0 ? o.w + 4 : -4)) / TILE);
+        let footY = Math.floor((o.y + o.h - 8) / TILE);
+        if(getB(aheadX, footY) > 0 && getB(aheadX, footY) !== 6 && o.ground) o.vy = -10;
     }
 
-    o.vy += inWater ? 0.1 : 0.7; // 水中重力減輕
-    if(inWater) { o.vx *= 0.8; o.vy *= 0.8; } // 水中阻力
+    o.vy += inWater ? 0.15 : 0.7; 
+    if(inWater) { o.vx *= 0.8; o.vy *= 0.8; }
 
-    let nx = o.x + o.vx, gx = (o.vx > 0 ? Math.floor((nx + o.w) / TILE) : Math.floor(nx / TILE));
-    let ty = Math.floor(o.y / TILE), by = Math.floor((o.y + o.h - 5) / TILE);
-    if(getB(gx, ty) <= 0 || getB(gx, ty) === 6) o.x = nx;
+    // X 碰撞修正：減少碰撞箱寬度 1px 避免卡死
+    let nx = o.x + o.vx;
+    let sideX = o.vx > 0 ? Math.floor((nx + o.w)/TILE) : Math.floor(nx/TILE);
+    let topY = Math.floor((o.y + 4)/TILE);
+    let botY = Math.floor((o.y + o.h - 4)/TILE);
+    if(getB(sideX, topY) <= 0 || getB(sideX, topY) === 6) {
+        if(getB(sideX, botY) <= 0 || getB(sideX, botY) === 6) o.x = nx;
+    }
 
+    // Y 碰撞修正
     o.y += o.vy; o.ground = false;
-    let lx = Math.floor(o.x/TILE), rx = Math.floor((o.x+o.w-1)/TILE), fy = Math.floor((o.y+o.h)/TILE);
-    let floorB1 = getB(lx, fy), floorB2 = getB(rx, fy);
-    if((floorB1 !== 0 && floorB1 !== 6) || (floorB2 !== 0 && floorB2 !== 6)) {
-        o.y = fy*TILE-o.h; o.vy = 0; o.ground = true;
+    let feetY = Math.floor((o.y + o.h)/TILE);
+    let lX = Math.floor((o.x + 2)/TILE);
+    let rX = Math.floor((o.x + o.w - 2)/TILE);
+    let bL = getB(lX, feetY), bR = getB(rX, feetY);
+    
+    if((bL > 0 && bL !== 6) || (bR > 0 && bR !== 6)) {
+        o.y = feetY * TILE - o.h;
+        o.vy = 0;
+        o.ground = true;
     }
 }
 
 function loop() {
     if(!isRunning) return;
-    ticks = (ticks + 0.3) % 1440;
-    rTimer++; if(rTimer > 2000) { isRain = !isRain; rTimer = 0; document.getElementById('wea').innerText = isRain?'🌧️':'☀️'; }
-    
+    ticks = (ticks + 0.2) % 1440;
     phys(p, true);
     camX += (p.x - canvas.width/2 - camX) * 0.1;
     camY += (p.y - canvas.height/2 - camY) * 0.1;
 
     agents.forEach(a => phys(a, false));
-
     render();
-    if(isRain) { ctx.strokeStyle="rgba(150,200,255,0.4)"; for(let i=0;i<50;i++){let x=Math.random()*canvas.width,y=Math.random()*canvas.height;ctx.beginPath();ctx.moveTo(x,y);ctx.lineTo(x-2,y+12);ctx.stroke();}}
     requestAnimationFrame(loop);
 }
 
 function render() {
-    ctx.fillStyle = isRain ? '#4a4e5a' : '#87ceeb';
+    ctx.fillStyle = '#87ceeb';
     ctx.fillRect(0, 0, canvas.width, canvas.height);
-    let sx = Math.floor(camX/TILE), ex = sx + Math.ceil(canvas.width/TILE)+1;
-    let sy = Math.floor(camY/TILE), ey = sy + Math.ceil(canvas.height/TILE)+1;
+    
+    // 渲染對齊：強制相機整數化
+    let cx = Math.floor(camX);
+    let cy = Math.floor(camY);
+    
+    let sx = Math.floor(cx/TILE), ex = sx + Math.ceil(canvas.width/TILE)+1;
+    let sy = Math.floor(cy/TILE), ey = sy + Math.ceil(canvas.height/TILE)+1;
 
     for(let x=sx; x<ex; x++) {
         for(let y=sy; y<ey; y++) {
             let b = getB(x, y);
-            if(b !== 0) { ctx.fillStyle = COLORS[b]; ctx.fillRect(x*TILE-camX, y*TILE-camY, TILE, TILE); }
+            if(b !== 0) {
+                ctx.fillStyle = COLORS[b];
+                if(b === 6) ctx.globalAlpha = 0.6;
+                // 強制繪製座標為整數
+                ctx.fillRect(Math.floor(x*TILE - cx), Math.floor(y*TILE - cy), TILE, TILE);
+                ctx.globalAlpha = 1.0;
+            }
         }
     }
 
     agents.forEach(a => {
         ctx.fillStyle = a.type==='ally'?'#f1c40f':(a.type==='vil'?'#3498db':'#fff');
-        ctx.fillRect(a.x-camX, a.y-camY, a.w, a.h);
-        if(a.state==='work') { ctx.fillStyle="white"; ctx.fillRect(a.x-camX+10, a.y-camY-10, 5, 5); } // 工作的視覺提示
+        ctx.fillRect(Math.floor(a.x-cx), Math.floor(a.y-cy), a.w, a.h);
     });
 
-    ctx.fillStyle = "#FF5733"; ctx.fillRect(p.x-camX, p.y-camY, p.w, p.h);
-    document.getElementById('time').innerText = Math.floor(ticks/60).toString().padStart(2,'0') + ":" + Math.floor(ticks%60).toString().padStart(2,'0');
+    ctx.fillStyle = "#FF5733"; 
+    ctx.fillRect(Math.floor(p.x-cx), Math.floor(p.y-cy), p.w, p.h);
 }
 </script>
 </body>
