@@ -2,95 +2,78 @@
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
-    <title>Super Human - 點擊修復最終版</title>
+    <title>Super Human - 最終修復版</title>
     <style>
-        body, html { margin: 0; padding: 0; width: 100%; height: 100%; background: #1a1a1a; overflow: hidden; font-family: "Microsoft JhengHei", sans-serif; color: white; }
+        body, html { margin: 0; padding: 0; width: 100%; height: 100%; background: #000; overflow: hidden; font-family: "Microsoft JhengHei", sans-serif; }
         
-        /* 選單層：確保絕對在最上層 */
-        .ui-layer { 
+        /* 選單層級設定 */
+        .layer { 
             position: fixed; inset: 0; 
             display: flex; flex-direction: column; align-items: center; justify-content: center; 
-            z-index: 999999; 
-            background: #1a1a1a;
+            background: #1a1a1a; color: white; z-index: 1000; 
         }
         
-        .title-text { color: #f1c40f; font-size: 50px; margin-bottom: 30px; text-shadow: 4px 4px 0 #000; }
-        
-        /* 超大好點按鈕 */
         .btn { 
-            padding: 25px 80px; font-size: 32px; cursor: pointer; 
-            margin: 20px; background: #f1c40f; border: 5px solid #fff; 
-            font-weight: bold; border-radius: 20px; color: black; 
-            box-shadow: 0 10px 0 #b8860b;
-            display: block;
-            pointer-events: auto !important; /* 強制啟動點擊 */
+            padding: 20px 60px; font-size: 28px; cursor: pointer; margin: 15px; 
+            background: #f1c40f; border: none; font-weight: bold; border-radius: 15px; 
+            color: black; box-shadow: 0 8px 0 #b8860b; 
         }
-        .btn:hover { background: #fff; transform: translateY(-5px); }
-        .btn:active { transform: translateY(5px); box-shadow: 0 5px 0 #b8860b; }
+        .btn:active { transform: translateY(4px); box-shadow: 0 4px 0 #b8860b; }
 
-        /* 說明書 */
-        #ui-guide-box { 
-            background: #222; padding: 40px; border-radius: 20px; border: 4px solid #f1c40f; 
-            max-width: 600px; line-height: 1.8; font-size: 20px;
-        }
-
-        /* 遊戲介面 (初始隱藏) */
-        #hud { position: fixed; top: 10px; left: 10px; background: rgba(0,0,0,0.8); padding: 15px; border: 2px solid #f1c40f; display: none; z-index: 5000; border-radius: 10px; }
-        #minimap-wrapper { position: fixed; top: 20px; right: 20px; width: 150px; height: 150px; border-radius: 50%; border: 3px solid #fff; background: rgba(0,0,0,0.6); display: none; z-index: 5000; overflow: hidden; }
-        #inv { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); display: none; gap: 10px; z-index: 5000; }
-        .slot { width: 55px; height: 55px; border: 2px solid #777; background: #333; display: flex; align-items: center; justify-content: center; font-weight: bold; }
+        /* 遊戲介面 */
+        #hud { position: fixed; top: 10px; left: 10px; background: rgba(0,0,0,0.8); padding: 15px; border: 2px solid #f1c40f; border-radius: 10px; color: white; display: none; z-index: 500; pointer-events: none; }
+        #minimap-wrapper { position: fixed; top: 20px; right: 20px; width: 150px; height: 150px; border-radius: 50%; border: 3px solid #fff; background: rgba(0,0,0,0.6); display: none; z-index: 500; overflow: hidden; }
+        #inv { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); display: none; gap: 8px; z-index: 500; }
+        .slot { width: 50px; height: 50px; border: 2px solid #777; background: #333; display: flex; align-items: center; justify-content: center; color: white; font-weight: bold; }
         .slot.active { border-color: #f1c40f; background: #555; }
-        
-        #esc-menu { position: fixed; inset: 0; background: rgba(0,0,0,0.9); display: none; flex-direction: column; align-items: center; justify-content: center; z-index: 1000000; }
-        
-        canvas#gameCanvas { display: none; position: absolute; top: 0; left: 0; z-index: 1; pointer-events: none; }
-        canvas.active { pointer-events: auto !important; } /* 只有開始遊戲後才允許 Canvas 接收點擊 */
+
+        #esc-menu { position: fixed; inset: 0; background: rgba(0,0,0,0.85); display: none; flex-direction: column; align-items: center; justify-content: center; z-index: 2000; color: white; }
+
+        /* 遊戲畫布 */
+        canvas#gameCanvas { display: none; position: absolute; top: 0; left: 0; z-index: 10; cursor: crosshair; }
     </style>
 </head>
 <body>
 
-    <div id="ui-mode" class="ui-layer">
-        <h1 class="title-text">SUPER HUMAN</h1>
-        <button class="btn" onclick="selectMode('single')">單人模式</button>
-        <button class="btn" onclick="selectMode('multi')" style="background:#3498db; color:white;">多人連線</button>
+    <div id="ui-mode" class="layer">
+        <h1 style="color:#f1c40f; font-size:50px;">SUPER HUMAN</h1>
+        <button class="btn" onclick="nextStep('mode', 'single')">單人模式</button>
+        <button class="btn" onclick="nextStep('mode', 'multi')" style="background:#3498db; color:white;">多人連線</button>
     </div>
 
-    <div id="ui-count" class="ui-layer" style="display:none;">
-        <h1 class="title-text">小隊人數</h1>
-        <input type="range" id="p-range" min="2" max="15" value="8" oninput="document.getElementById('pv').innerText=this.value" style="width:400px; height:30px;">
-        <div style="font-size:40px; margin: 30px;">總人數：<span id="pv" style="color:#f1c40f;">8</span></div>
-        <button class="btn" onclick="showGuide()">下一步</button>
+    <div id="ui-count" class="layer" style="display:none;">
+        <h1>設定小隊人數</h1>
+        <input type="range" id="p-range" min="1" max="15" value="8" style="width:300px;">
+        <div style="font-size:30px; margin:20px;">人數：<span id="pv" style="color:#f1c40f;">8</span></div>
+        <button class="btn" onclick="nextStep('count')">設定完成</button>
     </div>
 
-    <div id="ui-guide" class="ui-layer" style="display:none;">
-        <div id="ui-guide-box">
-            <h2 style="color:#f1c40f; text-align:center;">📜 生存指南</h2>
-            <p>• <b>W, A, S, D</b>：移動與跳躍 (水中會浮起)<br>
-               • <b>滑鼠左鍵</b>：挖掘 / <b>右鍵</b>：放置<br>
-               • <b>K 鍵</b>：揮拳攻擊 (驅趕怪物/隊友)<br>
-               • <b>1-4 鍵</b>：切換方塊類型<br>
-               • <b>ESC 鍵</b>：暫停或離開遊戲</p>
-            <p style="color:#e74c3c; font-weight:bold;">⚠️ 晚上 19:00 怪物出沒，請務必小心！</p>
-            <button class="btn" onclick="startGame()" style="width:100%;">進入世界</button>
+    <div id="ui-guide" class="layer" style="display:none;">
+        <div style="background:#222; padding:30px; border-radius:20px; border:2px solid #f1c40f; max-width:450px;">
+            <h2 style="color:#f1c40f; text-align:center;">📜 生存手冊</h2>
+            <p>• <b>WASD</b>：移動 / <b>Space</b>：跳躍<br>
+               • <b>滑鼠左鍵</b>：挖掘 / <b>右鍵</b>：建造<br>
+               • <b>K 鍵</b>：攻擊 / <b>1~4 鍵</b>：換方塊<br>
+               • <b>ESC 鍵</b>：選單與離開</p>
+            <p style="color:#e74c3c;">⚠️ 晚上 19:00 怪物出沒，請準備戰鬥！</p>
+            <button class="btn" onclick="finalStart()" style="width:100%;">立刻開始遊戲</button>
         </div>
     </div>
 
     <div id="esc-menu">
-        <h1 class="title-text">暫停中</h1>
-        <button class="btn" onclick="location.reload()">離開遊戲 (重新開始)</button>
+        <h1 style="color:#f1c40f;">暫停暫停</h1>
+        <button class="btn" onclick="location.reload()">重新開始遊戲</button>
         <button class="btn" onclick="togglePause()" style="background:#888; color:white;">回到遊戲</button>
     </div>
 
     <div id="hud">
-        📍 <span id="posX">0</span>, <span id="posY">0</span> | ❤️ <span id="hp">100</span><br>
-        🕒 <span id="time-text">07:00</span> <span id="day-night">☀️</span>
+        📍 座標: <span id="posX">0</span>, <span id="posY">0</span> | ❤️ HP: <span id="hp">100</span><br>
+        🕒 時間: <span id="time-text">07:00</span> <span id="day-night">☀️</span>
     </div>
     <div id="minimap-wrapper"><canvas id="miniCanvas" width="150" height="150"></canvas></div>
     <div id="inv">
-        <div class="slot active" id="sl1">1:土</div>
-        <div class="slot" id="sl2">2:草</div>
-        <div class="slot" id="sl3">3:石</div>
-        <div class="slot" id="sl4">4:木</div>
+        <div class="slot active" id="sl1">1:土</div><div class="slot" id="sl2">2:草</div>
+        <div class="slot" id="sl3">3:石</div><div class="slot" id="sl4">4:木</div>
     </div>
 
     <canvas id="gameCanvas"></canvas>
@@ -98,40 +81,54 @@
 <script>
     const cvs = document.getElementById('gameCanvas'), ctx = cvs.getContext('2d');
     const mcvs = document.getElementById('miniCanvas'), mctx = mcvs.getContext('2d');
-    let isRunning = false, isPaused = false, ticks = 480, world = {}, camX = 0, camY = 0, curB = 1;
+    const prange = document.getElementById('p-range'), pv = document.getElementById('pv');
+    
+    let isRunning = false, isPaused = false, teamSize = 1;
+    let ticks = 480, world = {}, camX = 0, camY = 0, curB = 1;
     let p = { x: 0, y: 0, w: 20, h: 40, vx: 0, vy: 0, hp: 100, ground: false, atk: 0 };
-    let agents = [], keys = {}, teamSize = 1;
+    let agents = [], keys = {};
 
-    function selectMode(m) {
-        document.getElementById('ui-mode').style.display = 'none';
-        if(m === 'single') { teamSize = 1; showGuide(); }
-        else { document.getElementById('ui-count').style.display = 'flex'; }
+    prange.oninput = () => pv.innerText = prange.value;
+
+    function nextStep(step, val) {
+        if(step === 'mode') {
+            document.getElementById('ui-mode').style.display = 'none';
+            if(val === 'single') { teamSize = 1; document.getElementById('ui-guide').style.display = 'flex'; }
+            else { document.getElementById('ui-count').style.display = 'flex'; }
+        } else if(step === 'count') {
+            teamSize = parseInt(prange.value);
+            document.getElementById('ui-count').style.display = 'none';
+            document.getElementById('ui-guide').style.display = 'flex';
+        }
     }
-    function showGuide() {
-        if(document.getElementById('ui-count').style.display === 'flex') 
-            teamSize = parseInt(document.getElementById('p-range').value);
-        document.getElementById('ui-count').style.display = 'none';
-        document.getElementById('ui-guide').style.display = 'flex';
-    }
-    function startGame() {
+
+    function finalStart() {
         document.getElementById('ui-guide').style.display = 'none';
         document.getElementById('hud').style.display = 'block';
         document.getElementById('minimap-wrapper').style.display = 'block';
         document.getElementById('inv').style.display = 'flex';
+        
+        // 確保 Canvas 尺寸與顯示
         cvs.style.display = 'block';
-        cvs.classList.add('active'); // 啟用點擊
-        cvs.width = window.innerWidth; cvs.height = window.innerHeight;
-        p.y = getGY(0)*TILE - 150;
-        for(let i=0; i < teamSize-1; i++) spawnAgent('ally', (Math.random()-0.5)*1000);
+        cvs.width = window.innerWidth;
+        cvs.height = window.innerHeight;
+        
+        // 初始化地形與隊友
+        p.y = getGY(0)*32 - 150;
+        for(let i=0; i < teamSize-1; i++) {
+            spawnAgent('ally', (Math.random()-0.5)*1200);
+        }
+        
         isRunning = true;
         requestAnimationFrame(loop);
     }
 
+    // 地形與遊戲邏輯
     const TILE = 32, COLORS = { 1: '#8B4513', 2: '#228B22', 3: '#666', 4: '#cd853f', 9: '#3498db' };
     function getGY(gx) {
         let x = Math.abs(gx);
         let h = 35, n = 5;
-        if (x % 500 > 250 && x % 500 < 350) { h = 48; n = 0; }
+        if (x % 500 > 250 && x % 500 < 350) { h = 48; n = 0; } // 河流兩旁平原邏輯
         return Math.floor(h + Math.sin(gx * 0.1) * n);
     }
     function getB(gx, gy) {
@@ -141,12 +138,11 @@
         return gy < fY ? 0 : (gy === fY ? 2 : 1);
     }
     function spawnAgent(type, startX) {
-        agents.push({ type, x: startX, y: getGY(Math.floor(startX/TILE))*TILE-100, w:20, h:40, hp:100, maxHp:100, dir:1, sTimer:50 });
+        agents.push({ type, x: startX, y: getGY(Math.floor(startX/TILE))*TILE-100, w:20, h:40, hp:100, dir:1, sTimer:50 });
     }
     function togglePause() {
         isPaused = !isPaused;
         document.getElementById('esc-menu').style.display = isPaused ? 'flex' : 'none';
-        if(isPaused) cvs.classList.remove('active'); else cvs.classList.add('active');
     }
 
     window.onkeydown = e => {
@@ -160,6 +156,7 @@
         }
     };
     window.onkeyup = e => keys[e.code] = false;
+
     window.onmousedown = e => {
         if(!isRunning || isPaused) return;
         let gx = Math.floor((e.clientX + camX)/TILE), gy = Math.floor((e.clientY + camY)/TILE);
@@ -178,7 +175,7 @@
             p.vx = keys['KeyD'] ? 5 : (keys['KeyA'] ? -5 : 0);
             let inWater = getB(Math.floor((p.x+10)/TILE), Math.floor((p.y+20)/TILE)) === 9;
             if(inWater) { p.vy -= 0.8; if(p.vy < -3) p.vy = -3; if(keys['KeyW']) p.vy = -5; }
-            else { p.vy += 0.7; if(keys['KeyW'] && p.ground) p.vy = -12; }
+            else { p.vy += 0.7; if((keys['KeyW'] || keys['Space']) && p.ground) p.vy = -12; }
 
             p.y += p.vy; p.ground = false;
             let fy = Math.floor((p.y+p.h)/TILE), lx = Math.floor((p.x+2)/TILE);
@@ -235,6 +232,7 @@
             let dx = (a.x-p.x)/TILE*4, dy = (a.y-p.y)/TILE*2;
             if(Math.abs(dx)<75) { mctx.fillStyle = a.type==='monster'?'red':'yellow'; mctx.fillRect(75+dx, 75+dy, 3, 3); }
         });
+        
         document.getElementById('posX').innerText = Math.floor(p.x/TILE);
         document.getElementById('posY').innerText = Math.floor(p.y/TILE);
         document.getElementById('hp').innerText = Math.max(0, Math.ceil(p.hp));
