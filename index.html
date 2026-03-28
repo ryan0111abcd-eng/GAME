@@ -2,70 +2,239 @@
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SUPER HUMAN 最終救援版</title>
+    <title>Future Super Human - Precision Evolution</title>
     <style>
-        body, html { margin: 0; padding: 0; width: 100%; height: 100%; background: #000; overflow: hidden; font-family: sans-serif; }
-        .ui-box { position: fixed; inset: 0; z-index: 9999; display: flex; flex-direction: column; align-items: center; justify-content: center; background: #111; color: #f1c40f; }
-        .big-btn { padding: 30px 60px; font-size: 35px; cursor: pointer; margin: 20px; background: #f1c40f; border: 5px solid #fff; border-radius: 20px; font-weight: bold; color: #000; box-shadow: 0 10px 0 #b8860b; }
-        .big-btn:active { transform: translateY(5px); box-shadow: 0 5px 0 #b8860b; }
-        #hud { position: fixed; top: 15px; left: 15px; z-index: 100; color: white; background: rgba(0,0,0,0.8); padding: 15px; border-radius: 10px; display: none; pointer-events: none; border: 2px solid #f1c40f; }
-        #radar { position: fixed; top: 15px; right: 15px; width: 150px; height: 150px; border: 3px solid #fff; border-radius: 50%; z-index: 100; display: none; background: rgba(0,0,0,0.5); overflow: hidden; }
+        body, html { margin: 0; padding: 0; width: 100%; height: 100%; background: #000; overflow: hidden; font-family: sans-serif; user-select: none; }
+        .overlay { position: fixed; inset: 0; z-index: 9999; display: flex; flex-direction: column; align-items: center; justify-content: center; background: rgba(10, 10, 10, 0.95); color: #f1c40f; text-align: center; }
+        .btn { padding: 18px 45px; font-size: 26px; cursor: pointer; margin: 12px; background: #f1c40f; border: none; border-radius: 10px; font-weight: bold; box-shadow: 0 5px 0 #b8860b; color: #000; }
+        .btn:active { transform: translateY(3px); box-shadow: 0 2px 0 #b8860b; }
+        
+        #hud { position: fixed; top: 15px; left: 15px; z-index: 100; color: white; background: rgba(0,0,0,0.6); padding: 15px; border-radius: 8px; border: 2px solid #f1c40f; pointer-events: none; display: none; line-height: 1.6; }
+        #minimap-ui { position: fixed; top: 15px; right: 15px; width: 150px; height: 150px; border: 3px solid #fff; border-radius: 50%; overflow: hidden; z-index: 100; display: none; background: rgba(0,0,0,0.5); }
+        
         canvas#gCvs { display: none; position: absolute; top: 0; left: 0; z-index: 10; }
+        #rain-overlay { position: fixed; inset: 0; pointer-events: none; z-index: 50; background: rgba(40, 40, 80, 0.25); display: none; }
     </style>
 </head>
 <body>
 
-    <div id="start-screen" class="ui-box">
-        <h1 style="font-size: 50px; margin-bottom: 50px;">SUPER HUMAN 最終救援版</h1>
-        <button class="big-btn" onclick="startApp(1)">👤 單人開始</button>
-        <button class="big-btn" onclick="startApp(5)" style="background:#3498db; color:white;">👥 多人開始</button>
+    <div id="ui-mode" class="overlay">
+        <h1 style="font-size: 45px;">SUPER HUMAN: 生態權重版</h1>
+        <button class="btn" onclick="goSetup(1)">單人冒險</button>
+        <button class="btn" onclick="goSetup(5)" style="background:#3498db; color:white;">👥 小隊連線</button>
     </div>
 
-    <div id="hud">❤️ <span id="hp-val">100</span> | 📍 <span id="pos-val">0,0</span></div>
-    <div id="radar"><canvas id="rCanvas" width="150" height="150"></canvas></div>
+    <div id="ui-players" class="overlay" style="display:none;">
+        <h2>選擇小隊總人數: <span id="p-val">5</span></h2>
+        <input type="range" min="2" max="10" value="5" oninput="document.getElementById('p-val').innerText=this.value" id="p-slider" style="width:300px; height:20px;">
+        <br><button class="btn" onclick="goWorld()">進入世界</button>
+    </div>
+
+    <div id="hud">
+        ❤️ HP: <span id="hp">100</span> | 📍 座標: <span id="pos">0,0</span><br>
+        🗺️ <span id="biome-list">平原</span> | ⛈️ <span id="weather">晴天</span>
+    </div>
+    <div id="minimap-ui"><canvas id="mCvs" width="150" height="150"></canvas></div>
+    <div id="rain-overlay"></div>
     <canvas id="gCvs"></canvas>
 
-    <script>
-        const cvs = document.getElementById('gCvs'), ctx = cvs.getContext('2d');
-        const rcvs = document.getElementById('rCanvas'), rctx = rcvs.getContext('2d');
-        let live = false, ents = [], ticks = 600, p = {x:0, y:-200, w:22, h:42, vx:0, vy:0, hp:100, gr:false};
+<script>
+    const cvs = document.getElementById('gCvs'), ctx = cvs.getContext('2d');
+    const mcvs = document.getElementById('mCvs'), mctx = mcvs.getContext('2d');
+    
+    let isLive = false, world = {}, keys = {}, entities = [];
+    let p = { x: 0, y: -200, w: 22, h: 42, vx: 0, vy: 0, ground: false, hp: 100, maxHp: 100, lastHitBy: null };
+    let squadSize = 1, isRaining = false;
+    const TILE = 32;
 
-        function startApp(n) {
-            console.log("遊戲啟動中...");
-            document.getElementById('start-screen').style.display = 'none';
-            document.getElementById('hud').style.display = 'block';
-            document.getElementById('radar').style.display = 'block';
-            cvs.style.display = 'block';
-            cvs.width = window.innerWidth;
-            cvs.height = window.innerHeight;
+    function goSetup(n) {
+        squadSize = n;
+        document.getElementById('ui-mode').style.display = 'none';
+        if (n === 1) goWorld(); else document.getElementById('ui-players').style.display = 'flex';
+    }
+    function goWorld() {
+        if (squadSize > 1) squadSize = document.getElementById('p-slider').value;
+        document.getElementById('ui-players').style.display = 'none';
+        document.getElementById('hud').style.display = 'block';
+        document.getElementById('minimap-ui').style.display = 'block';
+        cvs.style.display = 'block';
+        cvs.width = window.innerWidth; cvs.height = window.innerHeight;
 
-            for(let i=0; i<n-1; i++) ents.push({type:'ally', x:(Math.random()-0.5)*400, y:-400, w:22, h:42, vx:0, vy:0, hp:100});
-            live = true;
-            loop();
+        // 隨機決定天氣 (40% 下雨)
+        if(Math.random() < 0.4) {
+            isRaining = true;
+            document.getElementById('rain-overlay').style.display = 'block';
+            document.getElementById('weather').innerText = "下雨";
+        } else {
+            document.getElementById('weather').innerText = "晴天";
         }
+        
+        // 生成隊友與生物
+        for(let i=0; i<squadSize-1; i++) spawn('ally', (Math.random()-0.5)*800);
+        for(let i=0; i<8; i++) spawn('npc', (Math.random()-0.5)*3000); // 村民
+        for(let i=0; i<5; i++) spawn('pig', (Math.random()-0.5)*3000); // 動物豬
+        
+        isLive = true; loop();
+    }
 
-        function loop() {
-            if(!live) return;
-            if(p.hp <= 0) location.reload();
+    // 地形生成器 (多重地貌疊加)
+    function getBiomeInfo(gx) {
+        let x = Math.abs(gx);
+        let biomes = [];
+        let h = 35, amp = 1, c = "#2ecc71"; // 預設草地
 
-            p.vy += 0.8; p.y += p.vy;
-            if(p.y > 300) { p.y = 300; p.vy = 0; p.gr = true; } // 簡易地面測試
+        if (x % 500 < 150) { biomes.push("平原"); c = "#2ecc71"; amp=1; } // 30% 平原
+        if (x % 1000 < 200) { biomes.push("台地"); c = "#e67e22"; amp=0.5; h=32; } // 20% 台地
+        if (x % 1000 < 700) { biomes.push("丘陵"); c = "#27ae60"; amp=6; h=28; } // 70% 丘陵
+        if (x % 1000 < 500) { biomes.push("山地"); c = "#95a5a6"; amp=15; h=15; } // 50% 山地
+        
+        let hasRuins = (x % 1000 < 650); // 65% 古蹟
 
-            document.getElementById('hp-val').innerText = Math.ceil(p.hp);
-            document.getElementById('pos-val').innerText = Math.floor(p.x/32) + "," + Math.floor(p.y/32);
+        return { names: biomes, h, amp, c, hasRuins };
+    }
 
-            // 繪圖
-            ctx.fillStyle = "#87ceeb"; ctx.fillRect(0,0,cvs.width,cvs.height);
-            ctx.fillStyle = "#e67e22"; ctx.fillRect(p.x + cvs.width/2, p.y + cvs.height/2, p.w, p.h);
+    function getB(gx, gy) {
+        if (world[gx+'_'+gy] !== undefined) return world[gx+'_'+gy];
+        let b = getBiomeInfo(gx);
+        
+        let h = Math.floor(b.h + Math.sin(gx * 0.1) * b.amp);
+
+        // 如果生成古蹟建築塊
+        if (b.hasRuins && gy < h && gy > h-5 && Math.random() < 0.06) return 3; // 石磚古蹟
+        
+        // 如果是村民區域生成簡單房屋
+        if (gx % 1000 > 800 && gy < h && gy > h-3 && Math.random() < 0.1) return 3; // 村莊牆壁
+
+        return gy < h ? 0 : (gy === h ? 2 : 1);
+    }
+
+    function isCollide(x, y, w, h) {
+        for (let i = Math.floor(x/TILE); i <= Math.floor((x+w)/TILE); i++) {
+            for (let j = Math.floor(y/TILE); j <= Math.floor((y+h)/TILE); j++) {
+                if (getB(i, j) > 0) return true;
+            }
+        }
+        return false;
+    }
+
+    function spawn(type, x) {
+        let hp = (type === 'pig') ? 30 : 100;
+        entities.push({ type, x, y: -400, w: 22, h: 42, vx: 0, vy: 0, hp: hp, maxHp: hp, ground: false, dir: 1 });
+    }
+
+    function doAttack(owner) {
+        entities.concat(p).forEach(e => {
+            if (e !== owner && Math.abs(e.x - owner.x) < 70) {
+                e.hp -= 20; e.vx = (e.x > owner.x ? 12 : -12);
+                if (e === p) p.lastHitBy = owner; // 記錄誰攻擊了玩家
+            }
+        });
+    }
+
+    window.onkeydown = e => keys[e.code] = true;
+    window.onkeyup = e => keys[e.code] = false;
+    window.onmousedown = e => {
+        if(!isLive) return;
+        let gx = Math.floor((e.clientX + (p.x - cvs.width/2))/TILE);
+        let gy = Math.floor((e.clientY + (p.y - cvs.height/2))/TILE);
+        if(e.button === 0) world[gx+'_'+gy] = 0; else world[gx+'_'+gy] = 3;
+    };
+    window.oncontextmenu = e => e.preventDefault();
+
+    function loop() {
+        if (!isLive) return;
+        if (p.hp <= 0) { alert("你死在了荒野中..."); location.reload(); return; }
+
+        if (Math.random() < 0.003) spawn('mob', p.x + (Math.random()>0.5?800:-800));
+
+        // 玩家物理
+        p.vy += 0.8; p.y += p.vy;
+        if (isCollide(p.x, p.y, p.w, p.h)) {
+            if (p.vy > 0) { while(isCollide(p.x, p.y, p.w, p.h)) p.y -= 1; p.ground = true; }
+            else { while(isCollide(p.x, p.y, p.w, p.h)) p.y += 1; }
+            p.vy = 0;
+        } else p.ground = false;
+
+        let mx = (keys['KeyD']?5:0) - (keys['KeyA']?5:0);
+        if (mx !== 0) { p.x += mx; if (isCollide(p.x, p.y, p.w, p.h)) p.x -= mx; }
+        if (keys['Space'] && p.ground) p.vy = -14;
+
+        // 電腦 AI (援護核心邏輯)
+        entities.forEach(e => {
+            e.vy += 0.8; e.y += e.vy;
+            if (isCollide(e.x, e.y, e.w, e.h)) { if (e.vy > 0) while(isCollide(e.x, e.y, e.w, e.h)) e.y -= 1; e.vy = 0; }
             
-            ents.forEach(e => {
-                ctx.fillStyle = "#3498db";
-                ctx.fillRect(e.x + cvs.width/2, e.y + cvs.height/2, e.w, e.h);
-            });
+            if (e.type === 'ally') {
+                // 如果玩家被打了，隊友立刻來幫忙
+                if (p.lastHitBy && p.lastHitBy.hp > 0 && Math.abs(p.x - e.x) < 400) {
+                    e.x += (p.lastHitBy.x > e.x ? 3 : -3); // 高速集結
+                    if (Math.abs(e.x - p.lastHitBy.x) < 60) doAttack(e); // 攻擊威脅
+                } else {
+                    // 平時分散戰鬥與活動
+                    if (Math.abs(p.x - e.x) > 200) e.x += (p.x > e.x ? 2.5 : -2.5); // 分散距離
+                    entities.forEach(m => { if(m.type==='mob' && Math.abs(m.x-e.x)<100) doAttack(e); }); // 自動攻擊怪物
+                }
+            } else if (e.type === 'mob') {
+                e.x += (p.x > e.x ? 2.5 : -2.5);
+                if (Math.abs(e.x - p.x) < 30) p.hp -= 0.15;
+            } else {
+                // 村民與動物隨機漫步
+                if (Math.random() < 0.02) e.dir *= -1;
+                e.x += e.dir * 1.5; if (isCollide(e.x, e.y, e.w, e.h)) e.dir *= -1;
+            }
+        });
+        entities = entities.filter(e => e.hp > 0);
 
-            requestAnimationFrame(loop);
+        // UI
+        let b = getBiomeInfo(Math.floor(p.x/TILE));
+        document.getElementById('hp').innerText = Math.ceil(p.hp);
+        document.getElementById('pos').innerText = Math.floor(p.x/TILE) + "," + Math.floor(p.y/TILE);
+        document.getElementById('biome-list').innerText = (b.names.length > 0 ? b.names.join(' / ') : "荒野") + (b.hasRuins ? " (古蹟)" : "");
+
+        draw();
+        requestAnimationFrame(loop);
+    }
+
+    function draw() {
+        ctx.fillStyle = isRaining ? '#4b6584' : '#87ceeb'; // 雨天色調變暗
+        ctx.fillRect(0,0,cvs.width,cvs.height);
+        let cx = p.x - cvs.width/2, cy = p.y - cvs.height/2;
+
+        for(let x=Math.floor(cx/TILE); x<=Math.ceil((cx+cvs.width)/TILE); x++) {
+            let bI = getBiomeInfo(x);
+            for(let y=Math.floor(cy/TILE); y<=Math.ceil((cy+cvs.height)/TILE); y++) {
+                let b = getB(x, y);
+                if(b > 0) {
+                    ctx.fillStyle = b===2 ? bI.c : (b===1 ? '#795548' : '#95a5a6'); // 地形色與古蹟灰色
+                    ctx.fillRect(x*TILE-cx, y*TILE-cy, TILE+0.5, TILE+0.5);
+                }
+            }
         }
-    </script>
+
+        entities.concat(p).forEach(e => {
+            let color = '#e67e22'; // 玩家
+            if(e.type==='ally') color='#3498db'; // 隊友
+            if(e.type==='mob') color='#e74c3c'; // 殭屍
+            if(e.type==='npc') color='#f1c40f'; // 村民
+            if(e.type==='pig') color='#ff9ff3'; // 動物豬
+            ctx.fillStyle = color;
+            ctx.fillRect(e.x-cx, e.y-cy, e.w, e.h);
+            
+            // 血量條
+            ctx.fillStyle = 'red'; ctx.fillRect(e.x-cx, e.y-cy-10, e.w, 4);
+            ctx.fillStyle = 'lime'; ctx.fillRect(e.x-cx, e.y-cy-10, e.w*(e.hp/e.maxHp), 4);
+        });
+
+        // 小地圖雷達
+        mctx.fillStyle='#000'; mctx.fillRect(0,0,150,150);
+        mctx.save(); mctx.translate(75, 75);
+        entities.concat(p).forEach(e => {
+            mctx.fillStyle = e===p?'#fff':(e.type==='ally'?'#3498db':'#e74c3c');
+            let dx = (e.x-p.x)*0.1, dy = (e.y-p.y)*0.1;
+            if(dx*dx+dy*dy < 70*70) { mctx.beginPath(); mctx.arc(dx, dy, 3, 0, 7); mctx.fill(); }
+        });
+        mctx.restore();
+    }
+</script>
 </body>
 </html>
