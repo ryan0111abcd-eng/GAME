@@ -2,27 +2,27 @@
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
-    <title>Super Human - Builder Edition</title>
+    <title>Super Human - Day & Night</title>
     <style>
         body, html { margin: 0; padding: 0; width: 100%; height: 100%; background: #000; overflow: hidden; font-family: sans-serif; }
         .overlay { position: fixed; inset: 0; z-index: 9999; display: flex; flex-direction: column; align-items: center; justify-content: center; background: rgba(15, 15, 15, 0.98); color: #f1c40f; }
         .btn { padding: 18px 45px; font-size: 26px; cursor: pointer; margin: 12px; background: #f1c40f; border: none; border-radius: 12px; font-weight: bold; box-shadow: 0 6px 0 #b8860b; color: #000; }
         .btn:active { transform: translateY(4px); box-shadow: 0 2px 0 #b8860b; }
-        #hud { position: fixed; top: 20px; left: 20px; z-index: 100; color: white; background: rgba(0,0,0,0.7); padding: 15px; border-radius: 10px; border: 2px solid #f1c40f; display: none; pointer-events: none; }
-        #minimap { position: fixed; top: 20px; right: 20px; width: 150px; height: 150px; border: 3px solid #fff; border-radius: 50%; overflow: hidden; z-index: 100; display: none; background: rgba(0,0,0,0.5); }
+        #hud { position: fixed; top: 20px; left: 20px; z-index: 100; color: white; background: rgba(0,0,0,0.7); padding: 15px; border-radius: 10px; border: 2px solid #f1c40f; pointer-events: none; display: none;}
+        #minimap { position: fixed; top: 20px; right: 20px; width: 150px; height: 150px; border: 3px solid #fff; border-radius: 50%; overflow: hidden; z-index: 100; background: rgba(0,0,0,0.5); display: none;}
         canvas#gameCanvas { display: none; position: absolute; top: 0; left: 0; z-index: 10; }
     </style>
 </head>
 <body>
 
     <div id="step-1" class="overlay">
-        <h1>SUPER HUMAN: 建築大師</h1>
+        <h1>SUPER HUMAN: 日夜生存</h1>
         <button class="btn" onclick="goStep(2, 1)">👤 單人模式</button>
         <button class="btn" onclick="goStep(2, 5)" style="background:#3498db; color:white;">👥 多人模式</button>
     </div>
 
     <div id="step-2" class="overlay" style="display:none;">
-        <h1>設定小隊人數</h1>
+        <h1>設定人數</h1>
         <h2 id="p-label">5 人</h2>
         <input type="range" min="2" max="10" value="5" oninput="document.getElementById('p-label').innerText=this.value+' 人'" id="p-slider" style="width:300px;">
         <button class="btn" onclick="goStep(3)">下一步</button>
@@ -30,24 +30,27 @@
 
     <div id="step-3" class="overlay" style="display:none;">
         <div style="background:#2c3e50; padding:25px; border-radius:15px; border:2px solid #f1c40f; width:380px;">
-            <h2 style="color:#f1c40f; text-align:center;">🔨 操作說明</h2>
-            <p>● <b>移動</b>: WASD / <b>跳躍</b>: 空白鍵</p>
-            <p>● <b style="color:#ff9f43;">滑鼠左鍵</b>: 挖掘方塊</p>
-            <p>● <b style="color:#54a0ff;">滑鼠右鍵</b>: 放置石頭方塊</p>
-            <p>● <b>K</b>: 攻擊 / <b>Q</b>: 回血 / <b>ESC</b>: 暫停</p>
-            <button class="btn" onclick="startGame()" style="width:100%;">開始建築</button>
+            <h2 style="color:#f1c40f; text-align:center;">⌛ 生存守則</h2>
+            <p>● <b>白天</b>：安全，可以盡情挖掘與蓋房子。</p>
+            <p>● <b>晚上</b>：怪物會大量出現，請躲入建築物！</p>
+            <p>● <b>Q 回血</b> / <b>K 攻擊</b> / <b>左鍵挖</b> / <b>右鍵放</b></p>
+            <button class="btn" onclick="startGame()" style="width:100%;">進入循環</button>
         </div>
     </div>
 
-    <div id="hud">❤️ HP: <span id="hp-txt">100</span> | 📍 <span id="pos-txt">0,0</span></div>
+    <div id="hud">
+        ❤️ HP: <span id="hp-txt">100</span><br>
+        ⏰ 時間: <span id="time-txt">12:00</span> ( <span id="day-txt">白天</span> )
+    </div>
     <div id="minimap"><canvas id="mCvs" width="150" height="150"></canvas></div>
     <canvas id="gameCanvas"></canvas>
 
 <script>
     const cvs = document.getElementById('gameCanvas'), ctx = cvs.getContext('2d');
     const mCvs = document.getElementById('mCvs'), mCtx = mCvs.getContext('2d');
-    let active = false, paused = false, world = {}, keys = {}, entities = [], playerCount = 1;
+    let active = false, world = {}, keys = {}, entities = [], playerCount = 1;
     let p = { x: 0, y: -200, w: 22, h: 42, vx: 0, vy: 0, ground: false, hp: 100, maxHp: 100 };
+    let gameTime = 600; // 0-1440 分鐘，600 為早上 10 點
     const TILE = 32;
 
     function goStep(s, v) {
@@ -63,44 +66,39 @@
         document.getElementById('minimap').style.display = 'block';
         cvs.style.display = 'block';
         cvs.width = window.innerWidth; cvs.height = window.innerHeight;
-        
-        // 生成隊友
-        for(let i=0; i<playerCount-1; i++) {
-            entities.push({type:'ally', x:Math.random()*400-200, y:-300, w:22, h:42, vx:0, vy:0, hp:100, maxHp:100});
-        }
+        for(let i=0; i<playerCount-1; i++) entities.push({type:'ally', x:Math.random()*200-100, y:-300, w:22, h:42, vx:0, vy:0, hp:100, maxHp:100});
         active = true; loop();
     }
 
-    // --- 關鍵：挖掘與放置 ---
+    // --- 日夜顏色計算 ---
+    function getSkyColor() {
+        let m = gameTime;
+        if (m > 300 && m < 1000) { // 白天 05:00 - 16:40
+            if (m < 400) return '#ff9f43'; // 黎明橘
+            if (m > 900) return '#eb4d4b'; // 黃昏紅
+            return '#87ceeb'; // 正常藍
+        }
+        return '#0c2461'; // 深夜藍黑
+    }
+
     window.onmousedown = e => {
         if(!active) return;
-        // 計算滑鼠在世界中的座標
-        let worldX = e.clientX + (p.x - cvs.width/2);
-        let worldY = e.clientY + (p.y - cvs.height/2);
-        let gx = Math.floor(worldX / TILE);
-        let gy = Math.floor(worldY / TILE);
-
-        if (e.button === 0) { // 左鍵：挖掘 (設為空氣)
-            world[gx + '_' + gy] = 0;
-        } else if (e.button === 2) { // 右鍵：放置 (設為石頭，ID為 3)
-            // 只有點擊空白處才能放方塊
-            if (getB(gx, gy) === 0) world[gx + '_' + gy] = 3;
-        }
+        let gx = Math.floor((e.clientX + (p.x - cvs.width/2)) / TILE);
+        let gy = Math.floor((e.clientY + (p.y - cvs.height/2)) / TILE);
+        if (e.button === 0) world[gx + '_' + gy] = 0;
+        else if (getB(gx, gy) === 0) world[gx + '_' + gy] = 3;
     };
-    window.oncontextmenu = e => e.preventDefault(); // 停用右鍵選單
-
+    window.oncontextmenu = e => e.preventDefault();
     window.onkeydown = e => { 
         keys[e.code] = true; 
-        if(e.code === 'KeyK') entities.forEach(ent => {
-            if(ent.type==='mob' && Math.abs(ent.x-p.x)<60) ent.hp -= 30;
-        });
-        if(e.code === 'KeyQ' && p.hp < 100) p.hp = Math.min(100, p.hp + 25);
+        if(e.code === 'KeyK') entities.forEach(ent => { if(ent.type==='mob' && Math.abs(ent.x-p.x)<80) ent.hp -= 20; });
+        if(e.code === 'KeyQ') p.hp = Math.min(100, p.hp + 20);
     };
     window.onkeyup = e => keys[e.code] = false;
 
     function getB(gx, gy) {
         if (world[gx+'_'+gy] !== undefined) return world[gx+'_'+gy];
-        let h = Math.floor(25 + Math.sin(gx * 0.1) * 5); // 地形高度
+        let h = Math.floor(25 + Math.sin(gx * 0.1) * 5);
         return gy < h ? 0 : (gy === h ? 2 : 1);
     }
 
@@ -115,8 +113,13 @@
 
     function loop() {
         if(!active) return;
-        if(p.hp <= 0) { location.reload(); return; }
+        if(p.hp <= 0) { alert("你死了！"); location.reload(); return; }
 
+        // 時間推進
+        gameTime = (gameTime + 0.5) % 1440;
+        let isNight = (gameTime < 360 || gameTime > 1080); // 18:00 到 06:00 為夜晚
+
+        // 玩家物理
         p.vy += 0.8; p.y += p.vy;
         if(check(p.x, p.y)) {
             if(p.vy > 0) { while(check(p.x, p.y)) p.y -= 0.5; p.ground = true; }
@@ -128,29 +131,38 @@
         if(dx !== 0) { p.x += dx; if(check(p.x, p.y)) p.x -= dx; }
         if(keys['Space'] && p.ground) p.vy = -14;
 
-        // 每隔一段時間生怪
-        if(Math.random() < 0.005) entities.push({type:'mob', x:p.x+600, y:-200, w:22, h:42, vx:0, vy:0, hp:50, maxHp:50});
+        // 晚上才生怪
+        if(isNight && Math.random() < 0.02) {
+            entities.push({type:'mob', x:p.x + (Math.random()>0.5?500:-500), y:-400, w:22, h:42, vx:0, vy:0, hp:50, maxHp:50});
+        }
 
         entities.forEach(e => {
             e.vy += 0.8; e.y += e.vy;
             if(check(e.x, e.y)) { if(e.vy > 0) while(check(e.x, e.y)) e.y -= 0.5; e.vy = 0; }
-            if(e.type==='ally') { if(Math.abs(p.x-e.x)>120) e.x += (p.x>e.x?3:-3); }
-            else { e.x -= 2; if(Math.abs(e.x-p.x)<30) p.hp -= 0.5; }
+            if(e.type==='ally') { if(Math.abs(p.x-e.x)>100) e.x += (p.x>e.x?3:-3); }
+            else { 
+                e.x += (p.x > e.x ? 2.5 : -2.5); // 怪物追玩家
+                if(Math.abs(e.x-p.x)<30 && Math.abs(e.y-p.y)<30) p.hp -= 0.3; 
+            }
         });
         entities = entities.filter(e => e.hp > 0);
 
+        // 更新 HUD
+        let h = Math.floor(gameTime/60).toString().padStart(2,'0');
+        let m = Math.floor(gameTime%60).toString().padStart(2,'0');
         document.getElementById('hp-txt').innerText = Math.ceil(p.hp);
-        document.getElementById('pos-txt').innerText = Math.floor(p.x/TILE) + "," + Math.floor(p.y/TILE);
+        document.getElementById('time-txt').innerText = `${h}:${m}`;
+        document.getElementById('day-txt').innerText = isNight ? "夜晚" : "白天";
 
         draw();
         requestAnimationFrame(loop);
     }
 
     function draw() {
-        ctx.fillStyle = '#1a1a2e'; ctx.fillRect(0,0,cvs.width,cvs.height);
+        ctx.fillStyle = getSkyColor();
+        ctx.fillRect(0,0,cvs.width,cvs.height);
         let cx = p.x - cvs.width/2, cy = p.y - cvs.height/2;
 
-        // 繪製地形與方塊
         for(let x=Math.floor(cx/TILE); x<=Math.ceil((cx+cvs.width)/TILE); x++) {
             for(let y=Math.floor(cy/TILE); y<=Math.ceil((cy+cvs.height)/TILE); y++) {
                 let b = getB(x, y);
@@ -161,13 +173,12 @@
             }
         }
 
-        // 繪製人物
         entities.concat(p).forEach(e => {
             ctx.fillStyle = e===p?'#e67e22':(e.type==='ally'?'#3498db':'#e74c3c');
             ctx.fillRect(e.x-cx, e.y-cy, e.w, e.h);
         });
 
-        // 繪製小地圖
+        // 小地圖
         mCtx.fillStyle='#000'; mCtx.fillRect(0,0,150,150);
         mCtx.save(); mCtx.translate(75, 75);
         entities.concat(p).forEach(e => {
