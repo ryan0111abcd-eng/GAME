@@ -1,79 +1,113 @@
 <!DOCTYPE html>
-<html lang="zh-TW">
+<html>
 <head>
     <meta charset="UTF-8">
-    <title>Future Super Human - 2D Final Fix</title>
+    <title>Super Human 2D - Final Fix</title>
     <style>
-        body, html { margin: 0; padding: 0; width: 100%; height: 100%; background: #1a1a1a; overflow: hidden; font-family: sans-serif; }
+        body, html { margin: 0; padding: 0; background: #1a1a1a; overflow: hidden; font-family: sans-serif; }
         
-        /* 介面層：這層才是你點擊的地方 */
-        #ui-layer {
-            position: absolute; inset: 0;
+        /* 選單層：確保在最上方且可點擊 */
+        #menu {
+            position: absolute; inset: 0; z-index: 100;
             display: flex; flex-direction: column; align-items: center; justify-content: center;
-            z-index: 9999; background: #1a1a1a;
+            background: #1a1a1a; color: #f1c40f;
         }
 
         .btn {
-            padding: 20px 60px; font-size: 30px; cursor: pointer; margin: 10px;
-            background: #f1c40f; border: 5px solid #fff; border-radius: 15px;
-            color: #000; font-weight: bold; box-shadow: 0 8px 0 #b8860b;
+            padding: 20px 60px; font-size: 32px; cursor: pointer; margin: 15px;
+            background: #f1c40f; border: 4px solid #fff; border-radius: 15px;
+            font-weight: bold; box-shadow: 0 6px 0 #b8860b;
         }
-        .btn:hover { background: #fff; transform: scale(1.05); }
-        .btn:active { transform: translateY(4px); box-shadow: 0 4px 0 #b8860b; }
+        .btn:active { transform: translateY(4px); box-shadow: 0 2px 0 #b8860b; }
 
-        /* 遊戲專用 HUD */
         #hud {
-            position: fixed; top: 10px; left: 10px; background: rgba(0,0,0,0.8);
-            padding: 15px; border: 2px solid #f1c40f; color: white; border-radius: 10px;
-            z-index: 1000; display: none; pointer-events: none;
+            position: fixed; top: 10px; left: 10px; z-index: 50;
+            background: rgba(0,0,0,0.8); color: white; padding: 10px;
+            border: 2px solid #f1c40f; border-radius: 5px; display: none;
         }
 
-        /* 畫布：沒開始前是隱藏的 */
-        canvas#gameCanvas { display: none; position: absolute; top: 0; left: 0; z-index: 1; }
+        canvas { display: none; position: absolute; top: 0; left: 0; z-index: 10; }
     </style>
 </head>
 <body>
 
-    <div id="ui-layer">
-        <h1 style="color:#f1c40f; font-size:50px;">未來的 SUPER HUMAN</h1>
-        <div id="menu-main">
-            <button class="btn" onclick="startGame(1)">開始遊戲</button>
-            <button class="btn" onclick="toggleMulti()" style="background:#3498db; color:white;">多人模式</button>
-        </div>
-        <div id="menu-multi" style="display:none; text-align:center;">
-            <h2 style="color:white;">選擇人數: <span id="p-val" style="color:#f1c40f;">5</span></h2>
-            <input type="range" min="2" max="10" value="5" oninput="document.getElementById('p-val').innerText=this.value" id="p-slider" style="width:300px;">
-            <br>
-            <button class="btn" onclick="startGame(document.getElementById('p-slider').value)">進入地圖</button>
-        </div>
+    <div id="menu">
+        <h1>未來的 SUPER HUMAN</h1>
+        <button class="btn" onclick="start()">開始遊戲</button>
     </div>
 
-    <div id="hud">
-        ❤️ 血量: <span id="hp">100</span> | 📍 <span id="pos">0, 0</span><br>
-        🕒 時間: <span id="time">07:00</span> | 🌍 <span id="biome">平原</span>
-    </div>
-
-    <canvas id="gameCanvas"></canvas>
+    <div id="hud">❤️ HP: <span id="hp">100</span> | 📍 Pos: <span id="pos">0,0</span></div>
+    <canvas id="g"></canvas>
 
 <script>
-    const cvs = document.getElementById('gameCanvas'), ctx = cvs.getContext('2d');
-    let isLive = false, ticks = 420;
-    let p = { x: 0, y: 0, w: 20, h: 40, vx: 0, vy: 0, hp: 100, ground: false };
-    let world = {}, agents = [], keys = {};
+    const cvs = document.getElementById('g'), ctx = cvs.getContext('2d');
+    let run = false, keys = {}, world = {}, ticks = 420;
+    let p = { x: 0, y: 0, w: 20, h: 40, vx: 0, vy: 0, ground: false };
     const TILE = 32;
 
-    function toggleMulti() {
-        document.getElementById('menu-main').style.display = 'none';
-        document.getElementById('menu-multi').style.display = 'block';
-    }
-
-    function startGame(num) {
-        // 【核心修正】按下按鈕後才顯示畫布，並關閉選單
-        document.getElementById('ui-layer').style.display = 'none';
+    function start() {
+        document.getElementById('menu').style.display = 'none';
         document.getElementById('hud').style.display = 'block';
         cvs.style.display = 'block';
         cvs.width = window.innerWidth;
         cvs.height = window.innerHeight;
+        
+        // 初始化位置
+        p.y = getH(0) * TILE - 100;
+        run = true;
+        loop();
+    }
 
-        // 初始化位置與隊友
-        p.y = getTerrainHeight(0) * TILE - 100;
+    function getH(gx) {
+        return Math.floor(35 + Math.sin(gx * 0.2) * 5);
+    }
+
+    function getB(gx, gy) {
+        if (world[gx+'_'+gy] !== undefined) return world[gx+'_'+gy];
+        let h = getH(gx);
+        return gy < h ? 0 : (gy === h ? 2 : 1);
+    }
+
+    window.onkeydown = e => keys[e.code] = true;
+    window.onkeyup = e => keys[e.code] = false;
+    window.onmousedown = e => {
+        if(!run) return;
+        let gx = Math.floor((e.clientX + (p.x - cvs.width/2))/TILE);
+        let gy = Math.floor((e.clientY + (p.y - cvs.height/2))/TILE);
+        world[gx+'_'+gy] = (e.button === 0) ? 0 : 3;
+    };
+    window.oncontextmenu = e => e.preventDefault();
+
+    function loop() {
+        if(!run) return;
+
+        // --- 核心物理：防穿牆 ---
+        // 1. Y軸 (重力與碰撞)
+        p.vy += 0.8;
+        let nextY = p.y + p.vy;
+        let pL = Math.floor((p.x + 4)/TILE), pR = Math.floor((p.x + p.w - 4)/TILE);
+        let footY = Math.floor((nextY + p.h)/TILE);
+
+        if (getB(pL, footY) > 0 || getB(pR, footY) > 0) {
+            p.y = footY * TILE - p.h; // 踩在地面
+            p.vy = 0;
+            p.ground = true;
+        } else {
+            p.y = nextY;
+            p.ground = false;
+        }
+
+        // 2. X軸 (左右行走與防穿牆)
+        let vx = (keys['KeyD']?5:0) - (keys['KeyA']?5:0);
+        if (vx !== 0) {
+            let nextX = p.x + vx;
+            let sideX = vx > 0 ? Math.floor((nextX + p.w)/TILE) : Math.floor(nextX/TILE);
+            let headY = Math.floor((p.y + 5)/TILE), bodyY = Math.floor((p.y + p.h - 5)/TILE);
+            
+            // 檢查前進方向是否有方塊
+            if (getB(sideX, headY) === 0 && getB(sideX, bodyY) === 0) {
+                p.x = nextX;
+            }
+        }
+
+        if ((keys['Space'] || keys['KeyW']) && p.ground) p.vy = -12;
