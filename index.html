@@ -3,242 +3,29 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SUPER HUMAN 2026 - BALANCE FIX</title>
+    <title>SUPER HUMAN 2026</title>
     <style>
         body, html { margin: 0; padding: 0; width: 100%; height: 100%; background: #000; overflow: hidden; font-family: sans-serif; user-select: none; }
-        .ui { position: fixed; inset: 0; z-index: 99999; display: flex; flex-direction: column; align-items: center; justify-content: center; background: #0d0d0d; color: #f1c40f; text-align: center; }
+        .ui { position: fixed; inset: 0; z-index: 99999; display: flex; flex-direction: column; align-items: center; justify-content: center; background: #050505; color: #f1c40f; text-align: center; }
         .btn { padding: 25px 60px; font-size: 32px; cursor: pointer; margin: 15px; background: #f1c40f; border: 4px solid #fff; border-radius: 20px; font-weight: bold; color: #000; box-shadow: 0 8px 0 #b8860b; }
         .btn:active { transform: translateY(4px); box-shadow: 0 4px 0 #b8860b; }
-        .in { padding: 15px; font-size: 28px; border: 4px solid #f1c40f; border-radius: 10px; background: #000; color: #f1c40f; text-align: center; margin-bottom: 20px; width: 300px; }
-        #hud { position: fixed; top: 15px; left: 15px; z-index: 100; color: white; background: rgba(0,0,0,0.8); padding: 15px; border-radius: 10px; border: 2px solid #f1c40f; display: none; pointer-events: none; line-height: 1.6; }
-        #radar { position: fixed; top: 15px; right: 15px; width: 150px; height: 150px; border: 3px solid #fff; border-radius: 50%; overflow: hidden; z-index: 100; display: none; background: rgba(0,0,0,0.5); }
-        #rain-fx { position: fixed; inset: 0; pointer-events: none; z-index: 50; background: rgba(40,40,80,0.2); display: none; }
+        .in { padding: 18px; font-size: 30px; border: 4px solid #f1c40f; border-radius: 12px; background: #000; color: #f1c40f; text-align: center; margin-bottom: 25px; width: 350px; outline: none; }
+        #hud { position: fixed; top: 15px; left: 15px; z-index: 100; color: white; background: rgba(0,0,0,0.85); padding: 15px; border-radius: 10px; border: 2px solid #f1c40f; display: none; pointer-events: none; line-height: 1.6; }
         canvas#gCanvas { display: none; position: absolute; top: 0; left: 0; z-index: 10; }
+        #rain-fx { position: fixed; inset: 0; pointer-events: none; z-index: 50; background: rgba(40,40,80,0.3); display: none; }
     </style>
 </head>
 <body>
 
-    <div id="step-code" class="ui">
-        <h1 style="font-size: 45px;">SUPER HUMAN 啟動程式</h1>
-        <p>請輸入啟動碼 ryan0111407 以繼續</p>
-        <input type="text" id="code-input" class="in" maxlength="11" placeholder="填寫啟動碼" onkeydown="if(event.key==='Enter') checkCode()">
-        <button class="btn" onclick="checkCode()">認證啟動</button>
-        <p id="err" style="color:red; display:none;">啟動碼錯誤！</p>
+    <div id="step-auth" class="ui">
+        <h1 style="font-size: 45px; letter-spacing: 5px;">SUPER HUMAN SYSTEM</h1>
+        <p style="color: #666; margin-bottom: 30px;">Access Restricted - Enter Security Key</p>
+        <input type="password" id="code-input" class="in" maxlength="11" onkeydown="if(event.key==='Enter') checkCode()">
+        <button class="btn" onclick="checkCode()">LOGIN</button>
+        <p id="err-msg" style="color:#e74c3c; display:none; margin-top:20px;">INVALID ACCESS KEY</p>
     </div>
 
     <div id="step-setup" class="ui" style="display:none;">
-        <h1>多人小隊設定</h1>
-        <h2 id="p-label">人數: <span style="color:#f1c40f;">5</span> 人</h2>
-        <input type="range" min="2" max="15" value="5" oninput="document.getElementById('p-label').innerHTML='人數: <span style=color:#f1c40f;>'+this.value+'</span> 人'" id="p-slider" style="width:300px; height:40px;">
-        <button class="btn" onclick="goRules()">下一步</button>
-    </div>
-
-    <div id="step-rules" class="ui" style="display:none;">
-        <div style="background:#2c3e50; padding:25px; border-radius:15px; border:2px solid #f1c40f; max-width:450px; text-align:left; color:white; line-height: 1.8;">
-            <h2 style="text-align:center; color:#f1c40f;">📜 操作手冊</h2>
-            ● <b>滑鼠左鍵</b>：攻擊怪物 / 挖掘方塊<br>
-            ● <b>滑鼠右鍵</b>：放置方塊 (石磚ID:3)<br>
-            ● <b>WASD</b>：移動 | <b>空白鍵</b>：跳躍<br>
-            ● <b>電腦 AI</b>：挖掘速度已降低，且會變換日夜。若你受攻擊，藍色隊友會衝過來救援！
-        </div>
-        <button class="btn" onclick="startWorld()">正式進入世界</button>
-    </div>
-
-    <div id="hud">❤️ <span id="hp">100</span> | 📍 <span id="pos">0,0</span><br>🌍 <span id="bio">平原</span> | 🕒 <span id="tm">12:00</span></div>
-    <div id="radar"><canvas id="rCvs" width="150" height="150"></canvas></div>
-    <div id="rain-fx"></div>
-    <canvas id="gCanvas"></canvas>
-
-<script>
-    const cvs = document.getElementById('gCanvas'), ctx = cvs.getContext('2d');
-    const rcvs = document.getElementById('rCvs'), rctx = rcvs.getContext('2d');
-    let isLive = false, world = {}, keys = {}, entities = [], ticks = 600;
-    let p = { x: 0, y: -600, w: 22, h: 42, vx: 0, vy: 0, hp: 100, maxHp: 100, ground: false, lastHit: null };
-    let squadSize = 1;
-    const TILE = 32;
-
-    function checkCode() {
-        if (document.getElementById('code-input').value === 'ryan0111407') {
-            document.getElementById('step-code').style.display = 'none';
-            document.getElementById('step-setup').style.display = 'flex';
-        } else { document.getElementById('err').style.display = 'block'; }
-    }
-    function goRules() {
-        squadSize = document.getElementById('p-slider').value;
-        document.getElementById('step-setup').style.display = 'none';
-        document.getElementById('step-rules').style.display = 'flex';
-    }
-
-    function startWorld() {
-        document.getElementById('step-rules').style.display = 'none';
-        document.getElementById('hud').style.display = 'block';
-        document.getElementById('radar').style.display = 'block';
-        cvs.style.display = 'block'; cvs.width = window.innerWidth; cvs.height = window.innerHeight;
-        
-        if(Math.random() < 0.4) { document.getElementById('rain-fx').style.display = 'block'; }
-        for(let i=0; i<squadSize-1; i++) spawn('ally', (Math.random()-0.5)*800);
-        for(let i=0; i<6; i++) spawn('npc', (Math.random()-0.5)*3000);
-        for(let i=0; i<4; i++) spawn('pig', (Math.random()-0.5)*3000);
-
-        isLive = true; loop();
-    }
-
-    function spawn(type, x) {
-        let hp = (type==='pig')?30:100;
-        // AI 挖掘冷卻計時器 (mineCooldown)
-        entities.push({ type, x, y: -500, w: 22, h: 42, vx: 0, vy: 0, hp: hp, maxHp: hp, dir: 1, mineCooldown: 0 });
-    }
-
-    function getBiome(gx) {
-        let x = Math.abs(gx);
-        let h = 35, c = "#2ecc71", name = "平原荒野", amp = 1, ruins = (x % 100 < 65);
-        if (x % 100 < 70) { name="丘陵草地"; c = "#27ae60"; h=28; amp=6; }
-        if (x % 100 < 50) { name="高山岩脈"; c = "#95a5a6"; h=15; amp=14; }
-        if (x % 100 < 20) { name="台地紅土"; c = "#e67e22"; h=32; amp=0.5; }
-        return { h, c, name, amp, ruins };
-    }
-
-    function getB(gx, gy) {
-        if (world[gx+'_'+gy] !== undefined) return world[gx+'_'+gy];
-        let b = getBiome(gx);
-        let groundY = Math.floor(b.h + Math.sin(gx * 0.15) * b.amp);
-        if (b.ruins && gy > groundY && gy < groundY+4 && Math.random() < 0.08) return 3;
-        return gy < groundY ? 0 : (gy === groundY ? 2 : 1);
-    }
-
-    function check(x, y) {
-        for (let i = Math.floor(x/TILE); i <= Math.floor((x+22)/TILE); i++)
-            for (let j = Math.floor(y/TILE); j <= Math.floor((y+42)/TILE); j++)
-                if(getB(i, j) > 0) return true;
-        return false;
-    }
-
-    // --- 滑鼠操作邏輯 ---
-    window.onmousedown = e => {
-        if(!isLive) return;
-        let gx = Math.floor((e.clientX + (p.x - cvs.width/2))/TILE);
-        let gy = Math.floor((e.clientY + (p.y - cvs.height/2))/TILE);
-
-        if(e.button === 0) { // 左鍵: 挖掘方塊 + 攻擊怪物 (優先挖滑鼠處的方塊)
-            if(getB(gx, gy) > 0) {
-                world[gx+'_'+gy] = 0; // 挖掘
-            } else {
-                doAttack(p); // 如果滑鼠處無方塊，則揮動攻擊
-            }
-        } else if(e.button === 2) { // 右鍵: 放置石磚ID:3
-            if(getB(gx, gy) === 0) world[gx+'_'+gy] = 3;
-        }
-    };
-    window.oncontextmenu = e => e.preventDefault(); // 禁用右鍵選單
-
-    function doAttack(owner) {
-        entities.concat(p).forEach(e => {
-            if (e !== owner && Math.abs(e.x - owner.x) < 70) {
-                e.hp -= 20; e.vx = (e.x > owner.x ? 12 : -12); // 擊退
-                if (e === p) p.lastHit = owner; 
-            }
-        });
-    }
-
-    window.onkeydown = e => { if(e.code==='Escape') location.reload(); keys[e.code]=true; if(e.code==='KeyK') doAttack(p); if(e.code==='KeyQ') p.hp=Math.min(100, p.hp+20); };
-    window.onkeyup = e => keys[e.code]=false;
-
-    function loop() {
-        if(!isLive) return;
-
-        ticks = (ticks + 0.5) % 1440;
-        let night = ticks > 1050 || ticks < 350;
-
-        // --- 物理更新與死亡重啟 ---
-        [p, ...entities].forEach(e => {
-            e.vy += 0.8; e.y += e.vy;
-            if(check(e.x, e.y)) {
-                if(e.vy > 0) { while(check(e.x, e.y)) e.y -= 0.5; e.ground = true; }
-                else { while(check(e.x, e.y)) e.y += 0.5; }
-                e.vy = 0;
-            } else e.gr = false;
-
-            if(e===p) {
-                let dx = (keys['KeyD']?5:0) - (keys['KeyA']?5:0);
-                if(dx!==0) { p.x += dx; if(check(p.x, p.y)) p.x -= dx; }
-                if(keys['Space'] && p.ground) p.vy = -14;
-            } else {
-                // AI 行為與挖掘限速
-                if(e.type==='ally') {
-                    if(p.lastHit && p.lastHit.hp>0) { // 救援
-                        e.x += (p.lastHit.x > e.x ? 4 : -4);
-                        if(Math.abs(e.x-p.lastHit.x)<60) doAttack(e, p.lastHit);
-                    } else {
-                        if(Math.abs(p.x-e.x)>200) e.x += (p.x>e.x?2.5:-2.5);
-                        
-                        // AI 挖掘限速: 每 90 幀 (約1.5秒) 才能挖一格
-                        e.mineCooldown++;
-                        if(e.mineCooldown > 90) {
-                            let gx = Math.floor(e.x/TILE), gy = Math.floor(e.y/TILE)+2; // 挖腳下
-                            if(getB(gx, gy) > 0) { world[gx+'_'+gy] = 0; e.mineCooldown = 0; }
-                        }
-                        entities.forEach(m=>{if(m.type==='mob' && Math.abs(m.x-e.x)<100) doAttack(e);});
-                    }
-                } else if(e.type==='mob') {
-                    e.x += (p.x>e.x?2.3:-2.3); if(Math.abs(e.x-p.x)<30) p.hp -= 0.25; // 殭屍攻擊
-                } else {
-                    if(Math.random()<0.02) e.dir *= -1; e.x += e.dir*1.2;
-                }
-            }
-        });
-
-        if(night && Math.random()<0.015) spawn('mob', p.x + (Math.random()>0.5?600:-600));
-        entities = entities.filter(e => e.hp > 0);
-        
-        // --- 玩家 HP 偵測與死亡重新開始 ---
-        if(p.hp <= 0) { 
-            alert("你死在了荒野中... 遊戲重新開始。"); 
-            location.reload(); // 重新整理網頁
-            return; // 停止此幀
-        }
-
-        // --- UI 更新 ---
-        document.getElementById('hp').innerText = Math.ceil(p.hp);
-        document.getElementById('pos').innerText = Math.floor(p.x/TILE) + "," + Math.floor(p.y/TILE);
-        let hr = Math.floor(ticks/60).toString().padStart(2,'0'), mn = Math.floor(ticks%60).toString().padStart(2,'0');
-        document.getElementById('tm').innerText = `${hr}:${mn}`;
-        document.getElementById('bio').innerText = getBiome(Math.floor(p.x/TILE)).name;
-        
-        draw();
-        requestAnimationFrame(loop);
-    }
-
-    function draw() {
-        ctx.fillStyle = nightColor(); ctx.fillRect(0,0,cvs.width,cvs.height);
-        let cx = p.x - cvs.width/2, cy = p.y - cvs.height/2;
-        for(let x=Math.floor(cx/TILE); x<=Math.ceil((cx+cvs.width)/TILE); x++) {
-            let bI = getBiome(x);
-            for(let y=Math.floor(cy/TILE); y<=Math.ceil((cy+cvs.height)/TILE); y++) {
-                let b = getB(x, y);
-                if(b > 0) {
-                    ctx.fillStyle = b===2 ? bI.c : (b===1 ? '#795548' : '#bdc3c7');
-                    ctx.fillRect(x*TILE-cx, y*TILE-cy, TILE+0.5, TILE+0.5);
-                }
-            }
-        }
-        entities.concat(p).forEach(e => {
-            let c = e===p?'#e67e22':(e.type==='ally'?'#3498db':(e.type==='mob'?'#2ecc71':(e.type==='npc'?'#f1c40f':'#ff9ff3')));
-            ctx.fillStyle = c; ctx.fillRect(e.x-cx, e.y-cy, e.w, e.h);
-            ctx.fillStyle = 'red'; ctx.fillRect(e.x-cx, e.y-cy-10, e.w, 4);
-            ctx.fillStyle = 'lime'; ctx.fillRect(e.x-cx, e.y-cy-10, e.w*(e.hp/e.maxHp), 4);
-        });
-        rctx.fillStyle='#000'; rctx.fillRect(0,0,150,150); rctx.save(); rctx.translate(75, 75);
-        entities.concat(p).forEach(e => {
-            rctx.fillStyle = e===p?'#fff':(e.type==='ally'?'#3498db':'#e74c3c');
-            let dx = (e.x-p.x)*0.1, dy = (e.y-p.y)*0.1;
-            if(dx*dx+dy*dy < 70*70) { rctx.beginPath(); rctx.arc(dx, dy, 3, 0, 7); rctx.fill(); }
-        });
-        rctx.restore();
-    }
-    function nightColor() {
-        let night = ticks > 1050 || ticks < 350;
-        return night ? '#050510' : (document.getElementById('rain-fx').style.display==='block' ? '#4b6584' : '#87ceeb');
-    }
-</script>
-</body>
-</html>
+        <h1>SYSTEM AUTHORIZED</h1>
+        <div style="margin: 20px 0;">
+            <h2 id="p
