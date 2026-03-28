@@ -1,96 +1,103 @@
-function loop() {
-        if(isRunning && !isPaused) {
-            ticks = (ticks + 0.3) % 1440;
-            let h = Math.floor(ticks/60), m = Math.floor(ticks%60);
-            let isNight = (ticks > 1090 || ticks < 390);
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <title>Future Super Human - 2D Survival</title>
+    <style>
+        body, html { margin: 0; padding: 0; width: 100%; height: 100%; background: #000; overflow: hidden; font-family: "Microsoft JhengHei", sans-serif; color: white; }
+        .layer { position: fixed; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; background: #1a1a1a; z-index: 10000; }
+        .btn { padding: 15px 40px; font-size: 24px; cursor: pointer; margin: 10px; background: #f1c40f; border: none; font-weight: bold; border-radius: 10px; color: black; box-shadow: 0 5px 0 #b8860b; }
+        .btn:active { transform: translateY(3px); box-shadow: 0 2px 0 #b8860b; }
+        
+        #hud { position: fixed; top: 10px; left: 10px; background: rgba(0,0,0,0.7); padding: 12px; border: 2px solid #f1c40f; border-radius: 8px; z-index: 500; display: none; font-size: 14px; pointer-events: none; }
+        #minimap { position: fixed; top: 15px; right: 15px; width: 140px; height: 140px; border-radius: 50%; border: 3px solid #fff; background: rgba(0,0,0,0.5); overflow: hidden; z-index: 500; display: none; pointer-events: none; }
+        #inv { position: fixed; bottom: 15px; left: 50%; transform: translateX(-50%); display: none; gap: 8px; z-index: 500; }
+        .slot { width: 50px; height: 50px; border: 2px solid #777; background: #333; display: flex; align-items: center; justify-content: center; font-size: 12px; }
+        .slot.active { border-color: #f1c40f; background: #555; }
+        
+        #esc-menu { position: fixed; inset: 0; background: rgba(0,0,0,0.8); display: none; flex-direction: column; align-items: center; justify-content: center; z-index: 20000; }
+        canvas#gameCanvas { display: none; position: absolute; top: 0; left: 0; z-index: 10; }
+    </style>
+</head>
+<body>
 
-            // --- 1. Y 軸移動與碰撞 (處理重力、跳躍、天花板) ---
-            p.vy += 0.7; // 重力
-            let nextY = p.y + p.vy;
-            p.ground = false;
+    <div id="ui-start" class="layer">
+        <h1 style="color:#f1c40f; font-size:45px;">未來的 SUPER HUMAN</h1>
+        <button class="btn" onclick="initGame(1)">開始遊戲</button>
+        <button class="btn" onclick="showMulti()" style="background:#3498db; color:white;">多人連線模式</button>
+    </div>
 
-            // 檢查頭頂與腳下 (取角色左右兩端的點進行垂直檢查)
-            let checkY = p.vy > 0 ? nextY + p.h : nextY; // 往下掉檢查腳底，往上跳檢查頭頂
-            let gridY = Math.floor(checkY / TILE);
-            let leftGridX = Math.floor((p.x + 4) / TILE);   // 稍微縮進 4 像素避免卡牆
-            let rightGridX = Math.floor((p.x + p.w - 4) / TILE);
+    <div id="ui-multi" class="layer" style="display:none;">
+        <h1>選擇小隊人數 (2-10)</h1>
+        <input type="range" id="p-count" min="2" max="10" value="5" oninput="document.getElementById('pv').innerText=this.value" style="width:250px;">
+        <div style="font-size:30px; margin:15px;"><span id="pv" style="color:#f1c40f;">5</span> 人</div>
+        <button class="btn" onclick="initGame(document.getElementById('p-count').value)">開始遊戲</button>
+    </div>
 
-            if (getB(leftGridX, gridY) > 0 || getB(rightGridX, gridY) > 0) {
-                if (p.vy > 0) { // 落地
-                    p.y = gridY * TILE - p.h;
-                    p.ground = true;
-                } else { // 撞到天花板
-                    p.y = (gridY + 1) * TILE;
-                }
-                p.vy = 0;
-            } else {
-                p.y = nextY;
-            }
+    <div id="esc-menu">
+        <h1 style="color:#f1c40f;">遊戲暫停</h1>
+        <button class="btn" onclick="location.reload()">離開遊戲 (重新開始)</button>
+        <button class="btn" onclick="togglePause()" style="background:#888; color:white;">返回</button>
+    </div>
 
-            // --- 2. X 軸移動與碰撞 (處理左右牆壁) ---
-            let moveX = keys['KeyD'] ? 5 : (keys['KeyA'] ? -5 : 0);
-            if (moveX !== 0) {
-                let nextX = p.x + moveX;
-                // 檢查角色的頭部高度與腳部高度是否會撞牆
-                let checkX = moveX > 0 ? nextX + p.w : nextX;
-                let gridX = Math.floor(checkX / TILE);
-                let headGridY = Math.floor((p.y + 4) / TILE);
-                let footGridY = Math.floor((p.y + p.h - 4) / TILE);
+    <div id="hud">
+        📍 <span id="posX">0</span>, <span id="posY">0</span> | ❤️ <span id="hp">100</span><br>
+        🕒 <span id="time-text">07:00</span> <span id="day-icon">☀️</span> | 🗺️ <span id="biome-text">平原</span>
+    </div>
+    <div id="minimap"><canvas id="miniCanvas" width="140" height="140"></canvas></div>
+    <div id="inv">
+        <div class="slot active" id="sl1">1:土</div><div class="slot" id="sl2">2:草</div>
+        <div class="slot" id="sl3">3:石</div><div class="slot" id="sl4">4:木</div>
+    </div>
 
-                if (getB(gridX, headGridY) > 0 || getB(gridX, footGridY) > 0) {
-                    // 撞牆了，不更新 p.x
-                } else {
-                    p.x = nextX;
-                }
-            }
+    <canvas id="gameCanvas"></canvas>
 
-            // 跳躍輸入
-            if((keys['KeyW'] || keys['Space']) && p.ground) p.vy = -12;
+<script>
+    const cvs = document.getElementById('gameCanvas'), ctx = cvs.getContext('2d');
+    const mcvs = document.getElementById('miniCanvas'), mctx = mcvs.getContext('2d');
+    let isRunning = false, isPaused = false, ticks = 420;
+    let world = {}, camX = 0, camY = 0, curB = 1;
+    let p = { x: 0, y: 0, w: 20, h: 40, vx: 0, vy: 0, hp: 100, ground: false, atk: 0 };
+    let agents = [], keys = {};
+    const TILE = 32, COLORS = { 1: '#8B4513', 2: '#228B22', 3: '#666', 4: '#cd853f', 5: '#95a5a6' };
 
-            // --- 3. AI 邏輯 (也加上簡單的撞牆處理) ---
-            agents.forEach((a, idx) => {
-                a.sTimer--; if(a.sTimer <= 0) { a.dir = Math.random()>0.5?1:-1; a.sTimer = 100; }
-                if(a.type === 'monster') a.dir = p.x > a.x ? 1 : -1;
-                
-                let nextAx = a.x + a.dir * (a.type==='monster'?3:1.5);
-                let checkAx = a.dir > 0 ? nextAx + a.w : nextAx;
-                let agX = Math.floor(checkAx / TILE);
-                let agY = Math.floor((a.y + a.h - 10) / TILE);
+    function showMulti() { document.getElementById('ui-start').style.display='none'; document.getElementById('ui-multi').style.display='flex'; }
 
-                if (getB(agX, agY) > 0) {
-                    // AI 撞牆時會嘗試「挖開」前方的方塊 (Minecraft 特色)
-                    world[agX + '_' + agY] = 0;
-                } else {
-                    a.x = nextAx;
-                }
-                
-                // NPC 平滑高度調整
-                a.y += (getGY(Math.floor(a.x/TILE))*TILE - a.h - a.y) * 0.1;
-                
-                if(p.atk > 0 && Math.abs(a.x-p.x)<50 && Math.abs(a.y-p.y)<50) a.hp -= 10;
-                if(a.type === 'monster' && Math.abs(a.x-p.x)<25 && Math.abs(a.y-p.y)<25) p.hp -= 0.3;
-                if(a.hp <= 0) agents.splice(idx, 1);
-            });
-
-            // 晚上生怪
-            if(isNight && Math.random() < 0.01 && agents.filter(a=>a.type==='monster').length < 8) {
-                spawnAgent('monster', p.x + (Math.random()>0.5?600:-600));
-            }
-
-            if(p.atk > 0) p.atk--;
-            
-            // UI 更新
-            updateUI(h, m, isNight);
-        }
-        render();
+    function initGame(num) {
+        document.querySelectorAll('.layer').forEach(l => l.style.display='none');
+        document.getElementById('hud').style.display='block';
+        document.getElementById('minimap').style.display='block';
+        document.getElementById('inv').style.display='flex';
+        cvs.style.display='block'; cvs.width = window.innerWidth; cvs.height = window.innerHeight;
+        p.y = getGY(0)*TILE - 150;
+        for(let i=0; i<num-1; i++) spawnAgent('ally', (Math.random()-0.5)*1000);
+        for(let i=0; i<5; i++) spawnAgent('villager', (Math.random()-0.5)*2000);
+        isRunning = true;
         requestAnimationFrame(loop);
     }
 
-    function updateUI(h, m, isNight) {
-        document.getElementById('posX').innerText = Math.floor(p.x/TILE);
-        document.getElementById('posY').innerText = Math.floor(p.y/TILE);
-        document.getElementById('hp').innerText = Math.max(0, Math.ceil(p.hp));
-        document.getElementById('time-text').innerText = `${h.toString().padStart(2,'0')}:${m.toString().padStart(2,'0')}`;
-        document.getElementById('day-icon').innerText = isNight ? "🌙" : (ticks > 1050 ? "🌅" : "☀️");
-        document.getElementById('biome-text').innerText = getBiomeData(Math.floor(p.x/TILE)).name;
+    function getBiomeData(gx) {
+        let x = Math.abs(gx);
+        if (x % 1500 < 300) return { name: "山地", h: 22, n: 12 };
+        if (x % 1500 < 800) return { name: "平原", h: 38, n: 2 };
+        return { name: "丘陵", h: 34, n: 6 };
     }
+
+    function getGY(gx) {
+        let b = getBiomeData(gx);
+        return Math.floor(b.h + Math.sin(gx * 0.15) * b.n);
+    }
+
+    function getB(gx, gy) {
+        if (world[gx+'_'+gy] !== undefined) return world[gx+'_'+gy];
+        let fY = getGY(gx);
+        return gy < fY ? 0 : (gy === fY ? 2 : 1);
+    }
+
+    function spawnAgent(type, startX) {
+        agents.push({ type, x: startX, y: getGY(Math.floor(startX/TILE))*TILE-100, w:20, h:40, hp:100, dir:1, sTimer:50 });
+    }
+
+    function togglePause() {
+        isPaused = !isPaused;
+        document.getElementById('esc-menu').style.display = isPaused ? 'flex' : '
