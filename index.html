@@ -2,158 +2,88 @@
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
-    <title>Future Super Human - Ultimate Fix</title>
+    <title>Super Human 2026 - Final Rescue</title>
     <style>
         body, html { margin: 0; padding: 0; width: 100%; height: 100%; background: #000; overflow: hidden; font-family: sans-serif; }
         
-        /* 選單層：確保在最上方且可點擊 */
-        #ui-layer {
+        /* 選單層：這是唯一能點擊的地方 */
+        #start-menu {
             position: fixed; inset: 0; z-index: 9999;
             display: flex; flex-direction: column; align-items: center; justify-content: center;
             background: #1a1a1a; color: #f1c40f;
         }
 
         .btn {
-            padding: 20px 60px; font-size: 30px; cursor: pointer; margin: 10px;
-            background: #f1c40f; border: 5px solid #fff; border-radius: 15px;
-            color: #000; font-weight: bold; box-shadow: 0 8px 0 #b8860b;
+            padding: 20px 50px; font-size: 28px; cursor: pointer; margin: 15px;
+            background: #f1c40f; border: 4px solid #fff; border-radius: 15px;
+            font-weight: bold; color: #000; box-shadow: 0 8px 0 #b8860b;
         }
         .btn:active { transform: translateY(4px); box-shadow: 0 4px 0 #b8860b; }
 
-        #hud {
-            position: fixed; top: 10px; left: 10px; z-index: 1000;
-            background: rgba(0,0,0,0.8); color: white; padding: 15px;
-            border: 2px solid #f1c40f; border-radius: 10px; display: none; pointer-events: none;
-        }
+        /* 遊戲介面 */
+        #hud { position: fixed; top: 15px; left: 15px; z-index: 100; color: white; background: rgba(0,0,0,0.7); padding: 12px; border: 2px solid #f1c40f; border-radius: 10px; display: none; pointer-events: none; }
+        #radar { position: fixed; top: 15px; right: 15px; width: 140px; height: 140px; border: 3px solid #fff; border-radius: 50%; z-index: 100; display: none; background: rgba(0,0,0,0.5); overflow: hidden; }
+        
+        #esc-menu { position: fixed; inset: 0; z-index: 10000; display: none; flex-direction: column; align-items: center; justify-content: center; background: rgba(0,0,0,0.8); }
 
-        #minimap {
-            position: fixed; top: 10px; right: 10px; width: 150px; height: 150px;
-            border: 3px solid #fff; border-radius: 50%; overflow: hidden;
-            z-index: 1000; display: none; background: rgba(0,0,0,0.5);
-        }
-
-        /* 畫布：沒開始前是隱藏的，絕對不會擋到按鈕 */
         canvas#gCvs { display: none; position: absolute; top: 0; left: 0; z-index: 1; }
     </style>
 </head>
 <body>
 
-    <div id="ui-layer">
-        <h1 style="font-size: 50px;">SUPER HUMAN 2026</h1>
-        <div id="menu-main">
-            <button class="btn" onclick="showPlayerSelect(1)">單人連線</button>
-            <button class="btn" onclick="showPlayerSelect(5)" style="background:#3498db; color:white;">多人連線</button>
+    <div id="start-menu">
+        <h1 style="font-size: 45px;">SUPER HUMAN 終極版</h1>
+        <div id="m-1">
+            <button class="btn" onclick="selMode(1)">👤 單人模式</button>
+            <button class="btn" onclick="selMode(5)" style="background:#3498db; color:white;">👥 多人模式</button>
         </div>
-        <div id="menu-players" style="display:none; text-align:center;">
-            <h2 style="color:white;">小隊人數: <span id="p-val" style="color:#f1c40f;">5</span></h2>
-            <input type="range" min="2" max="10" value="5" oninput="document.getElementById('p-val').innerText=this.value" id="p-slider" style="width:300px;">
-            <br>
-            <button class="btn" onclick="showInstruction()">確認人數</button>
+        <div id="m-2" style="display:none;">
+            <h2>小隊人數: <span id="p-lab">5</span></h2>
+            <input type="range" min="2" max="10" value="5" oninput="document.getElementById('p-lab').innerText=this.value" id="p-slide" style="width:300px;">
+            <br><button class="btn" onclick="selMode('info')">確認人數</button>
         </div>
-        <div id="menu-info" style="display:none; text-align:left; background:#2c3e50; padding:20px; border-radius:15px; border:2px solid #f1c40f;">
-            <h2 style="color:#f1c40f; text-align:center;">📜 遊戲說明</h2>
-            <p>● WASD 移動 | 空白鍵 跳躍</p>
-            <p>● 滑鼠左鍵 挖礦 | 右鍵 放置方塊</p>
-            <p>● K 攻擊 | ESC 開啟選單離開</p>
-            <p>● AI隊友會自動散開、挖掘、放置與戰鬥</p>
-            <button class="btn" onclick="actuallyStart()" style="width:100%">進入世界</button>
+        <div id="m-3" style="display:none; text-align:left; background:#2c3e50; padding:25px; border-radius:15px; max-width:400px; color:white;">
+            <h2 style="text-align:center; color:#f1c40f;">📜 任務說明</h2>
+            ● <b>WASD</b> 移動 | <b>空白</b> 跳躍<br>
+            ● <b>左鍵</b> 挖掘 | <b>右鍵</b> 放置<br>
+            ● <b>K</b> 攻擊 | <b>ESC</b> 選單<br>
+            ● <b>AI 隊友</b>：會自己挖礦、戰鬥與蓋房<br>
+            ● <b>死亡</b>：HP 歸零會自動重新開始<br>
+            <button class="btn" onclick="go()" style="width:100%; margin-top:20px;">進入世界</button>
         </div>
     </div>
 
-    <div id="esc-layer" class="ui-layer" style="display:none; background:rgba(0,0,0,0.8); position:fixed; inset:0; z-index:10000; flex-direction:column; align-items:center; justify-content:center;">
+    <div id="esc-menu">
         <h1 style="color:white;">暫停</h1>
-        <button class="btn" onclick="location.reload()">離開遊戲 (重新開始)</button>
-        <button class="btn" onclick="toggleEsc()" style="background:#7f8c8d; color:white;">返回遊戲</button>
+        <button class="btn" onclick="location.reload()">離開遊戲 (重啟)</button>
+        <button class="btn" onclick="toggleESC()" style="background:#95a5a6; color:white;">返回遊戲</button>
     </div>
 
-    <div id="hud">❤️ HP: <span id="hp">100</span> | 📍 <span id="pos">0,0</span> | 🌡️ <span id="biome">平原</span></div>
-    <div id="minimap"><canvas id="mCvs" width="150" height="150"></canvas></div>
+    <div id="hud">❤️ HP: <span id="hp">100</span> | 📍 <span id="pos">0,0</span> | 🕒 <span id="tm">12:00</span></div>
+    <div id="radar"><canvas id="rCvs" width="140" height="140"></canvas></div>
+
     <canvas id="gCvs"></canvas>
 
 <script>
     const cvs = document.getElementById('gCvs'), ctx = cvs.getContext('2d');
-    const mcvs = document.getElementById('mCvs'), mctx = mcvs.getContext('2d');
+    const rcvs = document.getElementById('rCvs'), rctx = rcvs.getContext('2d');
     
-    let isLive = false, isEsc = false, world = {}, keys = {}, entities = [], ticks = 600;
+    let isLive = false, isPaused = false, world = {}, keys = {}, agents = [], ticks = 600;
     let p = { x: 0, y: -200, w: 22, h: 42, vx: 0, vy: 0, hp: 100, maxHp: 100, ground: false };
-    let squadSize = 1;
+    let pSize = 1, rain = false;
     const TILE = 32;
 
-    function showPlayerSelect(n) {
-        squadSize = n;
-        document.getElementById('menu-main').style.display = 'none';
-        if(n === 1) showInstruction(); else document.getElementById('menu-players').style.display = 'block';
-    }
-
-    function showInstruction() {
-        if(squadSize > 1) squadSize = document.getElementById('p-slider').value;
-        document.getElementById('menu-players').style.display = 'none';
-        document.getElementById('menu-info').style.display = 'block';
-    }
-
-    function actuallyStart() {
-        document.getElementById('ui-layer').style.display = 'none';
-        document.getElementById('hud').style.display = 'block';
-        document.getElementById('minimap').style.display = 'block';
-        cvs.style.display = 'block';
-        cvs.width = window.innerWidth; cvs.height = window.innerHeight;
-
-        // 生成 AI (隊友、村民、動物)
-        for(let i=0; i<squadSize-1; i++) spawn('ally', (Math.random()-0.5)*400);
-        for(let i=0; i<5; i++) spawn('npc', (Math.random()-0.5)*2000);
-        for(let i=0; i<5; i++) spawn('pig', (Math.random()-0.5)*2000);
-
-        isLive = true; loop();
-    }
-
-    function spawn(type, x) {
-        entities.push({ type, x, y: -400, w: 22, h: 42, vx: 0, vy: 0, hp: 100, maxHp: 100, timer: 0 });
-    }
-
-    function toggleEsc() {
-        if(!isLive) return;
-        isEsc = !isEsc;
-        document.getElementById('esc-layer').style.display = isEsc ? 'flex' : 'none';
-    }
-
-    // --- 核心邏輯 ---
-    window.onkeydown = e => { if(e.code==='Escape') toggleEsc(); keys[e.code]=true; if(e.code==='KeyK') doAtk(p); };
-    window.onkeyup = e => keys[e.code] = false;
-    window.onmousedown = e => {
-        if(!isLive || isEsc) return;
-        let gx = Math.floor((e.clientX + (p.x - cvs.width/2))/TILE);
-        let gy = Math.floor((e.clientY + (p.y - cvs.height/2))/TILE);
-        if(e.button === 0) world[gx+'_'+gy] = 0; else world[gx+'_'+gy] = 3;
-    };
-    window.oncontextmenu = e => e.preventDefault();
-
-    function getBiome(gx) {
-        let x = Math.abs(gx);
-        if (x % 4000 < 1000) return { name: "平原", h: 35, c: "#2ecc71" };
-        if (x % 4000 < 2000) return { name: "丘陵", h: 28, c: "#27ae60" };
-        if (x % 4000 < 3000) return { name: "山地", h: 15, c: "#95a5a6" };
-        return { name: "台地", h: 30, c: "#e67e22" };
-    }
-
-    function getB(gx, gy) {
-        if (world[gx+'_'+gy] !== undefined) return world[gx+'_'+gy];
-        let b = getBiome(gx);
-        return gy < b.h ? 0 : (gy === b.h ? 2 : 1);
-    }
-
-    function check(x, y, w, h) {
-        for (let i = Math.floor(x/TILE); i <= Math.floor((x+w)/TILE); i++) {
-            for (let j = Math.floor(y/TILE); j <= Math.floor((y+h)/TILE); j++) {
-                if(getB(i, j) > 0) return true;
-            }
+    function selMode(m) {
+        if(m === 1) { pSize = 1; document.getElementById('m-1').style.display='none'; selMode('info'); }
+        else if(m === 5) { document.getElementById('m-1').style.display='none'; document.getElementById('m-2').style.display='block'; }
+        else if(m === 'info') { 
+            if(pSize > 1) pSize = document.getElementById('p-slide').value;
+            document.getElementById('m-2').style.display='none'; 
+            document.getElementById('m-3').style.display='block'; 
         }
-        return false;
     }
 
-    function doAtk(owner) {
-        entities.concat(p).forEach(e => {
-            if(e !== owner && Math.abs(e.x - owner.x) < 60) { e.hp -= 20; e.vx = (e.x > owner.x ? 10 : -10); }
-        });
-    }
-
-    function loop()
+    function go() {
+        document.getElementById('start-menu').style.display = 'none';
+        document.getElementById('hud').style.display = 'block';
+        document.getElementById('radar
