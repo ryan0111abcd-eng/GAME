@@ -3,202 +3,69 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SUPER HUMAN - 2026 FINAL FIX</title>
+    <title>SUPER HUMAN 最終救援版</title>
     <style>
         body, html { margin: 0; padding: 0; width: 100%; height: 100%; background: #000; overflow: hidden; font-family: sans-serif; }
-        
-        /* 選單：強制最上層，絕對點得到 */
-        #ui-layer { 
-            position: fixed; inset: 0; z-index: 100000; 
-            display: flex; flex-direction: column; align-items: center; justify-content: center; 
-            background: #111; color: #f1c40f; 
-        }
-
-        .btn { 
-            padding: 25px 60px; font-size: 35px; cursor: pointer; margin: 20px; 
-            background: #f1c40f; border: 5px solid #fff; border-radius: 20px; 
-            font-weight: bold; color: #000; box-shadow: 0 10px 0 #b8860b;
-            position: relative;
-        }
-        .btn:active { transform: translateY(5px); box-shadow: 0 5px 0 #b8860b; }
-
-        #hud { position: fixed; top: 15px; left: 15px; z-index: 500; color: white; background: rgba(0,0,0,0.85); padding: 15px; border-radius: 10px; border: 2px solid #f1c40f; display: none; pointer-events: none; }
-        #radar { position: fixed; top: 15px; right: 15px; width: 150px; height: 150px; border: 3px solid #fff; border-radius: 50%; z-index: 500; display: none; background: rgba(0,0,0,0.5); overflow: hidden; }
+        .ui-box { position: fixed; inset: 0; z-index: 9999; display: flex; flex-direction: column; align-items: center; justify-content: center; background: #111; color: #f1c40f; }
+        .big-btn { padding: 30px 60px; font-size: 35px; cursor: pointer; margin: 20px; background: #f1c40f; border: 5px solid #fff; border-radius: 20px; font-weight: bold; color: #000; box-shadow: 0 10px 0 #b8860b; }
+        .big-btn:active { transform: translateY(5px); box-shadow: 0 5px 0 #b8860b; }
+        #hud { position: fixed; top: 15px; left: 15px; z-index: 100; color: white; background: rgba(0,0,0,0.8); padding: 15px; border-radius: 10px; display: none; pointer-events: none; border: 2px solid #f1c40f; }
+        #radar { position: fixed; top: 15px; right: 15px; width: 150px; height: 150px; border: 3px solid #fff; border-radius: 50%; z-index: 100; display: none; background: rgba(0,0,0,0.5); overflow: hidden; }
         canvas#gCvs { display: none; position: absolute; top: 0; left: 0; z-index: 10; }
-        #rain-fx { position: fixed; inset: 0; pointer-events: none; z-index: 50; background: rgba(40,40,80,0.3); display: none; }
     </style>
 </head>
 <body>
 
-    <div id="ui-layer">
-        <h1 style="font-size: 50px; margin-bottom: 40px;">SUPER HUMAN 2026</h1>
-        <div id="menu-1">
-            <button class="btn" onclick="startApp(1)">👤 單人冒險</button>
-            <button class="btn" onclick="document.getElementById('menu-1').style.display='none'; document.getElementById('menu-2').style.display='block';" style="background:#3498db; color:white;">👥 派遣小隊</button>
-        </div>
-        <div id="menu-2" style="display:none; text-align:center;">
-            <h2>選擇人數</h2>
-            <input type="range" min="2" max="10" value="5" id="p-slide" style="width:300px; height:50px;">
-            <br><button class="btn" onclick="startApp(document.getElementById('p-slide').value)">進入世界</button>
-        </div>
+    <div id="start-screen" class="ui-box">
+        <h1 style="font-size: 50px; margin-bottom: 50px;">SUPER HUMAN 最終救援版</h1>
+        <button class="big-btn" onclick="startApp(1)">👤 單人開始</button>
+        <button class="big-btn" onclick="startApp(5)" style="background:#3498db; color:white;">👥 多人開始</button>
     </div>
 
-    <div id="hud">❤️ <span id="hp">100</span> | 📍 <span id="pos">0,0</span><br>🌍 <span id="bio">平原</span> | ⏰ <span id="tm">12:00</span></div>
-    <div id="radar"><canvas id="rCvs" width="150" height="150"></canvas></div>
-    <div id="rain-fx"></div>
+    <div id="hud">❤️ <span id="hp-val">100</span> | 📍 <span id="pos-val">0,0</span></div>
+    <div id="radar"><canvas id="rCanvas" width="150" height="150"></canvas></div>
     <canvas id="gCvs"></canvas>
 
-<script>
-    const cvs = document.getElementById('gCvs'), ctx = cvs.getContext('2d');
-    const rcvs = document.getElementById('rCvs'), rctx = rcvs.getContext('2d');
-    let isLive = false, world = {}, keys = {}, entities = [], ticks = 600;
-    
-    // 玩家座標 Y 設為 -600 (從天上掉下來)
-    let p = { x: 0, y: -600, w: 22, h: 42, vx: 0, vy: 0, hp: 100, max: 100, gr: false, lastHit: null };
-    const TILE = 32;
+    <script>
+        const cvs = document.getElementById('gCvs'), ctx = cvs.getContext('2d');
+        const rcvs = document.getElementById('rCanvas'), rctx = rcvs.getContext('2d');
+        let live = false, ents = [], ticks = 600, p = {x:0, y:-200, w:22, h:42, vx:0, vy:0, hp:100, gr:false};
 
-    function startApp(n) {
-        document.getElementById('ui-layer').style.display = 'none';
-        document.getElementById('hud').style.display = 'block';
-        document.getElementById('radar').style.display = 'block';
-        cvs.style.display = 'block';
-        cvs.width = window.innerWidth; cvs.height = window.innerHeight;
+        function startApp(n) {
+            console.log("遊戲啟動中...");
+            document.getElementById('start-screen').style.display = 'none';
+            document.getElementById('hud').style.display = 'block';
+            document.getElementById('radar').style.display = 'block';
+            cvs.style.display = 'block';
+            cvs.width = window.innerWidth;
+            cvs.height = window.innerHeight;
 
-        // 40% 下雨機率
-        if(Math.random() < 0.4) document.getElementById('rain-fx').style.display = 'block';
-
-        // 生成 AI
-        for(let i=0; i<n-1; i++) spawn('ally', (Math.random()-0.5)*800);
-        for(let i=0; i<6; i++) spawn('npc', (Math.random()-0.5)*2000);
-        for(let i=0; i<5; i++) spawn('pig', (Math.random()-0.5)*2000);
-
-        isLive = true; loop();
-    }
-
-    function spawn(t, x) {
-        let hp = (t==='pig')?30:100;
-        entities.push({ type: t, x, y: -600, w: 22, h: 42, vx: 0, vy: 0, hp: hp, max: hp, dir: 1 });
-    }
-
-    // 地形邏輯 (平原30%, 丘陵70%, 山地50%, 台地20%, 古蹟65%)
-    function getBiome(gx) {
-        let x = Math.abs(gx);
-        let h = 10, c = "#2ecc71", name = "平原", amp = 1, ruins = (x % 100 < 65);
-        if (x % 100 < 70) { name="丘陵"; c="#27ae60"; h=8; amp=6; }
-        if (x % 100 < 50) { name="山地"; c="#95a5a6"; h=4; amp=14; }
-        if (x % 100 < 20) { name="台地"; c="#e67e22"; h=11; amp=0.5; }
-        return { h, c, name, amp, ruins };
-    }
-
-    function getB(gx, gy) {
-        if (world[gx+'_'+gy] !== undefined) return world[gx+'_'+gy];
-        let b = getBiome(gx);
-        let groundY = Math.floor(b.h + Math.sin(gx * 0.15) * b.amp);
-        if (b.ruins && gy > groundY && gy < groundY+4 && Math.random() < 0.1) return 3; // 古蹟磚
-        return gy < groundY ? 0 : (gy === groundY ? 2 : 1);
-    }
-
-    function check(x, y) {
-        for (let i = Math.floor(x/TILE); i <= Math.floor((x+22)/TILE); i++)
-            for (let j = Math.floor(y/TILE); j <= Math.floor((y+42)/TILE); j++)
-                if(getB(i, j) > 0) return true;
-        return false;
-    }
-
-    function doAtk(o, t = null) {
-        entities.concat(p).forEach(e => {
-            if(e !== o && Math.abs(e.x - o.x) < 70) {
-                if(t && e !== t) return;
-                e.hp -= 20; e.vx = (e.x > o.x ? 12 : -12);
-                if(e === p) p.lastHit = o; 
-            }
-        });
-    }
-
-    window.onkeydown = e => { keys[e.code]=true; if(e.code==='KeyK') doAtk(p); if(e.code==='KeyQ') p.hp=Math.min(100, p.hp+20); if(e.code==='Escape') location.reload(); };
-    window.onkeyup = e => keys[e.code]=false;
-    window.onmousedown = e => {
-        if(!isLive) return;
-        let gx = Math.floor((e.clientX + (p.x - cvs.width/2))/TILE), gy = Math.floor((e.clientY + (p.y - cvs.height/2))/TILE);
-        world[gx+'_'+gy] = e.button === 0 ? 0 : 3;
-    };
-
-    function loop() {
-        if(!isLive) return;
-        ticks = (ticks + 0.5) % 1440;
-        let night = ticks > 1050 || ticks < 350;
-
-        [p, ...entities].forEach(e => {
-            e.vy += 0.8; e.y += e.vy;
-            if(check(e.x, e.y)) {
-                if(e.vy > 0) { while(check(e.x, e.y)) e.y -= 0.5; e.gr = true; }
-                else { while(check(e.x, e.y)) e.y += 0.5; }
-                e.vy = 0;
-            } else e.gr = false;
-
-            if(e === p) {
-                let dx = (keys['KeyD']?5:0) - (keys['KeyA']?5:0);
-                if(dx !== 0) { p.x += dx; if(check(p.x, p.y)) p.x -= dx; }
-                if(keys['Space'] && p.gr) p.vy = -14;
-            } else {
-                if(e.type === 'ally') {
-                    if(p.lastHit && p.lastHit.hp > 0) { // 救援
-                        e.x += (p.lastHit.x > e.x ? 4 : -4);
-                        if(Math.abs(e.x - p.lastHit.x) < 60) doAtk(e, p.lastHit);
-                    } else {
-                        if(Math.abs(p.x - e.x) > 200) e.x += (p.x > e.x ? 2.5 : -2.5);
-                        if(Math.random() < 0.005) world[Math.floor(e.x/TILE)+'_'+(Math.floor(e.y/TILE)+2)] = 0;
-                        entities.forEach(m => { if(m.type==='mob' && Math.abs(m.x-e.x)<100) doAtk(e); });
-                    }
-                } else if(e.type === 'mob') {
-                    e.x += (p.x > e.x ? 2.3 : -2.3);
-                    if(Math.abs(e.x - p.x) < 30) p.hp -= 0.25;
-                }
-            }
-        });
-
-        if(night && Math.random() < 0.015) spawn('mob', p.x + (Math.random()>0.5?600:-600));
-        entities = entities.filter(e => e.hp > 0);
-        if(p.hp <= 0) location.reload();
-
-        // UI 更新
-        let hr = Math.floor(ticks/60).toString().padStart(2,'0'), mn = Math.floor(ticks%60).toString().padStart(2,'0');
-        document.getElementById('hp').innerText = Math.ceil(p.hp);
-        document.getElementById('pos').innerText = Math.floor(p.x/TILE) + "," + Math.floor(p.y/TILE);
-        document.getElementById('tm').innerText = `${hr}:${mn}`;
-        document.getElementById('bio').innerText = getBiome(Math.floor(p.x/TILE)).name;
-        
-        draw();
-        requestAnimationFrame(loop);
-    }
-
-    function draw() {
-        ctx.fillStyle = night ? '#050510' : '#87ceeb'; ctx.fillRect(0,0,cvs.width,cvs.height);
-        let cx = p.x - cvs.width/2, cy = p.y - cvs.height/2;
-        for(let x=Math.floor(cx/TILE); x<=Math.ceil((cx+cvs.width)/TILE); x++) {
-            let bI = getBiome(x);
-            for(let y=Math.floor(cy/TILE); y<=Math.ceil((cy+cvs.height)/TILE); y++) {
-                let b = getB(x, y);
-                if(b > 0) {
-                    ctx.fillStyle = b===2 ? bI.c : (b===1 ? '#795548' : '#bdc3c7');
-                    ctx.fillRect(x*TILE-cx, y*TILE-cy, TILE+0.5, TILE+0.5);
-                }
-            }
+            for(let i=0; i<n-1; i++) ents.push({type:'ally', x:(Math.random()-0.5)*400, y:-400, w:22, h:42, vx:0, vy:0, hp:100});
+            live = true;
+            loop();
         }
-        entities.concat(p).forEach(e => {
-            let c = e===p?'#e67e22':(e.type==='ally'?'#3498db':(e.type==='mob'?'#2ecc71':(e.type==='npc'?'#f1c40f':'#ff9ff3')));
-            ctx.fillStyle = c; ctx.fillRect(e.x-cx, e.y-cy, e.w, e.h);
-            ctx.fillStyle = 'red'; ctx.fillRect(e.x-cx, e.y-cy-10, e.w, 4);
-            ctx.fillStyle = 'lime'; ctx.fillRect(e.x-cx, e.y-cy-10, e.w*(e.hp/(e.max||100)), 4);
-        });
-        rctx.fillStyle='#000'; rctx.fillRect(0,0,150,150); rctx.save(); rctx.translate(75, 75);
-        entities.concat(p).forEach(e => {
-            rctx.fillStyle = e===p?'#fff':(e.type==='ally'?'#3498db':'#e74c3c');
-            let dx = (e.x-p.x)*0.1, dy = (e.y-p.y)*0.1;
-            if(dx*dx+dy*dy < 70*70) { rctx.beginPath(); rctx.arc(dx, dy, 3.5, 0, 7); rctx.fill(); }
-        });
-        rctx.restore();
-    }
-</script>
+
+        function loop() {
+            if(!live) return;
+            if(p.hp <= 0) location.reload();
+
+            p.vy += 0.8; p.y += p.vy;
+            if(p.y > 300) { p.y = 300; p.vy = 0; p.gr = true; } // 簡易地面測試
+
+            document.getElementById('hp-val').innerText = Math.ceil(p.hp);
+            document.getElementById('pos-val').innerText = Math.floor(p.x/32) + "," + Math.floor(p.y/32);
+
+            // 繪圖
+            ctx.fillStyle = "#87ceeb"; ctx.fillRect(0,0,cvs.width,cvs.height);
+            ctx.fillStyle = "#e67e22"; ctx.fillRect(p.x + cvs.width/2, p.y + cvs.height/2, p.w, p.h);
+            
+            ents.forEach(e => {
+                ctx.fillStyle = "#3498db";
+                ctx.fillRect(e.x + cvs.width/2, e.y + cvs.height/2, e.w, e.h);
+            });
+
+            requestAnimationFrame(loop);
+        }
+    </script>
 </body>
 </html>
