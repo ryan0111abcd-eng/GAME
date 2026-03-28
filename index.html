@@ -1,53 +1,100 @@
 <!DOCTYPE html>
-<html>
+<html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
-    <title>Super Human - Pixel Perfect Fix</title>
+    <title>Future Super Human - 模式選擇版</title>
     <style>
-        body, html { margin: 0; padding: 0; background: #000; overflow: hidden; font-family: sans-serif; }
-        #menu { position: fixed; inset: 0; z-index: 100; display: flex; flex-direction: column; align-items: center; justify-content: center; background: #1a1a1a; color: #f1c40f; }
-        .btn { padding: 25px 70px; font-size: 35px; cursor: pointer; background: #f1c40f; border: none; border-radius: 15px; font-weight: bold; box-shadow: 0 8px 0 #b8860b; }
+        body, html { margin: 0; padding: 0; width: 100%; height: 100%; background: #1a1a1a; overflow: hidden; font-family: sans-serif; }
+        
+        /* 選單介面層 */
+        #ui-layer {
+            position: fixed; inset: 0; z-index: 9999;
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            background: linear-gradient(135deg, #2c3e50, #000); color: #f1c40f;
+        }
+
+        .btn-group { display: flex; gap: 20px; margin-top: 30px; }
+
+        .btn {
+            padding: 20px 40px; font-size: 24px; cursor: pointer;
+            background: #f1c40f; border: none; border-radius: 10px;
+            font-weight: bold; box-shadow: 0 6px 0 #b8860b; color: #222;
+            transition: 0.2s;
+        }
+        .btn:hover { background: #fff; transform: scale(1.05); }
         .btn:active { transform: translateY(4px); box-shadow: 0 2px 0 #b8860b; }
-        #hud { position: fixed; top: 10px; left: 10px; z-index: 50; background: rgba(0,0,0,0.8); color: white; padding: 10px; border: 2px solid #f1c40f; display: none; }
+        .btn.multi { background: #3498db; box-shadow: 0 6px 0 #2980b9; color: white; }
+
+        #hud {
+            position: fixed; top: 10px; left: 10px; z-index: 100;
+            background: rgba(0,0,0,0.8); color: white; padding: 12px;
+            border: 2px solid #f1c40f; border-radius: 8px; display: none; pointer-events: none;
+        }
+
         canvas { display: none; position: absolute; top: 0; left: 0; z-index: 10; }
     </style>
 </head>
 <body>
 
-    <div id="menu">
-        <h1>SUPER HUMAN (已修復跳躍與穿牆)</h1>
-        <button class="btn" onclick="start()">開始遊戲</button>
-        <p style="color:white">WASD 移動 | 空白鍵跳躍 | R 鍵重置</p>
+    <div id="ui-layer">
+        <h1 style="font-size: 50px; text-shadow: 2px 2px #000;">未來的 SUPER HUMAN</h1>
+        <p style="color: white; font-size: 18px;">請選擇遊戲模式</p>
+        <div class="btn-group">
+            <button class="btn" onclick="startGame('single')">🙋 單人連線 (AI 模式)</button>
+            <button class="btn multi" onclick="startGame('multi')">👬 多人連線 (小隊模式)</button>
+        </div>
+        <p style="color: #aaa; margin-top: 40px;">操作說明：WASD 移動 | 空白鍵跳躍 | 滑鼠左右鍵挖掘與放置</p>
     </div>
 
-    <div id="hud">❤️ HP: <span id="hp">100</span> | 📍 Pos: <span id="pos">0,0</span></div>
-    <canvas id="g"></canvas>
+    <div id="hud">
+        ❤️ 血量: <span id="hp">100</span> | 📍 座標: <span id="pos">0,0</span> | 👥 隊友: <span id="ally-count">0</span>
+    </div>
+
+    <canvas id="gameCanvas"></canvas>
 
 <script>
-    const cvs = document.getElementById('g'), ctx = cvs.getContext('2d');
-    let run = false, keys = {}, world = {};
-    let p = { x: 100, y: 0, w: 22, h: 42, vx: 0, vy: 0, ground: false };
+    const cvs = document.getElementById('gameCanvas'), ctx = cvs.getContext('2d');
+    let isRunning = false, world = {}, keys = {}, agents = [];
+    let p = { x: 0, y: 0, w: 22, h: 42, vx: 0, vy: 0, ground: false, hp: 100 };
     const TILE = 32;
 
-    function start() {
-        document.getElementById('menu').style.display = 'none';
+    function startGame(mode) {
+        document.getElementById('ui-layer').style.display = 'none';
         document.getElementById('hud').style.display = 'block';
         cvs.style.display = 'block';
         cvs.width = window.innerWidth;
         cvs.height = window.innerHeight;
-        // 初始高度：從天空掉下來
-        p.y = -200;
-        run = true;
+        
+        p.x = 100;
+        p.y = getH(Math.floor(p.x/TILE)) * TILE - 100;
+        
+        // 如果選擇多人模式，生成 4 個 AI 隊友
+        if(mode === 'multi') {
+            for(let i=0; i<4; i++) {
+                agents.push({
+                    x: p.x + (i+1)*50,
+                    y: p.y,
+                    w: 22, h: 42,
+                    type: 'ally'
+                });
+            }
+        }
+        document.getElementById('ally-count').innerText = agents.length;
+        
+        isRunning = true;
         loop();
     }
 
-    function getH(gx) { return Math.floor(35 + Math.sin(gx * 0.1) * 4); }
+    function getH(gx) { return Math.floor(35 + Math.sin(gx * 0.15) * 5); }
+
     function getB(gx, gy) {
         if (world[gx+'_'+gy] !== undefined) return world[gx+'_'+gy];
-        return gy < getH(gx) ? 0 : (gy === getH(gx) ? 2 : 1);
+        let h = getH(gx);
+        if (gy < h) return 0;
+        if (gy === h) return 2; // 草地
+        return 1; // 土壤
     }
 
-    // 關鍵：碰撞檢測函數 (檢查角色矩形是否碰到任何方塊)
     function isCollide(x, y) {
         for (let i = Math.floor(x / TILE); i <= Math.floor((x + p.w) / TILE); i++) {
             for (let j = Math.floor(y / TILE); j <= Math.floor((y + p.h) / TILE); j++) {
@@ -57,50 +104,48 @@
         return false;
     }
 
-    window.onkeydown = e => { 
-        keys[e.code] = true; 
-        if(e.code === 'KeyR') { p.x = 0; p.y = -200; p.vx = 0; p.vy = 0; }
-    };
+    window.onkeydown = e => keys[e.code] = true;
     window.onkeyup = e => keys[e.code] = false;
+    window.onmousedown = e => {
+        if(!isRunning) return;
+        let camX = p.x - cvs.width/2, camY = p.y - cvs.height/2;
+        let gx = Math.floor((e.clientX + camX) / TILE), gy = Math.floor((e.clientY + camY) / TILE);
+        world[gx+'_'+gy] = (e.button === 0) ? 0 : 3;
+    };
+    window.oncontextmenu = e => e.preventDefault();
 
     function loop() {
-        if(!run) return;
+        if(!isRunning) return;
 
-        // --- Y 軸移動與碰撞 (處理跳躍與重力) ---
-        p.vy += 0.8; // 重力
+        // Y 軸物理
+        p.vy += 0.8;
         p.y += p.vy;
-        p.ground = false;
-
         if (isCollide(p.x, p.y)) {
-            if (p.vy > 0) { // 向下掉撞到地
-                p.y = Math.floor(p.y / TILE) * TILE + (TILE - p.h) % TILE;
-                // 修正：如果還是撞到，就往上推
+            if (p.vy > 0) {
                 while(isCollide(p.x, p.y)) p.y -= 1;
                 p.ground = true;
-            } else if (p.vy < 0) { // 向上跳撞到天花板
+            } else {
                 while(isCollide(p.x, p.y)) p.y += 1;
             }
             p.vy = 0;
+        } else {
+            p.ground = false;
         }
 
-        // --- X 軸移動與碰撞 (處理走路與穿牆) ---
-        let speed = 5;
-        let dx = (keys['KeyD'] ? speed : 0) - (keys['KeyA'] ? speed : 0);
-        if (dx !== 0) {
-            p.x += dx;
-            if (isCollide(p.x, p.y)) {
-                // 如果撞牆，就退回剛才的位置
-                p.x -= dx;
-            }
+        // X 軸物理
+        let moveX = (keys['KeyD'] ? 5 : 0) - (keys['KeyA'] ? 5 : 0);
+        if (moveX !== 0) {
+            p.x += moveX;
+            if (isCollide(p.x, p.y)) p.x -= moveX;
         }
 
-        // --- 跳躍指令 ---
-        if ((keys['Space'] || keys['KeyW']) && p.ground) {
+        // 跳躍
+        if ((keys['Space'] || keys['KeyW'] || keys['ArrowUp']) && p.ground) {
             p.vy = -14;
             p.ground = false;
         }
 
-        // 更新 UI
+        // UI 更新
         document.getElementById('pos').innerText = Math.floor(p.x/TILE) + "," + Math.floor(p.y/TILE);
 
         draw();
@@ -111,20 +156,36 @@
         ctx.fillStyle = '#87ceeb';
         ctx.fillRect(0, 0, cvs.width, cvs.height);
 
-        let cx = p.x - cvs.width / 2, cy = p.y - cvs.height / 2;
+        let camX = p.x - cvs.width/2, camY = p.y - cvs.height/2;
 
-        for (let x = Math.floor(cx / TILE); x <= Math.ceil((cx + cvs.width) / TILE); x++) {
-            for (let y = Math.floor(cy / TILE); y <= Math.ceil((cy + cvs.height) / TILE); y++) {
+        // 畫地圖
+        for (let x = Math.floor(camX/TILE); x <= Math.ceil((camX+cvs.width)/TILE); x++) {
+            for (let y = Math.floor(camY/TILE); y <= Math.ceil((camY+cvs.height)/TILE); y++) {
                 let b = getB(x, y);
                 if (b > 0) {
-                    ctx.fillStyle = b === 2 ? '#2ecc71' : '#795548';
-                    ctx.fillRect(x * TILE - cx, y * TILE - cy, TILE + 1, TILE + 1); // +1 消除縫隙
+                    ctx.fillStyle = b === 2 ? '#2ecc71' : (b === 1 ? '#795548' : '#95a5a6');
+                    ctx.fillRect(x * TILE - camX, y * TILE - camY, TILE + 1, TILE + 1);
                 }
             }
         }
 
-        ctx.fillStyle = '#e67e22'; // 玩家
-        ctx.fillRect(p.x - cx, p.y - cy, p.w, p.h);
+        // 畫隊友
+        agents.forEach(a => {
+            ctx.fillStyle = '#3498db'; // 隊友是藍色
+            ctx.fillRect(a.x - camX, a.y - camY, a.w, a.h);
+            // 簡單跟隨玩家邏輯
+            if(a.x < p.x - 40) a.x += 2;
+            if(a.x > p.x + 40) a.x -= 2;
+            // 隊友重力修正
+            let ay_next = a.y + 5;
+            let a_gx = Math.floor(a.x / TILE), a_gy = Math.floor((ay_next + a.h) / TILE);
+            if(getB(a_gx, a_gy) === 0) a.y = ay_next;
+            else a.y = a_gy * TILE - a.h;
+        });
+
+        // 畫玩家
+        ctx.fillStyle = '#e67e22'; // 玩家是橘色
+        ctx.fillRect(p.x - camX, p.y - camY, p.w, p.h);
     }
 </script>
 </body>
