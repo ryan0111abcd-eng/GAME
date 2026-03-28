@@ -3,61 +3,176 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SUPER HUMAN - 萬能終極版</title>
+    <title>SUPER HUMAN 2026 - ULTIMATE</title>
     <style>
-        body, html { margin: 0; padding: 0; width: 100%; height: 100%; background: #000; overflow: hidden; font-family: "Microsoft JhengHei", sans-serif; user-select: none; }
-        
-        /* 全螢幕 UI 層 */
-        .overlay { position: fixed; inset: 0; z-index: 99999; display: flex; flex-direction: column; align-items: center; justify-content: center; background: #111; color: #f1c40f; text-align: center; padding: 20px; }
-        
-        /* 通用按鈕樣式 */
-        .btn { padding: 15px 40px; font-size: 24px; cursor: pointer; margin: 10px; background: #f1c40f; border: 4px solid #fff; border-radius: 10px; font-weight: bold; color: #000; box-shadow: 0 5px 0 #b8860b; transition: all 0.1s; }
-        .btn:active { transform: translateY(3px); box-shadow: 0 2px 0 #b8860b; }
-        .btn:disabled { background: #95a5a6; border-color: #7f8c8d; box-shadow: none; cursor: not-allowed; }
-
-        /* 輸入框樣式 */
-        .input-code { padding: 15px; font-size: 24px; border: 4px solid #f1c40f; border-radius: 10px; background: #000; color: #f1c40f; text-align: center; margin-bottom: 20px; outline: none; }
-
-        /* 滑塊樣式 */
-        .slider-container { margin: 20px 0; color: white; }
-        input[type=range] { width: 300px; height: 15px; cursor: pointer; }
-
-        /* 規則介紹樣式 */
-        .rules-box { background: #2c3e50; padding: 20px; border-radius: 10px; border: 2px solid #f1c40f; max-width: 500px; text-align: left; color: white; margin-bottom: 20px; line-height: 1.6; }
-        .rules-box h2 { color: #f1c40f; text-align: center; margin-top: 0; }
-        .rules-box b { color: #3498db; }
-
-        /* 遊戲介面 */
+        body, html { margin: 0; padding: 0; width: 100%; height: 100%; background: #000; overflow: hidden; font-family: sans-serif; }
+        .ui { position: fixed; inset: 0; z-index: 99999; display: flex; flex-direction: column; align-items: center; justify-content: center; background: #0d0d0d; color: #f1c40f; text-align: center; }
+        .btn { padding: 20px 50px; font-size: 28px; cursor: pointer; margin: 15px; background: #f1c40f; border: 4px solid #fff; border-radius: 15px; font-weight: bold; color: #000; box-shadow: 0 8px 0 #b8860b; }
+        .btn:active { transform: translateY(4px); box-shadow: 0 4px 0 #b8860b; }
+        .in { padding: 15px; font-size: 28px; border: 4px solid #f1c40f; border-radius: 10px; background: #000; color: #f1c40f; text-align: center; margin-bottom: 20px; width: 300px; }
+        .rules { background: #2c3e50; padding: 25px; border-radius: 15px; border: 2px solid #f1c40f; max-width: 500px; text-align: left; color: white; margin-bottom: 20px; font-size: 18px; }
         #hud { position: fixed; top: 10px; left: 10px; z-index: 1000; background: rgba(0,0,0,0.8); color: white; padding: 10px; border: 2px solid #f1c40f; border-radius: 8px; display: none; pointer-events: none; }
-        #radar { position: fixed; top: 10px; right: 10px; width: 120px; height: 120px; border: 2px solid #fff; border-radius: 50%; z-index: 1000; display: none; background: rgba(0,0,0,0.5); overflow: hidden; }
         canvas#gCanvas { display: none; position: absolute; top: 0; left: 0; z-index: 10; }
-        #rain-fx { position: fixed; inset: 0; pointer-events: none; z-index: 50; background: rgba(40,40,80,0.2); display: none; }
     </style>
 </head>
 <body>
 
-    <div id="step-code" class="overlay">
-        <h1 style="font-size: 40px;">SUPER HUMAN 啟動程式</h1>
-        <p>請輸入 11 位數啟動碼以繼續</p>
-        <input type="text" id="code-input" class="input-code" maxlength="11" placeholder="填寫啟動碼">
+    <div id="box-code" class="ui">
+        <h1 style="font-size: 45px;">SUPER HUMAN 啟動程式</h1>
+        <p>請輸入 11 位數啟動碼</p>
+        <input type="text" id="inp-code" class="in" maxlength="11" onkeydown="if(event.key==='Enter') checkCode()">
         <button class="btn" onclick="checkCode()">認證啟動碼</button>
-        <p id="code-error" style="color: #e74c3c; display: none;">❌ 啟動碼錯誤，請重新輸入</p>
+        <p id="err" style="color:red; display:none;">啟動碼錯誤！</p>
     </div>
 
-    <div id="step-mode" class="overlay" style="display:none;">
+    <div id="box-mode" class="ui" style="display:none;">
         <h1>認證成功！</h1>
-        <p>請選擇遊戲模式</p>
-        <button class="btn" onclick="selectMode('single')">👤 單人模式</button>
-        <button class="btn" onclick="selectMode('multi')" style="background:#3498db; color:white;">👥 多人模式</button>
+        <button class="btn" onclick="goRules(1)">👤 單人模式</button>
+        <button class="btn" onclick="document.getElementById('box-mode').style.display='none'; document.getElementById('box-p').style.display='flex';" style="background:#3498db; color:white;">👥 多人小隊</button>
     </div>
 
-    <div id="step-players" class="overlay" style="display:none;">
-        <h1>多人模式設定</h1>
-        <div class="slider-container">
-            <label>小隊人數 (包含自己): <b id="p-val" style="color:#f1c40f; font-size:24px;">5</b> 人</label><br>
-            <input type="range" min="2" max="15" value="5" oninput="document.getElementById('p-val').innerText=this.value" id="p-slider">
+    <div id="box-p" class="ui" style="display:none;">
+        <h1>小隊規模</h1>
+        <h2 id="pv">5 人</h2>
+        <input type="range" min="2" max="15" value="5" oninput="document.getElementById('pv').innerText=this.value+' 人'" id="ps" style="width:300px;">
+        <button class="btn" onclick="goRules(document.getElementById('ps').value)">確認人數</button>
+    </div>
+
+    <div id="box-rules" class="ui" style="display:none;">
+        <div class="rules">
+            <h2 style="text-align:center; color:#f1c40f;">📜 遊戲規則</h2>
+            ● <b>WASD</b> 移動 | <b>Space</b> 跳躍 | <b>K</b> 攻擊<br>
+            ● <b>權重</b>：丘陵70% / 山地50% / 古蹟65%<br>
+            ● <b>電腦守護</b>：隊友會自主挖掘與蓋房子。<br>
+            ● <b style="color:#f1c40f;">如果你被咬，隊友會立刻衝過來救援！</b>
         </div>
-        <button class="btn" onclick="confirmPlayers()">確認人數</button>
+        <button class="btn" onclick="startWorld()">正式開始</button>
     </div>
 
-    <div id="step-rules" class="overlay"
+    <div id="hud">❤️ <span id="hp">100</span> | 📍 <span id="pos">0,0</span><br>⛈️ <span id="wt">晴天</span></div>
+    <canvas id="gCanvas"></canvas>
+
+<script>
+    const cvs = document.getElementById('gCanvas'), ctx = cvs.getContext('2d');
+    let live = false, world = {}, keys = {}, ents = [], ticks = 600;
+    let p = { x: 0, y: -600, w: 22, h: 42, vx: 0, vy: 0, hp: 100, gr: false, hitBy: null };
+    let squad = 1;
+
+    function checkCode() {
+        if (document.getElementById('inp-code').value === 'ryan0111407') {
+            document.getElementById('box-code').style.display = 'none';
+            document.getElementById('box-mode').style.display = 'flex';
+        } else { document.getElementById('err').style.display = 'block'; }
+    }
+
+    function goRules(n) {
+        squad = n;
+        document.getElementById('box-mode').style.display = 'none';
+        document.getElementById('box-p').style.display = 'none';
+        document.getElementById('box-rules').style.display = 'flex';
+    }
+
+    function startWorld() {
+        document.getElementById('box-rules').style.display = 'none';
+        document.getElementById('hud').style.display = 'block';
+        cvs.style.display = 'block'; cvs.width = window.innerWidth; cvs.height = window.innerHeight;
+        
+        if(Math.random() < 0.4) document.getElementById('wt').innerText = "下雨";
+        for(let i=0; i<squad-1; i++) spawn('ally', (Math.random()-0.5)*800);
+        for(let i=0; i<5; i++) spawn('pig', (Math.random()-0.5)*2000);
+
+        live = true; loop();
+    }
+
+    function spawn(t, x) { ents.push({ type: t, x, y: -600, w: 22, h: 42, vx: 0, vy: 0, hp: 100, max: 100, dir: 1 }); }
+
+    function getB(gx, gy) {
+        if (world[gx+'_'+gy] !== undefined) return world[gx+'_'+gy];
+        let x = Math.abs(gx);
+        let h = (x%100 < 70) ? 8 : (x%100 < 50 ? 4 : 10);
+        let f = Math.floor(h + Math.sin(gx * 0.15) * 5);
+        if(x%100 < 65 && gy > f && gy < f+4 && Math.random() < 0.08) return 3; // 古蹟
+        return gy < f ? 0 : (gy === f ? 2 : 1);
+    }
+
+    function check(x, y) {
+        for (let i = Math.floor(x/32); i <= Math.floor((x+22)/32); i++)
+            for (let j = Math.floor(y/32); j <= Math.floor((y+42)/32); j++)
+                if(getB(i, j) > 0) return true;
+        return false;
+    }
+
+    function atk(o, t = null) {
+        ents.concat(p).forEach(e => {
+            if(e !== o && Math.abs(e.x - o.x) < 70) {
+                if(t && e !== t) return;
+                e.hp -= 20; e.vx = (e.x > o.x ? 12 : -12);
+                if(e === p) p.hitBy = o; 
+            }
+        });
+    }
+
+    window.onkeydown = e => { keys[e.code]=true; if(e.code==='KeyK') atk(p); if(e.code==='Escape') location.reload(); };
+    window.onkeyup = e => keys[e.code]=false;
+
+    function loop() {
+        if(!live) return;
+        ticks = (ticks + 0.5) % 1440;
+        let night = ticks > 1050 || ticks < 350;
+
+        [p, ...ents].forEach(e => {
+            e.vy += 0.8; e.y += e.vy;
+            if(check(e.x, e.y)) {
+                if(e.vy > 0) { while(check(e.x, e.y)) e.y -= 0.5; e.gr = true; }
+                e.vy = 0;
+            } else e.gr = false;
+
+            if(e === p) {
+                let dx = (keys['KeyD']?5:0) - (keys['KeyA']?5:0);
+                if(dx !== 0) { p.x += dx; if(check(p.x, p.y)) p.x -= dx; }
+                if(keys['Space'] && p.gr) p.vy = -14;
+            } else {
+                if(e.type === 'ally') {
+                    if(p.hitBy && p.hitBy.hp > 0) {
+                        e.x += (p.hitBy.x > e.x ? 4 : -4);
+                        if(Math.abs(e.x - p.hitBy.x) < 60) atk(e, p.hitBy);
+                    } else {
+                        if(Math.abs(p.x - e.x) > 200) e.x += (p.x > e.x ? 2.5 : -2.5);
+                        if(Math.random() < 0.005) world[Math.floor(e.x/32)+'_'+(Math.floor(e.y/32)+2)] = 0;
+                        ents.forEach(m => { if(m.type==='mob' && Math.abs(m.x-e.x)<100) atk(e); });
+                    }
+                } else if(e.type === 'mob') {
+                    e.x += (p.x > e.x ? 2.3 : -2.3);
+                    if(Math.abs(e.x - p.x) < 30) p.hp -= 0.2;
+                }
+            }
+        });
+
+        if(night && Math.random() < 0.01) spawn('mob', p.x + (Math.random()>0.5?600:-600));
+        ents = ents.filter(e => e.hp > 0);
+        if(p.hp <= 0) location.reload();
+
+        document.getElementById('hp').innerText = Math.ceil(p.hp);
+        document.getElementById('pos').innerText = Math.floor(p.x/32) + "," + Math.floor(p.y/32);
+        
+        // 渲染
+        ctx.fillStyle = night ? '#050510' : '#87ceeb'; ctx.fillRect(0,0,cvs.width,cvs.height);
+        let cx = p.x - cvs.width/2, cy = p.y - cvs.height/2;
+        for(let x=Math.floor(cx/32); x<=Math.ceil((cx+cvs.width)/32); x++) {
+            for(let y=Math.floor(cy/32); y<=Math.ceil((cy+cvs.height)/32); y++) {
+                let b = getB(x, y);
+                if(b > 0) {
+                    ctx.fillStyle = b===2 ? "#2ecc71" : (b===3 ? "#bdc3c7" : "#795548");
+                    ctx.fillRect(x*32-cx, y*32-cy, 32.5, 32.5);
+                }
+            }
+        }
+        ents.concat(p).forEach(e => {
+            ctx.fillStyle = e===p?'#e67e22':(e.type==='ally'?'#3498db':(e.type==='mob'?'#2ecc71':'#f1c40f'));
+            ctx.fillRect(e.x-cx, e.y-cy, e.w, e.h);
+        });
+        requestAnimationFrame(loop);
+    }
+</script>
+</body>
+</html>
