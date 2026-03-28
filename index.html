@@ -2,112 +2,172 @@
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>SUPER HUMAN 2026 - FINAL STABLE</title>
     <style>
-        body, html { margin: 0; padding: 0; width: 100%; height: 100%; background: #000; overflow: hidden; font-family: sans-serif; user-select: none; }
-        .ui-layer { position: fixed; inset: 0; z-index: 999999; display: flex; flex-direction: column; align-items: center; justify-content: center; background: #0a0a0a; color: #f1c40f; text-align: center; }
-        .btn { padding: 25px 60px; font-size: 32px; cursor: pointer; margin: 15px; background: #f1c40f; border: 4px solid #fff; border-radius: 20px; font-weight: bold; color: #000; box-shadow: 0 8px 0 #b8860b; }
+        body, html { margin: 0; padding: 0; width: 100%; height: 100%; background: #000; overflow: hidden; font-family: sans-serif; user-select: none; color: #f1c40f; }
+        /* 強制置頂 UI 層 */
+        .page { position: fixed; inset: 0; z-index: 999999; display: flex; flex-direction: column; align-items: center; justify-content: center; background: #0a0a0a; text-align: center; }
+        .btn { padding: 25px 60px; font-size: 32px; cursor: pointer; margin: 15px; background: #f1c40f; border: 5px solid #fff; border-radius: 20px; font-weight: bold; color: #000; box-shadow: 0 8px 0 #b8860b; }
         .btn:active { transform: translateY(4px); box-shadow: 0 4px 0 #b8860b; }
-        .in-box { padding: 18px; font-size: 30px; border: 4px solid #f1c40f; border-radius: 12px; background: #000; color: #f1c40f; text-align: center; margin-bottom: 25px; width: 450px; outline: none; }
+        .in-box { padding: 18px; font-size: 30px; border: 4px solid #f1c40f; border-radius: 12px; background: #000; color: #f1c40f; text-align: center; margin-bottom: 25px; width: 420px; outline: none; }
         #hud { position: fixed; top: 15px; left: 15px; z-index: 1000; color: white; background: rgba(0,0,0,0.85); padding: 15px; border-radius: 10px; border: 2px solid #f1c40f; display: none; pointer-events: none; line-height: 1.6; }
-        canvas#gCanvas { display: none; position: absolute; top: 0; left: 0; z-index: 10; }
+        canvas#g { display: none; position: absolute; top: 0; left: 0; z-index: 10; }
     </style>
 </head>
 <body>
 
-    <div id="step-auth" class="ui-layer">
-        <h1 style="font-size: 45px; margin-bottom: 10px;">SUPER HUMAN 系統</h1>
-        <p style="font-size: 24px; color: #fff; margin-bottom: 20px;">請輸入啟動碼</p>
-        <input type="text" id="pw-input" class="in-box" placeholder="Security Key">
-        <button class="btn" onclick="checkAuth()">認證啟動</button>
+    <div id="p1" class="page">
+        <h1 style="font-size: 50px;">SUPER HUMAN 系統</h1>
+        <p style="font-size: 24px; color: #fff;">請輸入啟動碼</p>
+        <input type="text" id="pw" class="in-box" placeholder="Security Key">
+        <button class="btn" onclick="var v=document.getElementById('pw').value; if(v==='ryan0111407'){document.getElementById('p1').style.display='none';document.getElementById('p2').style.display='flex';}else{alert('錯誤！');}">認證啟動</button>
     </div>
 
-    <div id="step-mode" class="ui-layer" style="display:none;">
+    <div id="p2" class="page" style="display:none;">
         <h1>認證成功</h1>
-        <p>請選擇遊戲模式</p>
-        <button class="btn" onclick="setMode('single')">👤 單人模式</button>
-        <button class="btn" onclick="setMode('multi')" style="background:#3498db; color:white;">👥 多人模式</button>
+        <p>選擇遊戲模式</p>
+        <button class="btn" onclick="window.sSize=1; start();">👤 單人模式</button>
+        <button class="btn" onclick="document.getElementById('p2').style.display='none';document.getElementById('p3').style.display='flex';" style="background:#3498db; color:white;">👥 多人模式</button>
     </div>
 
-    <div id="step-setup" class="ui-layer" style="display:none;">
+    <div id="p3" class="page" style="display:none;">
         <h1>小隊設定</h1>
-        <h2 id="p-label">人數: <span style="color:#f1c40f;">5</span></h2>
-        <input type="range" min="2" max="15" value="5" oninput="document.getElementById('p-label').innerHTML='人數: <span style=color:#f1c40f;>'+this.value+'</span>'" id="p-slider" style="width:350px; height:40px;">
-        <button class="btn" onclick="startGame()">進入世界</button>
+        <h2 id="lv">人數: 5 人</h2>
+        <input type="range" min="2" max="15" value="5" oninput="document.getElementById('lv').innerText='人數: '+this.value+' 人'" id="sld" style="width:350px;">
+        <button class="btn" onclick="window.sSize=document.getElementById('sld').value; start();">進入世界</button>
     </div>
 
-    <div id="hud">❤️ HP: <span id="hp-v">100</span> | 📍 POS: <span id="pos-v">0,0</span><br>☀️ 狀態: <span id="sun-v">日間</span></div>
-    <canvas id="gCanvas"></canvas>
+    <div id="hud">❤️ 血量: <span id="hp-ui">100</span> | 📍 座標: <span id="pos-ui">0,0</span><br>☀️ 狀態: <span id="sun-ui">日間</span></div>
+    <canvas id="g"></canvas>
 
 <script>
-    // --- UI 觸發邏輯 (直接定義在最外層，確保點擊必觸發) ---
-    let squadSize = 1;
+    // 遊戲全局變數
+    var live = false, world = {}, keys = {}, ents = [], ticks = 600;
+    var p = { x: 0, y: -800, w: 22, h: 42, vx: 0, vy: 0, hp: 100, gr: false, hitBy: null };
+    var T = 32;
 
-    function checkAuth() {
-        const val = document.getElementById('pw-input').value.trim();
-        if(val === 'ryan0111407') {
-            document.getElementById('step-auth').style.display = 'none';
-            document.getElementById('step-mode').style.display = 'flex';
-        } else {
-            alert("啟動碼錯誤！請重新輸入");
-        }
-    }
-
-    function setMode(m) {
-        document.getElementById('step-mode').style.display = 'none';
-        if(m === 'single') {
-            squadSize = 1;
-            startGame();
-        } else {
-            document.getElementById('step-setup').style.display = 'flex';
-        }
-    }
-
-    // --- 遊戲主程式 ---
-    let live = false, world = {}, keys = {}, ents = [], ticks = 600;
-    let p = { x: 0, y: -800, w: 22, h: 42, vx: 0, vy: 0, hp: 100, gr: false, hitBy: null };
-    const TILE = 32;
-
-    function startGame() {
-        if(document.getElementById('step-setup').style.display !== 'none') {
-            squadSize = document.getElementById('p-slider').value;
-        }
-        document.getElementById('step-setup').style.display = 'none';
+    function start() {
+        document.querySelectorAll('.page').forEach(el => el.style.display = 'none');
         document.getElementById('hud').style.display = 'block';
-        
-        const cvs = document.getElementById('gCanvas');
+        var cvs = document.getElementById('g');
         cvs.style.display = 'block';
         cvs.width = window.innerWidth; cvs.height = window.innerHeight;
 
-        for(let i=0; i<squadSize-1; i++) spawn('ally', (Math.random()-0.5)*800);
-        for(let i=0; i<5; i++) spawn('pig', (Math.random()-0.5)*2000);
+        // 生成 AI (單人則 squadSize=1)
+        for(var i=0; i<(window.sSize || 1)-1; i++) spawn('ally', (Math.random()-0.5)*600);
+        for(var i=0; i<6; i++) spawn('pig', (Math.random()-0.5)*2000);
         
         live = true;
-        requestAnimationFrame(loop);
+        loop();
     }
 
     function spawn(t, x) {
-        ents.push({ type: t, x, y: -700, w: 22, h: 42, vx: 0, vy: 0, hp: 100, max: 100, dir: 1, mineCd: 0 });
+        ents.push({ type: t, x: x, y: -700, w: 22, h: 42, vx: 0, vy: 0, hp: 100, max: 100, dir: 1, mineCd: 0 });
     }
 
     function getB(gx, gy) {
         if(world[gx+'_'+gy]!==undefined) return world[gx+'_'+gy];
-        let x = Math.abs(gx);
-        let h = (x%100 < 70) ? 8 : (x%100 < 50 ? 4 : 10);
-        let f = Math.floor(h + Math.sin(gx * 0.15) * 6);
+        var x = Math.abs(gx);
+        var h = (x%100 < 70) ? 8 : (x%100 < 50 ? 4 : 10);
+        var f = Math.floor(h + Math.sin(gx * 0.15) * 6);
         return gy < f ? 0 : (gy === f ? 2 : 1);
     }
 
     function check(x,y) {
-        for(let i=Math.floor(x/TILE); i<=Math.floor((x+22)/TILE); i++)
-            for(let j=Math.floor(y/TILE); j<=Math.floor((y+42)/TILE); j++)
+        for(var i=Math.floor(x/T); i<=Math.floor((x+22)/T); i++)
+            for(var j=Math.floor(y/T); j<=Math.floor((y+42)/T); j++)
                 if(getB(i,j)>0) return true;
         return false;
     }
 
     function atk(o) {
-        ents.concat(p).forEach(e=>{
+        ents.concat(p).forEach(function(e){
             if(e!==o && Math.abs(e.x-o.x)<70 && Math.abs(e.y-o.y)<70){
                 e.hp -= 20; e.vx = (e.x>o.x?12:-12);
-                if(
+                if(e===p) p.hitBy = o;
+            }
+        });
+    }
+
+    window.onmousedown = function(e) {
+        if(!live) return;
+        var cvs = document.getElementById('g');
+        var gx = Math.floor((e.clientX + (p.x - cvs.width/2))/T), gy = Math.floor((e.clientY + (p.y - cvs.height/2))/T);
+        if(e.button === 0) { if(getB(gx, gy) > 0) world[gx+'_'+gy] = 0; else atk(p); } 
+        else if(e.button === 2) { if(getB(gx, gy) === 0) world[gx+'_'+gy] = 3; }
+    };
+    window.oncontextmenu = function(e){ e.preventDefault(); };
+    window.onkeydown=function(e){ keys[e.code]=true; if(e.code==='Escape') location.reload(); };
+    window.onkeyup=function(e){ keys[e.code]=false; };
+
+    function loop() {
+        if(!live) return;
+        var cvs = document.getElementById('g'), ctx = cvs.getContext('2d');
+        ticks = (ticks + 0.8) % 1440;
+        var isNight = ticks > 1050 || ticks < 350;
+
+        if(!isNight) {
+            ents = ents.filter(function(e){ return e.type !== 'mob'; });
+            document.getElementById('sun-ui').innerText = "日間 (安全)";
+        } else {
+            document.getElementById('sun-ui').innerText = "夜間 (危險)";
+        }
+
+        [p].concat(ents).forEach(function(e) {
+            e.vy += 0.8; e.y += e.vy;
+            if(check(e.x, e.y)) {
+                if(e.vy > 0) { while(check(e.x, e.y)) e.y -= 0.5; e.gr = true; }
+                e.vy = 0;
+            } else e.gr = false;
+
+            if(e===p) {
+                var dx = (keys['KeyD']?5:0) - (keys['KeyA']?5:0);
+                if(dx!==0) { p.x += dx; if(check(p.x, p.y)) p.x -= dx; }
+                if(keys['Space'] && p.gr) p.vy = -14;
+            } else {
+                if(e.type==='ally') {
+                    if(p.hitBy && p.hitBy.hp>0) {
+                        e.x += (p.hitBy.x > e.x ? 4.5 : -4.5);
+                        if(Math.abs(e.x-p.hitBy.x)<60) atk(e);
+                    } else {
+                        if(Math.abs(p.x-e.x)>250) e.x += (p.x>e.x?2.5:-2.5);
+                        e.mineCd++;
+                        if(e.mineCd > 130) {
+                            var gx = Math.floor(e.x/T), gy = Math.floor(e.y/T)+2;
+                            if(getB(gx, gy)>0){ world[gx+'_'+gy]=0; e.mineCd=0; }
+                        }
+                    }
+                } else if(e.type==='mob') {
+                    e.x += (p.x>e.x?2.4:-2.4); if(Math.abs(e.x-p.x)<30) p.hp -= 0.35;
+                }
+            }
+        });
+
+        if(isNight && Math.random()<0.015) spawn('mob', p.x + (Math.random()>0.5?650:-650));
+        ents = ents.filter(function(e){ return e.hp > 0; });
+        if(p.hp <= 0) { alert("你死亡了！重新開始..."); location.reload(); return; }
+
+        document.getElementById('hp-ui').innerText = Math.ceil(p.hp);
+        document.getElementById('pos-ui').innerText = Math.floor(p.x/T) + "," + Math.floor(p.y/T);
+        
+        ctx.fillStyle = isNight ? '#050510' : '#87ceeb';
+        ctx.fillRect(0,0,cvs.width,cvs.height);
+        var cx = p.x - cvs.width/2, cy = p.y - cvs.height/2;
+        for(var x=Math.floor(cx/T); x<=Math.ceil((cx+cvs.width)/T); x++){
+            for(var y=Math.floor(cy/T); y<=Math.ceil((cy+cvs.height)/T); y++){
+                var b = getB(x, y);
+                if(b > 0) {
+                    ctx.fillStyle = b===2 ? "#2ecc71" : (b===3 ? "#bdc3c7" : "#795548");
+                    ctx.fillRect(x*T-cx, y*T-cy, T+0.5, T+0.5);
+                }
+            }
+        }
+        [p].concat(ents).forEach(function(e) {
+            ctx.fillStyle = e===p?'#e67e22':(e.type==='ally'?'#3498db':(e.type==='mob'?'#2ecc71':'#f1c40f'));
+            ctx.fillRect(e.x-cx, e.y-cy, e.w, e.h);
+        });
+        requestAnimationFrame(loop);
+    }
+</script>
+</body>
+</html>
