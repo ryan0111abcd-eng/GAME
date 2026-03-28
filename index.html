@@ -2,13 +2,13 @@
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
-    <title>Future Super Human - Survival</title>
+    <title>Super Human - Builder Edition</title>
     <style>
         body, html { margin: 0; padding: 0; width: 100%; height: 100%; background: #000; overflow: hidden; font-family: sans-serif; }
         .overlay { position: fixed; inset: 0; z-index: 9999; display: flex; flex-direction: column; align-items: center; justify-content: center; background: rgba(15, 15, 15, 0.98); color: #f1c40f; }
         .btn { padding: 18px 45px; font-size: 26px; cursor: pointer; margin: 12px; background: #f1c40f; border: none; border-radius: 12px; font-weight: bold; box-shadow: 0 6px 0 #b8860b; color: #000; }
         .btn:active { transform: translateY(4px); box-shadow: 0 2px 0 #b8860b; }
-        #hud { position: fixed; top: 20px; left: 20px; z-index: 100; color: white; background: rgba(0,0,0,0.7); padding: 15px; border-radius: 10px; border: 2px solid #f1c40f; display: none; }
+        #hud { position: fixed; top: 20px; left: 20px; z-index: 100; color: white; background: rgba(0,0,0,0.7); padding: 15px; border-radius: 10px; border: 2px solid #f1c40f; display: none; pointer-events: none; }
         #minimap { position: fixed; top: 20px; right: 20px; width: 150px; height: 150px; border: 3px solid #fff; border-radius: 50%; overflow: hidden; z-index: 100; display: none; background: rgba(0,0,0,0.5); }
         canvas#gameCanvas { display: none; position: absolute; top: 0; left: 0; z-index: 10; }
     </style>
@@ -16,9 +16,9 @@
 <body>
 
     <div id="step-1" class="overlay">
-        <h1>SUPER HUMAN 2026</h1>
+        <h1>SUPER HUMAN: 建築大師</h1>
         <button class="btn" onclick="goStep(2, 1)">👤 單人模式</button>
-        <button class="btn" onclick="goStep(2, 5)" style="background:#3498db; color:white;">👥 多人小隊</button>
+        <button class="btn" onclick="goStep(2, 5)" style="background:#3498db; color:white;">👥 多人模式</button>
     </div>
 
     <div id="step-2" class="overlay" style="display:none;">
@@ -29,84 +29,94 @@
     </div>
 
     <div id="step-3" class="overlay" style="display:none;">
-        <div style="background:#2c3e50; padding:25px; border-radius:15px; border:2px solid #f1c40f; width:350px;">
-            <h2 style="color:#f1c40f; text-align:center;">📜 遊戲指南</h2>
-            <p>● <b>WASD</b>: 移動 / <b>空白</b>: 跳躍</p>
-            <p>● <b>滑鼠左/右</b>: 挖礦 / 放置</p>
-            <p>● <b style="color:#ff4757;">[K] 鍵</b>: 揮劍攻擊</p>
-            <p>● <b style="color:#2ed573;">[Q] 鍵</b>: 消耗體力回血</p>
-            <p>● <b>[ESC]</b>: 暫停與選單</p>
-            <button class="btn" onclick="startGame()" style="width:100%;">進入世界</button>
+        <div style="background:#2c3e50; padding:25px; border-radius:15px; border:2px solid #f1c40f; width:380px;">
+            <h2 style="color:#f1c40f; text-align:center;">🔨 操作說明</h2>
+            <p>● <b>移動</b>: WASD / <b>跳躍</b>: 空白鍵</p>
+            <p>● <b style="color:#ff9f43;">滑鼠左鍵</b>: 挖掘方塊</p>
+            <p>● <b style="color:#54a0ff;">滑鼠右鍵</b>: 放置石頭方塊</p>
+            <p>● <b>K</b>: 攻擊 / <b>Q</b>: 回血 / <b>ESC</b>: 暫停</p>
+            <button class="btn" onclick="startGame()" style="width:100%;">開始建築</button>
         </div>
     </div>
 
-    <div id="death-screen" class="overlay" style="display:none; background:rgba(139,0,0,0.9);">
-        <h1 style="font-size:80px; color:white;">你死了！</h1>
-        <p style="color:white;">正在重新連接世界...</p>
-    </div>
-
-    <div id="hud">❤️ 血量: <span id="hp-txt">100</span> | 📍 <span id="pos-txt">0,0</span></div>
+    <div id="hud">❤️ HP: <span id="hp-txt">100</span> | 📍 <span id="pos-txt">0,0</span></div>
     <div id="minimap"><canvas id="mCvs" width="150" height="150"></canvas></div>
     <canvas id="gameCanvas"></canvas>
 
 <script>
     const cvs = document.getElementById('gameCanvas'), ctx = cvs.getContext('2d');
     const mCvs = document.getElementById('mCvs'), mCtx = mCvs.getContext('2d');
-    let active = false, world = {}, keys = {}, entities = [], playerCount = 1;
+    let active = false, paused = false, world = {}, keys = {}, entities = [], playerCount = 1;
     let p = { x: 0, y: -200, w: 22, h: 42, vx: 0, vy: 0, ground: false, hp: 100, maxHp: 100 };
     const TILE = 32;
 
     function goStep(s, v) {
         document.querySelectorAll('.overlay').forEach(e => e.style.display = 'none');
         if (v) playerCount = v;
-        document.getElementById('step-' + s).style.display = 'flex';
+        document.getElementById('step-' + (playerCount === 1 && s === 2 ? 3 : s)).style.display = 'flex';
     }
 
     function startGame() {
         if(playerCount > 1) playerCount = document.getElementById('p-slider').value;
-        document.getElementById('step-3').style.display = 'none';
+        document.querySelectorAll('.overlay').forEach(e => e.style.display = 'none');
         document.getElementById('hud').style.display = 'block';
         document.getElementById('minimap').style.display = 'block';
         cvs.style.display = 'block';
         cvs.width = window.innerWidth; cvs.height = window.innerHeight;
-        for(let i=0; i<playerCount-1; i++) entities.push({type:'ally', x:Math.random()*400-200, y:-300, w:22, h:42, vx:0, vy:0, hp:100, maxHp:100});
+        
+        // 生成隊友
+        for(let i=0; i<playerCount-1; i++) {
+            entities.push({type:'ally', x:Math.random()*400-200, y:-300, w:22, h:42, vx:0, vy:0, hp:100, maxHp:100});
+        }
         active = true; loop();
     }
 
-    window.onkeydown = e => { 
-        keys[e.code] = true; 
-        if(e.code === 'KeyK') doAttack(p);
-        if(e.code === 'KeyQ' && p.hp < p.maxHp) p.hp = Math.min(p.maxHp, p.hp + 20); // Q回血
-    };
-    window.onkeyup = e => keys[e.code] = false;
+    // --- 關鍵：挖掘與放置 ---
     window.onmousedown = e => {
         if(!active) return;
-        let gx = Math.floor((e.clientX + (p.x - cvs.width/2))/TILE);
-        let gy = Math.floor((e.clientY + (p.y - cvs.height/2))/TILE);
-        world[gx+'_'+gy] = (e.button === 0) ? 0 : 3;
-    };
+        // 計算滑鼠在世界中的座標
+        let worldX = e.clientX + (p.x - cvs.width/2);
+        let worldY = e.clientY + (p.y - cvs.height/2);
+        let gx = Math.floor(worldX / TILE);
+        let gy = Math.floor(worldY / TILE);
 
-    function doAttack(owner) {
-        entities.forEach(e => {
-            if(e !== owner && Math.abs(e.x - owner.x) < 60 && Math.abs(e.y - owner.y) < 60) {
-                e.hp -= 25; e.vx = (e.x > owner.x ? 10 : -10);
-            }
+        if (e.button === 0) { // 左鍵：挖掘 (設為空氣)
+            world[gx + '_' + gy] = 0;
+        } else if (e.button === 2) { // 右鍵：放置 (設為石頭，ID為 3)
+            // 只有點擊空白處才能放方塊
+            if (getB(gx, gy) === 0) world[gx + '_' + gy] = 3;
+        }
+    };
+    window.oncontextmenu = e => e.preventDefault(); // 停用右鍵選單
+
+    window.onkeydown = e => { 
+        keys[e.code] = true; 
+        if(e.code === 'KeyK') entities.forEach(ent => {
+            if(ent.type==='mob' && Math.abs(ent.x-p.x)<60) ent.hp -= 30;
         });
-        if(owner !== p && Math.abs(p.x - owner.x) < 50) p.hp -= 5;
+        if(e.code === 'KeyQ' && p.hp < 100) p.hp = Math.min(100, p.hp + 25);
+    };
+    window.onkeyup = e => keys[e.code] = false;
+
+    function getB(gx, gy) {
+        if (world[gx+'_'+gy] !== undefined) return world[gx+'_'+gy];
+        let h = Math.floor(25 + Math.sin(gx * 0.1) * 5); // 地形高度
+        return gy < h ? 0 : (gy === h ? 2 : 1);
+    }
+
+    function check(x, y) {
+        for (let i = Math.floor(x/TILE); i <= Math.floor((x+22)/TILE); i++) {
+            for (let j = Math.floor(y/TILE); j <= Math.floor((y+42)/TILE); j++) {
+                if(getB(i, j) > 0) return true;
+            }
+        }
+        return false;
     }
 
     function loop() {
         if(!active) return;
+        if(p.hp <= 0) { location.reload(); return; }
 
-        // 死亡判定
-        if(p.hp <= 0) {
-            active = false;
-            document.getElementById('death-screen').style.display = 'flex';
-            setTimeout(() => location.reload(), 2000);
-            return;
-        }
-
-        // 物理邏輯
         p.vy += 0.8; p.y += p.vy;
         if(check(p.x, p.y)) {
             if(p.vy > 0) { while(check(p.x, p.y)) p.y -= 0.5; p.ground = true; }
@@ -118,19 +128,17 @@
         if(dx !== 0) { p.x += dx; if(check(p.x, p.y)) p.x -= dx; }
         if(keys['Space'] && p.ground) p.vy = -14;
 
-        // 晚上生怪
-        if(Math.random() < 0.006) entities.push({type:'mob', x:p.x+(Math.random()>0.5?500:-500), y:-400, w:22, h:42, vx:0, vy:0, hp:50, maxHp:50});
+        // 每隔一段時間生怪
+        if(Math.random() < 0.005) entities.push({type:'mob', x:p.x+600, y:-200, w:22, h:42, vx:0, vy:0, hp:50, maxHp:50});
 
-        // AI 更新
         entities.forEach(e => {
             e.vy += 0.8; e.y += e.vy;
             if(check(e.x, e.y)) { if(e.vy > 0) while(check(e.x, e.y)) e.y -= 0.5; e.vy = 0; }
-            if(e.type === 'ally') { if(Math.abs(p.x - e.x) > 100) e.x += (p.x > e.x ? 3 : -3); }
-            else { e.x += (p.x > e.x ? 2.5 : -2.5); if(Math.abs(e.x-p.x)<30) p.hp -= 0.2; }
+            if(e.type==='ally') { if(Math.abs(p.x-e.x)>120) e.x += (p.x>e.x?3:-3); }
+            else { e.x -= 2; if(Math.abs(e.x-p.x)<30) p.hp -= 0.5; }
         });
         entities = entities.filter(e => e.hp > 0);
 
-        // UI
         document.getElementById('hp-txt').innerText = Math.ceil(p.hp);
         document.getElementById('pos-txt').innerText = Math.floor(p.x/TILE) + "," + Math.floor(p.y/TILE);
 
@@ -138,42 +146,33 @@
         requestAnimationFrame(loop);
     }
 
-    function check(x, y) {
-        for (let i = Math.floor(x/TILE); i <= Math.floor((x+22)/TILE); i++) {
-            for (let j = Math.floor(y/TILE); j <= Math.floor((y+42)/TILE); j++) {
-                let h = Math.floor(30 + Math.sin(i * 0.1) * 5);
-                let b = world[i+'_'+j] !== undefined ? world[i+'_'+j] : (j < h ? 0 : 1);
-                if(b > 0) return true;
-            }
-        }
-        return false;
-    }
-
     function draw() {
         ctx.fillStyle = '#1a1a2e'; ctx.fillRect(0,0,cvs.width,cvs.height);
         let cx = p.x - cvs.width/2, cy = p.y - cvs.height/2;
-        
-        // 畫地圖與人物
+
+        // 繪製地形與方塊
+        for(let x=Math.floor(cx/TILE); x<=Math.ceil((cx+cvs.width)/TILE); x++) {
+            for(let y=Math.floor(cy/TILE); y<=Math.ceil((cy+cvs.height)/TILE); y++) {
+                let b = getB(x, y);
+                if(b > 0) {
+                    ctx.fillStyle = b===2 ? '#2ecc71' : (b===1 ? '#795548' : '#95a5a6');
+                    ctx.fillRect(x*TILE-cx, y*TILE-cy, TILE+1, TILE+1);
+                }
+            }
+        }
+
+        // 繪製人物
         entities.concat(p).forEach(e => {
             ctx.fillStyle = e===p?'#e67e22':(e.type==='ally'?'#3498db':'#e74c3c');
             ctx.fillRect(e.x-cx, e.y-cy, e.w, e.h);
-            ctx.fillStyle='red'; ctx.fillRect(e.x-cx, e.y-cy-10, e.w, 4);
-            ctx.fillStyle='lime'; ctx.fillRect(e.x-cx, e.y-cy-10, e.w*(e.hp/e.maxHp), 4);
         });
 
-        // 簡單地形渲染
-        ctx.fillStyle = '#2ecc71';
-        for(let i=Math.floor(cx/TILE); i<Math.ceil((cx+cvs.width)/TILE); i++) {
-            let h = Math.floor(30 + Math.sin(i * 0.1) * 5);
-            ctx.fillRect(i*TILE-cx, h*TILE-cy, TILE, TILE);
-        }
-
-        // 小地圖
+        // 繪製小地圖
         mCtx.fillStyle='#000'; mCtx.fillRect(0,0,150,150);
-        mCtx.save(); mCtx.translate(75,75);
+        mCtx.save(); mCtx.translate(75, 75);
         entities.concat(p).forEach(e => {
             mCtx.fillStyle = e===p?'#fff':(e.type==='ally'?'#3498db':'#e74c3c');
-            mCtx.beginPath(); mCtx.arc((e.x-p.x)*0.15, (e.y-p.y)*0.15, 3, 0, 7); mCtx.fill();
+            mCtx.beginPath(); mCtx.arc((e.x-p.x)*0.1, (e.y-p.y)*0.1, 3, 0, 7); mCtx.fill();
         });
         mCtx.restore();
     }
