@@ -1,128 +1,95 @@
 <!DOCTYPE html>
-<html lang="zh-TW">
+<html>
 <head>
     <meta charset="UTF-8">
-    <title>Future Super Human - 2D Final Fix</title>
+    <title>Super Human 2D - Final Fix</title>
     <style>
-        body, html { margin: 0; padding: 0; width: 100%; height: 100%; background: #1a1a1a; overflow: hidden; font-family: sans-serif; }
+        body, html { margin: 0; padding: 0; background: #1a1a1a; overflow: hidden; font-family: sans-serif; }
         
-        /* 介面層：這層才是你點擊的地方 */
-        #ui-layer {
-            position: absolute; inset: 0;
+        /* 選單層：確保在最上方且可點擊 */
+        #menu {
+            position: absolute; inset: 0; z-index: 100;
             display: flex; flex-direction: column; align-items: center; justify-content: center;
-            z-index: 9999; background: #1a1a1a;
+            background: #1a1a1a; color: #f1c40f;
         }
 
         .btn {
-            padding: 20px 60px; font-size: 30px; cursor: pointer; margin: 10px;
-            background: #f1c40f; border: 5px solid #fff; border-radius: 15px;
-            color: #000; font-weight: bold; box-shadow: 0 8px 0 #b8860b;
+            padding: 20px 60px; font-size: 32px; cursor: pointer; margin: 15px;
+            background: #f1c40f; border: 4px solid #fff; border-radius: 15px;
+            font-weight: bold; box-shadow: 0 6px 0 #b8860b;
         }
-        .btn:hover { background: #fff; transform: scale(1.05); }
-        .btn:active { transform: translateY(4px); box-shadow: 0 4px 0 #b8860b; }
+        .btn:active { transform: translateY(4px); box-shadow: 0 2px 0 #b8860b; }
 
-        /* 遊戲專用 HUD */
         #hud {
-            position: fixed; top: 10px; left: 10px; background: rgba(0,0,0,0.8);
-            padding: 15px; border: 2px solid #f1c40f; color: white; border-radius: 10px;
-            z-index: 1000; display: none; pointer-events: none;
+            position: fixed; top: 10px; left: 10px; z-index: 50;
+            background: rgba(0,0,0,0.8); color: white; padding: 10px;
+            border: 2px solid #f1c40f; border-radius: 5px; display: none;
         }
 
-        /* 畫布：沒開始前是隱藏的 */
-        canvas#gameCanvas { display: none; position: absolute; top: 0; left: 0; z-index: 1; }
+        canvas { display: none; position: absolute; top: 0; left: 0; z-index: 10; }
     </style>
 </head>
 <body>
 
-    <div id="ui-layer">
-        <h1 style="color:#f1c40f; font-size:50px;">未來的 SUPER HUMAN</h1>
-        <div id="menu-main">
-            <button class="btn" onclick="startGame(1)">開始遊戲</button>
-            <button class="btn" onclick="toggleMulti()" style="background:#3498db; color:white;">多人模式</button>
-        </div>
-        <div id="menu-multi" style="display:none; text-align:center;">
-            <h2 style="color:white;">選擇人數: <span id="p-val" style="color:#f1c40f;">5</span></h2>
-            <input type="range" min="2" max="10" value="5" oninput="document.getElementById('p-val').innerText=this.value" id="p-slider" style="width:300px;">
-            <br>
-            <button class="btn" onclick="startGame(document.getElementById('p-slider').value)">進入地圖</button>
-        </div>
+    <div id="menu">
+        <h1>未來的 SUPER HUMAN</h1>
+        <button class="btn" onclick="start()">開始遊戲</button>
     </div>
 
-    <div id="hud">
-        ❤️ 血量: <span id="hp">100</span> | 📍 <span id="pos">0, 0</span><br>
-        🕒 時間: <span id="time">07:00</span> | 🌍 <span id="biome">平原</span>
-    </div>
-
-    <canvas id="gameCanvas"></canvas>
+    <div id="hud">❤️ HP: <span id="hp">100</span> | 📍 Pos: <span id="pos">0,0</span></div>
+    <canvas id="g"></canvas>
 
 <script>
-    const cvs = document.getElementById('gameCanvas'), ctx = cvs.getContext('2d');
-    let isLive = false, ticks = 420;
-    let p = { x: 0, y: 0, w: 20, h: 40, vx: 0, vy: 0, hp: 100, ground: false };
-    let world = {}, agents = [], keys = {};
+    const cvs = document.getElementById('g'), ctx = cvs.getContext('2d');
+    let run = false, keys = {}, world = {}, ticks = 420;
+    let p = { x: 0, y: 0, w: 20, h: 40, vx: 0, vy: 0, ground: false };
     const TILE = 32;
 
-    function toggleMulti() {
-        document.getElementById('menu-main').style.display = 'none';
-        document.getElementById('menu-multi').style.display = 'block';
-    }
-
-    function startGame(num) {
-        // 【核心修正】按下按鈕後才顯示畫布，並關閉選單
-        document.getElementById('ui-layer').style.display = 'none';
+    function start() {
+        document.getElementById('menu').style.display = 'none';
         document.getElementById('hud').style.display = 'block';
         cvs.style.display = 'block';
         cvs.width = window.innerWidth;
         cvs.height = window.innerHeight;
-
-        // 初始化位置與隊友
-        p.y = getTerrainHeight(0) * TILE - 100;
-        for(let i=0; i<num-1; i++) spawn('ally', (Math.random()-0.5)*800);
         
-        isLive = true;
-        requestAnimationFrame(gameLoop);
+        // 初始化位置
+        p.y = getH(0) * TILE - 100;
+        run = true;
+        loop();
     }
 
-    // 地形與碰撞邏輯
-    function getTerrainHeight(gx) {
-        let x = Math.abs(gx);
-        let base = 35;
-        if (x % 1000 < 300) base = 25; // 山地
-        return Math.floor(base + Math.sin(gx * 0.2) * 5);
+    function getH(gx) {
+        return Math.floor(35 + Math.sin(gx * 0.2) * 5);
     }
 
-    function getBlock(gx, gy) {
+    function getB(gx, gy) {
         if (world[gx+'_'+gy] !== undefined) return world[gx+'_'+gy];
-        let h = getTerrainHeight(gx);
+        let h = getH(gx);
         return gy < h ? 0 : (gy === h ? 2 : 1);
     }
 
-    function spawn(type, x) {
-        agents.push({ type, x: x, y: getTerrainHeight(Math.floor(x/TILE))*TILE-100, w:20, h:40, hp:100, dir:1 });
-    }
-
-    // 輸入監聽
     window.onkeydown = e => keys[e.code] = true;
     window.onkeyup = e => keys[e.code] = false;
     window.onmousedown = e => {
-        if(!isLive) return;
+        if(!run) return;
         let gx = Math.floor((e.clientX + (p.x - cvs.width/2))/TILE);
         let gy = Math.floor((e.clientY + (p.y - cvs.height/2))/TILE);
-        world[gx+'_'+gy] = (e.button === 0) ? 0 : 3; // 左鍵挖，右鍵放石塊
+        world[gx+'_'+gy] = (e.button === 0) ? 0 : 3;
     };
     window.oncontextmenu = e => e.preventDefault();
 
-    function gameLoop() {
-        if(!isLive) return;
+    function loop() {
+        if(!run) return;
 
-        // 1. 物理：Y軸 (重力與碰撞)
+        // --- 核心物理：防穿牆 ---
+        // 1. Y軸 (重力與碰撞)
         p.vy += 0.8;
         let nextY = p.y + p.vy;
-        let gridX_L = Math.floor((p.x + 4)/TILE), gridX_R = Math.floor((p.x + p.w - 4)/TILE);
-        let gridY_Foot = Math.floor((nextY + p.h)/TILE);
+        let pL = Math.floor((p.x + 4)/TILE), pR = Math.floor((p.x + p.w - 4)/TILE);
+        let footY = Math.floor((nextY + p.h)/TILE);
 
-        if (getBlock(gridX_L, gridY_Foot) > 0 || getBlock(gridX_R, gridY_Foot) > 0) {
-            p.y = gridY_Foot * TILE - p.h;
+        if (getB(pL, footY) > 0 || getB(pR, footY) > 0) {
+            p.y = footY * TILE - p.h; // 踩在地面
             p.vy = 0;
             p.ground = true;
         } else {
@@ -130,60 +97,47 @@
             p.ground = false;
         }
 
-        // 2. 物理：X軸 (左右走與防穿牆)
+        // 2. X軸 (左右行走與防穿牆)
         let vx = (keys['KeyD']?5:0) - (keys['KeyA']?5:0);
         if (vx !== 0) {
             let nextX = p.x + vx;
             let sideX = vx > 0 ? Math.floor((nextX + p.w)/TILE) : Math.floor(nextX/TILE);
-            let headY = Math.floor((p.y + 5)/TILE), footY = Math.floor((p.y + p.h - 5)/TILE);
-            if (getBlock(sideX, headY) === 0 && getBlock(sideX, footY) === 0) {
+            let headY = Math.floor((p.y + 5)/TILE), bodyY = Math.floor((p.y + p.h - 5)/TILE);
+            
+            // 檢查前進方向是否有方塊
+            if (getB(sideX, headY) === 0 && getB(sideX, bodyY) === 0) {
                 p.x = nextX;
             }
         }
 
         if ((keys['Space'] || keys['KeyW']) && p.ground) p.vy = -12;
 
-        // 3. UI 更新
-        ticks = (ticks + 0.2) % 1440;
-        document.getElementById('hp').innerText = Math.ceil(p.hp);
-        document.getElementById('pos').innerText = `${Math.floor(p.x/TILE)}, ${Math.floor(p.y/TILE)}`;
-        let hh = Math.floor(ticks/60).toString().padStart(2,'0'), mm = Math.floor(ticks%60).toString().padStart(2,'0');
-        document.getElementById('time').innerText = `${hh}:${mm}`;
+        // UI
+        ticks++;
+        document.getElementById('pos').innerText = Math.floor(p.x/TILE) + "," + Math.floor(p.y/TILE);
 
-        render();
-        requestAnimationFrame(gameLoop);
+        draw();
+        requestAnimationFrame(loop);
     }
 
-    function render() {
-        // 背景
-        ctx.fillStyle = (ticks > 1080 || ticks < 360) ? '#1a1a2e' : '#87ceeb';
+    function draw() {
+        ctx.fillStyle = '#87ceeb';
         ctx.fillRect(0, 0, cvs.width, cvs.height);
 
-        let camX = p.x - cvs.width/2, camY = p.y - cvs.height/2;
+        let cx = p.x - cvs.width/2, cy = p.y - cvs.height/2;
 
-        // 畫方塊
-        for(let x = Math.floor(camX/TILE); x < Math.ceil((camX+cvs.width)/TILE); x++) {
-            for(let y = Math.floor(camY/TILE); y < Math.ceil((camY+cvs.height)/TILE); y++) {
-                let b = getBlock(x, y);
+        for(let x = Math.floor(cx/TILE); x < Math.ceil((cx+cvs.width)/TILE); x++) {
+            for(let y = Math.floor(cy/TILE); y < Math.ceil((cy+cvs.height)/TILE); y++) {
+                let b = getB(x, y);
                 if (b > 0) {
-                    ctx.fillStyle = (b === 1) ? '#8B4513' : (b === 2 ? '#228B22' : '#777');
-                    ctx.fillRect(x*TILE - camX, y*TILE - camY, TILE, TILE);
+                    ctx.fillStyle = (b === 2 ? '#228B22' : (b === 1 ? '#8B4513' : '#777'));
+                    ctx.fillRect(x*TILE - cx, y*TILE - cy, TILE, TILE);
                 }
             }
         }
 
-        // 畫隊友
-        agents.forEach(a => {
-            ctx.fillStyle = '#f1c40f';
-            ctx.fillRect(a.x - camX, a.y - camY, a.w, a.h);
-            // 隊友重力
-            let ay = Math.floor((a.y + a.h)/TILE), ax = Math.floor((a.x+10)/TILE);
-            if(getBlock(ax, ay) === 0) a.y += 5; else a.y = ay * TILE - a.h;
-        });
-
-        // 畫玩家
-        ctx.fillStyle = '#FF5733';
-        ctx.fillRect(p.x - camX, p.y - camY, p.w, p.h);
+        ctx.fillStyle = '#FF5733'; // 玩家
+        ctx.fillRect(p.x - cx, p.y - cy, p.w, p.h);
     }
 </script>
 </body>
