@@ -2,28 +2,28 @@
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
-    <title>Super Human 2D - 最後救援版</title>
+    <title>Super Human - Final Version</title>
     <style>
-        body, html { margin: 0; padding: 0; width: 100%; height: 100%; background: #1a1a1a; overflow: hidden; font-family: sans-serif; }
+        body, html { margin: 0; padding: 0; width: 100%; height: 100%; background: #000; overflow: hidden; font-family: sans-serif; }
         
-        /* 選單：放在最頂層 */
-        #menu {
-            position: fixed; inset: 0; z-index: 9999;
+        /* 極高優先權的選單 */
+        #start-screen {
+            position: fixed; inset: 0; z-index: 99999;
             display: flex; flex-direction: column; align-items: center; justify-content: center;
-            background: #2c3e50; color: #f1c40f;
+            background: #1a1a1a;
         }
 
-        .btn {
-            padding: 20px 60px; font-size: 30px; cursor: pointer;
-            background: #f1c40f; border: none; border-radius: 10px;
-            font-weight: bold; box-shadow: 0 6px 0 #b8860b;
+        .big-btn {
+            padding: 30px 80px; font-size: 40px; cursor: pointer;
+            background: #f1c40f; border: 5px solid #fff; border-radius: 20px;
+            font-weight: bold; color: #000; box-shadow: 0 10px 0 #b8860b;
         }
-        .btn:active { transform: translateY(4px); box-shadow: 0 2px 0 #b8860b; }
+        .big-btn:active { transform: translateY(6px); box-shadow: 0 4px 0 #b8860b; }
 
         #hud {
-            position: fixed; top: 10px; left: 10px; z-index: 100;
-            background: rgba(0,0,0,0.8); color: white; padding: 10px;
-            border: 2px solid #f1c40f; display: none; pointer-events: none;
+            position: fixed; top: 10px; left: 10px; z-index: 1000;
+            background: rgba(0,0,0,0.8); color: #fff; padding: 15px;
+            border: 2px solid #f1c40f; border-radius: 10px; display: none; font-size: 18px;
         }
 
         canvas { display: none; position: absolute; top: 0; left: 0; z-index: 10; }
@@ -31,78 +31,71 @@
 </head>
 <body>
 
-    <div id="menu">
-        <h1 style="font-size: 40px;">未來的 SUPER HUMAN</h1>
-        <p style="color: white;">(點擊下方按鈕開始)</p>
-        <button class="btn" onclick="start()">開始遊戲</button>
+    <div id="start-screen">
+        <h1 style="color: #f1c40f; font-size: 60px; margin-bottom: 40px;">SUPER HUMAN</h1>
+        <button class="big-btn" onclick="letsGo()">開始遊戲</button>
+        <p style="color: #aaa; margin-top: 20px;">(WASD 移動 | 滑鼠挖土/放土 | R 鍵脫困)</p>
     </div>
 
     <div id="hud">
-        ❤️ 血量: <span id="hp">100</span> | 📍 座標: <span id="pos">0,0</span>
+        ❤️ HP: <span id="hp-ui">100</span> | 📍 <span id="pos-ui">0,0</span>
     </div>
 
-    <canvas id="gameCanvas"></canvas>
+    <canvas id="mainCanvas"></canvas>
 
 <script>
-    const cvs = document.getElementById('gameCanvas'), ctx = cvs.getContext('2d');
-    let isRunning = false, world = {}, keys = {};
-    let p = { x: 0, y: 0, w: 24, h: 40, vx: 0, vy: 0, ground: false };
+    const cvs = document.getElementById('mainCanvas'), ctx = cvs.getContext('2d');
+    let active = false, world = {}, keys = {}, ticks = 420;
+    let p = { x: 0, y: 0, w: 24, h: 44, vx: 0, vy: 0, ground: false, hp: 100 };
     const TILE = 32;
 
-    function start() {
-        // 隱藏選單，顯示遊戲
-        document.getElementById('menu').style.display = 'none';
+    function letsGo() {
+        document.getElementById('start-screen').style.display = 'none';
         document.getElementById('hud').style.display = 'block';
         cvs.style.display = 'block';
         cvs.width = window.innerWidth;
         cvs.height = window.innerHeight;
         
-        // 設定初始高度
-        p.y = getH(0) * TILE - 100;
-        isRunning = true;
-        loop();
+        // 初始高度修正：確保一開始就在地面上方
+        p.x = 0;
+        p.y = (Math.floor(35 + Math.sin(0) * 5) - 5) * TILE;
+        
+        active = true;
+        gameLoop();
     }
 
-    // 地形生成器
-    function getH(gx) {
-        return Math.floor(35 + Math.sin(gx * 0.2) * 5);
-    }
+    function getH(gx) { return Math.floor(35 + Math.sin(gx * 0.2) * 5); }
 
-    // 取得方塊 (0=空氣, 1=土, 2=草, 3=石)
     function getB(gx, gy) {
         if (world[gx+'_'+gy] !== undefined) return world[gx+'_'+gy];
         let h = getH(gx);
-        if (gy < h) return 0;
-        if (gy === h) return 2;
-        return 1;
+        return gy < h ? 0 : (gy === h ? 2 : 1);
     }
 
-    // 控制監聽
-    window.onkeydown = e => keys[e.code] = true;
+    window.onkeydown = e => {
+        keys[e.code] = true;
+        if(e.code === 'KeyR') p.y -= 200; // R 鍵脫困功能
+    };
     window.onkeyup = e => keys[e.code] = false;
     window.onmousedown = e => {
-        if(!isRunning) return;
-        let camX = p.x - cvs.width/2;
-        let camY = p.y - cvs.height/2;
-        let gx = Math.floor((e.clientX + camX) / TILE);
-        let gy = Math.floor((e.clientY + camY) / TILE);
-        // 左鍵挖掉，右鍵放石塊
+        if(!active) return;
+        let cx = p.x - cvs.width/2, cy = p.y - cvs.height/2;
+        let gx = Math.floor((e.clientX + cx) / TILE), gy = Math.floor((e.clientY + cy) / TILE);
         world[gx+'_'+gy] = (e.button === 0) ? 0 : 3;
     };
     window.oncontextmenu = e => e.preventDefault();
 
-    function loop() {
-        if(!isRunning) return;
+    function gameLoop() {
+        if(!active) return;
 
-        // --- 1. 物理處理：Y軸 (重力與地板碰撞) ---
+        // 1. Y 軸：重力與精確踩踏
         p.vy += 0.8;
         let nextY = p.y + p.vy;
-        let footY = Math.floor((nextY + p.h) / TILE);
-        let pL = Math.floor((p.x + 4) / TILE);
-        let pR = Math.floor((p.x + p.w - 4) / TILE);
+        let pL = Math.floor((p.x + 4)/TILE), pR = Math.floor((p.x + p.w - 4)/TILE);
+        let footY = Math.floor((nextY + p.h)/TILE);
 
         if (getB(pL, footY) > 0 || getB(pR, footY) > 0) {
-            p.y = footY * TILE - p.h; // 踩在方塊頂部
+            p.y = footY * TILE - p.h; // 腳底貼齊方塊頂部
             p.vy = 0;
             p.ground = true;
         } else {
@@ -110,55 +103,43 @@
             p.ground = false;
         }
 
-        // --- 2. 物理處理：X軸 (行走與防穿牆) ---
-        let speed = 5;
-        let moveX = (keys['KeyD'] ? speed : 0) - (keys['KeyA'] ? speed : 0);
-        if (moveX !== 0) {
-            let nextX = p.x + moveX;
-            let sideX = moveX > 0 ? Math.floor((nextX + p.w) / TILE) : Math.floor(nextX / TILE);
-            let headY = Math.floor((p.y + 4) / TILE);
-            let bodyY = Math.floor((p.y + p.h - 4) / TILE);
-
-            // 如果前方是空氣，才允許移動
-            if (getB(sideX, headY) === 0 && getB(sideX, bodyY) === 0) {
+        // 2. X 軸：行走與鋼鐵防穿牆
+        let move = (keys['KeyD'] ? 5 : 0) - (keys['KeyA'] ? 5 : 0);
+        if (move !== 0) {
+            let nextX = p.x + move;
+            let checkX = move > 0 ? Math.floor((nextX + p.w)/TILE) : Math.floor(nextX/TILE);
+            let hY = Math.floor((p.y + 4)/TILE), bY = Math.floor((p.y + p.h - 4)/TILE);
+            
+            // 只有前方完全沒阻礙才移動
+            if (getB(checkX, hY) === 0 && getB(checkX, bY) === 0) {
                 p.x = nextX;
             }
         }
 
-        // 跳躍
-        if ((keys['Space'] || keys['KeyW']) && p.ground) p.vy = -12;
+        if ((keys['Space'] || keys['KeyW']) && p.ground) p.vy = -13;
 
-        // 更新 UI
-        document.getElementById('pos').innerText = Math.floor(p.x/TILE) + "," + Math.floor(p.y/TILE);
+        // UI 更新
+        document.getElementById('pos-ui').innerText = Math.floor(p.x/TILE) + "," + Math.floor(p.y/TILE);
 
-        draw();
-        requestAnimationFrame(loop);
-    }
-
-    function draw() {
-        // 畫天空
-        ctx.fillStyle = '#87ceeb';
+        // 繪製
+        ctx.fillStyle = '#87ceeb'; // 天空
         ctx.fillRect(0, 0, cvs.width, cvs.height);
 
-        let camX = p.x - cvs.width/2;
-        let camY = p.y - cvs.height/2;
-
-        // 畫方塊 (只畫畫面上看的到的)
-        for (let x = Math.floor(camX/TILE); x <= Math.ceil((camX+cvs.width)/TILE); x++) {
-            for (let y = Math.floor(camY/TILE); y <= Math.ceil((camY+cvs.height)/TILE); y++) {
+        let camX = p.x - cvs.width/2, camY = p.y - cvs.height/2;
+        for(let x = Math.floor(camX/TILE); x <= Math.ceil((camX+cvs.width)/TILE); x++) {
+            for(let y = Math.floor(camY/TILE); y <= Math.ceil((camY+cvs.height)/TILE); y++) {
                 let b = getB(x, y);
                 if (b > 0) {
-                    if (b === 2) ctx.fillStyle = '#2ecc71'; // 草
-                    else if (b === 1) ctx.fillStyle = '#795548'; // 土
-                    else ctx.fillStyle = '#7f8c8d'; // 石
-                    ctx.fillRect(x * TILE - camX, y * TILE - camY, TILE, TILE);
+                    ctx.fillStyle = (b === 2 ? '#2ecc71' : (b === 1 ? '#795548' : '#7f8c8d'));
+                    ctx.fillRect(x*TILE - camX, y*TILE - camY, TILE, TILE);
                 }
             }
         }
 
-        // 畫玩家 (橘色方塊)
-        ctx.fillStyle = '#e67e22';
+        ctx.fillStyle = '#FF5733'; // 玩家
         ctx.fillRect(p.x - camX, p.y - camY, p.w, p.h);
+
+        requestAnimationFrame(gameLoop);
     }
 </script>
 </body>
