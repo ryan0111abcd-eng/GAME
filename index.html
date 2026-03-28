@@ -4,83 +4,93 @@ function loop() {
             let h = Math.floor(ticks/60), m = Math.floor(ticks%60);
             let isNight = (ticks > 1090 || ticks < 390);
 
-            // 1. 處理 Y 軸移動（重力與跳躍）
-            p.vy += 0.7; 
-            p.y += p.vy;
+            // --- 1. Y 軸移動與碰撞 (處理重力、跳躍、天花板) ---
+            p.vy += 0.7; // 重力
+            let nextY = p.y + p.vy;
             p.ground = false;
 
-            // Y 軸碰撞偵測 (地板與天花板)
-            let ty = Math.floor(p.y / TILE);
-            let by = Math.floor((p.y + p.h) / TILE);
-            let lx = Math.floor((p.x + 2) / TILE);
-            let rx = Math.floor((p.x + p.w - 2) / TILE);
+            // 檢查頭頂與腳下 (取角色左右兩端的點進行垂直檢查)
+            let checkY = p.vy > 0 ? nextY + p.h : nextY; // 往下掉檢查腳底，往上跳檢查頭頂
+            let gridY = Math.floor(checkY / TILE);
+            let leftGridX = Math.floor((p.x + 4) / TILE);   // 稍微縮進 4 像素避免卡牆
+            let rightGridX = Math.floor((p.x + p.w - 4) / TILE);
 
-            if (getB(lx, by) > 0 || getB(rx, by) > 0) { // 踩到地
-                p.y = by * TILE - p.h;
+            if (getB(leftGridX, gridY) > 0 || getB(rightGridX, gridY) > 0) {
+                if (p.vy > 0) { // 落地
+                    p.y = gridY * TILE - p.h;
+                    p.ground = true;
+                } else { // 撞到天花板
+                    p.y = (gridY + 1) * TILE;
+                }
                 p.vy = 0;
-                p.ground = true;
-            } else if (getB(lx, ty) > 0 || getB(rx, ty) > 0) { // 撞到天花板
-                p.y = (ty + 1) * TILE;
-                p.vy = 0;
-            }
-
-            // 2. 處理 X 軸移動（左右走路）
-            let nextVx = keys['KeyD'] ? 5 : (keys['KeyA'] ? -5 : 0);
-            let nextX = p.x + nextVx;
-            
-            // X 軸碰撞偵測 (左右牆壁)
-            let sideX = nextVx > 0 ? Math.floor((nextX + p.w) / TILE) : Math.floor(nextX / TILE);
-            let headY = Math.floor((p.y + 2) / TILE);
-            let footY = Math.floor((p.y + p.h - 2) / TILE);
-
-            if (getB(sideX, headY) > 0 || getB(sideX, footY) > 0) {
-                // 撞到牆壁了，不能移動
-                p.vx = 0;
             } else {
-                p.x = nextX;
-                p.vx = nextVx;
+                p.y = nextY;
             }
 
-            // 3. 跳躍
+            // --- 2. X 軸移動與碰撞 (處理左右牆壁) ---
+            let moveX = keys['KeyD'] ? 5 : (keys['KeyA'] ? -5 : 0);
+            if (moveX !== 0) {
+                let nextX = p.x + moveX;
+                // 檢查角色的頭部高度與腳部高度是否會撞牆
+                let checkX = moveX > 0 ? nextX + p.w : nextX;
+                let gridX = Math.floor(checkX / TILE);
+                let headGridY = Math.floor((p.y + 4) / TILE);
+                let footGridY = Math.floor((p.y + p.h - 4) / TILE);
+
+                if (getB(gridX, headGridY) > 0 || getB(gridX, footGridY) > 0) {
+                    // 撞牆了，不更新 p.x
+                } else {
+                    p.x = nextX;
+                }
+            }
+
+            // 跳躍輸入
             if((keys['KeyW'] || keys['Space']) && p.ground) p.vy = -12;
 
-            // --- 以下維持原有的 AI 與 UI 邏輯 ---
-            if(isNight && Math.random() < 0.01 && agents.filter(a=>a.type==='monster').length < 8) {
-                spawnAgent('monster', p.x + (Math.random()>0.5?600:-600));
-            }
-
+            // --- 3. AI 邏輯 (也加上簡單的撞牆處理) ---
             agents.forEach((a, idx) => {
                 a.sTimer--; if(a.sTimer <= 0) { a.dir = Math.random()>0.5?1:-1; a.sTimer = 100; }
                 if(a.type === 'monster') a.dir = p.x > a.x ? 1 : -1;
                 
-                // AI 的簡單碰撞處理 (撞牆自動跳一下)
-                let ax = a.x + a.dir * (a.type==='monster'?3:1.5);
-                let asX = a.dir > 0 ? Math.floor((ax + a.w) / TILE) : Math.floor(ax / TILE);
-                let ay = Math.floor((a.y + a.h - 5) / TILE);
-                
-                if (getB(asX, ay) > 0) {
-                    // 如果前面有方塊，自動挖掉或嘗試跳過 (這裡設為挖掉)
-                    world[asX + '_' + ay] = 0;
+                let nextAx = a.x + a.dir * (a.type==='monster'?3:1.5);
+                let checkAx = a.dir > 0 ? nextAx + a.w : nextAx;
+                let agX = Math.floor(checkAx / TILE);
+                let agY = Math.floor((a.y + a.h - 10) / TILE);
+
+                if (getB(agX, agY) > 0) {
+                    // AI 撞牆時會嘗試「挖開」前方的方塊 (Minecraft 特色)
+                    world[agX + '_' + agY] = 0;
                 } else {
-                    a.x = ax;
+                    a.x = nextAx;
                 }
                 
+                // NPC 平滑高度調整
                 a.y += (getGY(Math.floor(a.x/TILE))*TILE - a.h - a.y) * 0.1;
                 
                 if(p.atk > 0 && Math.abs(a.x-p.x)<50 && Math.abs(a.y-p.y)<50) a.hp -= 10;
                 if(a.type === 'monster' && Math.abs(a.x-p.x)<25 && Math.abs(a.y-p.y)<25) p.hp -= 0.3;
                 if(a.hp <= 0) agents.splice(idx, 1);
             });
-            
+
+            // 晚上生怪
+            if(isNight && Math.random() < 0.01 && agents.filter(a=>a.type==='monster').length < 8) {
+                spawnAgent('monster', p.x + (Math.random()>0.5?600:-600));
+            }
+
             if(p.atk > 0) p.atk--;
             
-            document.getElementById('posX').innerText = Math.floor(p.x/TILE);
-            document.getElementById('posY').innerText = Math.floor(p.y/TILE);
-            document.getElementById('hp').innerText = Math.max(0, Math.ceil(p.hp));
-            document.getElementById('time-text').innerText = `${h.toString().padStart(2,'0')}:${m.toString().padStart(2,'0')}`;
-            document.getElementById('day-icon').innerText = isNight ? "🌙" : (ticks > 1050 ? "🌅" : "☀️");
-            document.getElementById('biome-text').innerText = getBiomeData(Math.floor(p.x/TILE)).name;
+            // UI 更新
+            updateUI(h, m, isNight);
         }
         render();
         requestAnimationFrame(loop);
+    }
+
+    function updateUI(h, m, isNight) {
+        document.getElementById('posX').innerText = Math.floor(p.x/TILE);
+        document.getElementById('posY').innerText = Math.floor(p.y/TILE);
+        document.getElementById('hp').innerText = Math.max(0, Math.ceil(p.hp));
+        document.getElementById('time-text').innerText = `${h.toString().padStart(2,'0')}:${m.toString().padStart(2,'0')}`;
+        document.getElementById('day-icon').innerText = isNight ? "🌙" : (ticks > 1050 ? "🌅" : "☀️");
+        document.getElementById('biome-text').innerText = getBiomeData(Math.floor(p.x/TILE)).name;
     }
