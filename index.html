@@ -4,90 +4,117 @@
     <meta charset="UTF-8">
     <title>Future Super Human - 2D Survival</title>
     <style>
-        body, html { margin: 0; padding: 0; width: 100%; height: 100%; background: #000; overflow: hidden; font-family: "Microsoft JhengHei", sans-serif; color: white; }
-        .layer { position: fixed; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; background: #1a1a1a; z-index: 10000; }
-        .btn { padding: 15px 40px; font-size: 24px; cursor: pointer; margin: 10px; background: #f1c40f; border: none; font-weight: bold; border-radius: 10px; color: black; box-shadow: 0 5px 0 #b8860b; }
-        .btn:active { transform: translateY(3px); box-shadow: 0 2px 0 #b8860b; }
+        /* 基礎設定 */
+        body, html { margin: 0; padding: 0; width: 100%; height: 100%; background: #000; overflow: hidden; font-family: "Microsoft JhengHei", sans-serif; }
         
-        #hud { position: fixed; top: 10px; left: 10px; background: rgba(0,0,0,0.7); padding: 12px; border: 2px solid #f1c40f; border-radius: 8px; z-index: 500; display: none; font-size: 14px; pointer-events: none; }
-        #minimap { position: fixed; top: 15px; right: 15px; width: 140px; height: 140px; border-radius: 50%; border: 3px solid #fff; background: rgba(0,0,0,0.5); overflow: hidden; z-index: 500; display: none; pointer-events: none; }
-        #inv { position: fixed; bottom: 15px; left: 50%; transform: translateX(-50%); display: none; gap: 8px; z-index: 500; }
-        .slot { width: 50px; height: 50px; border: 2px solid #777; background: #333; display: flex; align-items: center; justify-content: center; font-size: 12px; }
+        /* 【關鍵修復】選單層：強制放在最前面，確保點擊有效 */
+        .layer { 
+            position: fixed; inset: 0; 
+            display: flex; flex-direction: column; align-items: center; justify-content: center; 
+            background: #1a1a1a; 
+            z-index: 999999; /* 極高層級 */
+            pointer-events: auto; /* 強制接收點擊 */
+        }
+
+        .btn { 
+            padding: 20px 50px; font-size: 28px; cursor: pointer; margin: 15px; 
+            background: #f1c40f; border: 4px solid #fff; font-weight: bold; 
+            border-radius: 15px; color: black; box-shadow: 0 8px 0 #b8860b; 
+            transition: 0.1s;
+        }
+        .btn:hover { background: #fff; transform: scale(1.05); }
+        .btn:active { transform: translateY(4px); box-shadow: 0 4px 0 #b8860b; }
+
+        /* 遊戲介面設定 */
+        #hud { position: fixed; top: 15px; left: 15px; background: rgba(0,0,0,0.8); padding: 15px; border: 2px solid #f1c40f; color: white; border-radius: 10px; z-index: 1000; display: none; pointer-events: none; }
+        #minimap { position: fixed; top: 15px; right: 15px; width: 150px; height: 150px; border-radius: 50%; border: 3px solid #fff; background: rgba(0,0,0,0.5); overflow: hidden; z-index: 1000; display: none; }
+        #inv { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); display: none; gap: 10px; z-index: 1000; }
+        .slot { width: 55px; height: 55px; border: 3px solid #777; background: #333; display: flex; align-items: center; justify-content: center; color: white; font-weight: bold; }
         .slot.active { border-color: #f1c40f; background: #555; }
         
-        #esc-menu { position: fixed; inset: 0; background: rgba(0,0,0,0.8); display: none; flex-direction: column; align-items: center; justify-content: center; z-index: 20000; }
-        canvas#gameCanvas { display: none; position: absolute; top: 0; left: 0; z-index: 10; }
+        canvas#gameCanvas { display: none; position: absolute; top: 0; left: 0; z-index: 10; cursor: crosshair; }
     </style>
 </head>
 <body>
 
     <div id="ui-start" class="layer">
-        <h1 style="color:#f1c40f; font-size:45px;">未來的 SUPER HUMAN</h1>
-        <button class="btn" onclick="initGame(1)">開始遊戲</button>
+        <h1 style="color:#f1c40f; font-size:50px; text-shadow: 3px 3px 0 #000;">未來的 SUPER HUMAN</h1>
+        <button class="btn" onclick="initGame(1)">單人遊戲開始</button>
         <button class="btn" onclick="showMulti()" style="background:#3498db; color:white;">多人連線模式</button>
     </div>
 
     <div id="ui-multi" class="layer" style="display:none;">
-        <h1>選擇小隊人數 (2-10)</h1>
-        <input type="range" id="p-count" min="2" max="10" value="5" oninput="document.getElementById('pv').innerText=this.value" style="width:250px;">
-        <div style="font-size:30px; margin:15px;"><span id="pv" style="color:#f1c40f;">5</span> 人</div>
-        <button class="btn" onclick="initGame(document.getElementById('p-count').value)">開始遊戲</button>
-    </div>
-
-    <div id="esc-menu">
-        <h1 style="color:#f1c40f;">遊戲暫停</h1>
-        <button class="btn" onclick="location.reload()">離開遊戲 (重新開始)</button>
-        <button class="btn" onclick="togglePause()" style="background:#888; color:white;">返回</button>
+        <h1 style="color:white;">選擇小隊人數 (2-10)</h1>
+        <input type="range" id="p-count" min="2" max="10" value="5" oninput="document.getElementById('pv').innerText=this.value" style="width:300px; height:30px;">
+        <div style="font-size:40px; margin:20px; color:#f1c40f;"><span id="pv">5</span> 人</div>
+        <button class="btn" onclick="initGame(document.getElementById('p-count').value)">進入遊戲</button>
     </div>
 
     <div id="hud">
-        📍 <span id="posX">0</span>, <span id="posY">0</span> | ❤️ <span id="hp">100</span><br>
-        🕒 <span id="time-text">07:00</span> <span id="day-icon">☀️</span> | 🗺️ <span id="biome-text">平原</span>
+        📍 座標: <span id="posX">0</span>, <span id="posY">0</span><br>
+        ❤️ 血量: <span id="hp">100</span><br>
+        🕒 時間: <span id="time-text">07:00</span> <span id="day-icon">☀️</span><br>
+        🗺️ 生物: <span id="biome-text">平原</span>
     </div>
-    <div id="minimap"><canvas id="miniCanvas" width="140" height="140"></canvas></div>
+    <div id="minimap"><canvas id="miniCanvas" width="150" height="150"></canvas></div>
     <div id="inv">
-        <div class="slot active" id="sl1">1:土</div><div class="slot" id="sl2">2:草</div>
-        <div class="slot" id="sl3">3:石</div><div class="slot" id="sl4">4:木</div>
+        <div class="slot active" id="sl1">1:土</div>
+        <div class="slot" id="sl2">2:草</div>
+        <div class="slot" id="sl3">3:石</div>
+        <div class="slot" id="sl4">4:木</div>
     </div>
 
     <canvas id="gameCanvas"></canvas>
 
 <script>
+    // 初始化變數
     const cvs = document.getElementById('gameCanvas'), ctx = cvs.getContext('2d');
     const mcvs = document.getElementById('miniCanvas'), mctx = mcvs.getContext('2d');
-    let isRunning = false, isPaused = false, ticks = 420;
+    let isRunning = false, ticks = 420;
     let world = {}, camX = 0, camY = 0, curB = 1;
     let p = { x: 0, y: 0, w: 20, h: 40, vx: 0, vy: 0, hp: 100, ground: false, atk: 0 };
     let agents = [], keys = {};
-    const TILE = 32, COLORS = { 1: '#8B4513', 2: '#228B22', 3: '#666', 4: '#cd853f', 5: '#95a5a6' };
+    const TILE = 32, COLORS = { 1: '#8B4513', 2: '#228B22', 3: '#666', 4: '#cd853f' };
 
-    function showMulti() { document.getElementById('ui-start').style.display='none'; document.getElementById('ui-multi').style.display='flex'; }
+    function showMulti() {
+        document.getElementById('ui-start').style.display = 'none';
+        document.getElementById('ui-multi').style.display = 'flex';
+    }
 
     function initGame(num) {
+        // 隱藏選單
         document.querySelectorAll('.layer').forEach(l => l.style.display='none');
         document.getElementById('hud').style.display='block';
         document.getElementById('minimap').style.display='block';
         document.getElementById('inv').style.display='flex';
-        cvs.style.display='block'; cvs.width = window.innerWidth; cvs.height = window.innerHeight;
-        p.y = getGY(0)*TILE - 150;
+        
+        // 啟動畫布
+        cvs.style.display='block';
+        cvs.width = window.innerWidth;
+        cvs.height = window.innerHeight;
+        
+        // 初始位置
+        p.y = getGY(0) * TILE - 150;
+        
+        // 生成隊友與生物
         for(let i=0; i<num-1; i++) spawnAgent('ally', (Math.random()-0.5)*1000);
-        for(let i=0; i<5; i++) spawnAgent('villager', (Math.random()-0.5)*2000);
+        for(let i=0; i<6; i++) spawnAgent('villager', (Math.random()-0.5)*2000);
+
         isRunning = true;
         requestAnimationFrame(loop);
     }
 
+    // 地形生成
     function getBiomeData(gx) {
         let x = Math.abs(gx);
         if (x % 1500 < 300) return { name: "山地", h: 22, n: 12 };
         if (x % 1500 < 800) return { name: "平原", h: 38, n: 2 };
         return { name: "丘陵", h: 34, n: 6 };
     }
-
     function getGY(gx) {
         let b = getBiomeData(gx);
         return Math.floor(b.h + Math.sin(gx * 0.15) * b.n);
     }
-
     function getB(gx, gy) {
         if (world[gx+'_'+gy] !== undefined) return world[gx+'_'+gy];
         let fY = getGY(gx);
@@ -98,6 +125,25 @@
         agents.push({ type, x: startX, y: getGY(Math.floor(startX/TILE))*TILE-100, w:20, h:40, hp:100, dir:1, sTimer:50 });
     }
 
-    function togglePause() {
-        isPaused = !isPaused;
-        document.getElementById('esc-menu').style.display = isPaused ? 'flex' : '
+    // 操作監聽
+    window.onkeydown = e => { keys[e.code] = true; if(e.code === 'KeyK') p.atk = 15; if(e.key >= '1' && e.key <= '4') { curB = parseInt(e.key); document.querySelectorAll('.slot').forEach(s => s.classList.remove('active')); document.getElementById('sl'+curB).classList.add('active'); }};
+    window.onkeyup = e => keys[e.code] = false;
+    window.onmousedown = e => {
+        if(!isRunning) return;
+        let gx = Math.floor((e.clientX + camX)/TILE), gy = Math.floor((e.clientY + camY)/TILE);
+        if(e.button === 0) world[gx+'_'+gy] = 0; // 挖掉
+        if(e.button === 2) world[gx+'_'+gy] = curB; // 放置
+    };
+    window.oncontextmenu = e => e.preventDefault();
+
+    // 遊戲循環
+    function loop() {
+        if(isRunning) {
+            ticks = (ticks + 0.3) % 1440;
+            let h = Math.floor(ticks/60), m = Math.floor(ticks%60);
+            let isNight = (ticks > 1090 || ticks < 390);
+
+            // 垂直移動
+            p.vy += 0.8; let nextY = p.y + p.vy; p.ground = false;
+            let fY = Math.floor((nextY + p.h) / TILE);
+            let pL = Math.floor((p.x + 4) / TILE), pR =
