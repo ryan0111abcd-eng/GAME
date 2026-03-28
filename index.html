@@ -3,10 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SUPER HUMAN - 終極守護者</title>
+    <title>SUPER HUMAN 2026 - 全進化版</title>
     <style>
         body, html { margin: 0; padding: 0; width: 100%; height: 100%; background: #000; overflow: hidden; font-family: sans-serif; user-select: none; }
-        .ui-box { position: fixed; inset: 0; z-index: 9999; display: flex; flex-direction: column; align-items: center; justify-content: center; background: #111; color: #f1c40f; text-align: center; }
+        .ui { position: fixed; inset: 0; z-index: 9999; display: flex; flex-direction: column; align-items: center; justify-content: center; background: #111; color: #f1c40f; text-align: center; }
         .btn { padding: 25px 60px; font-size: 32px; cursor: pointer; margin: 15px; background: #f1c40f; border: 5px solid #fff; border-radius: 20px; font-weight: bold; color: #000; box-shadow: 0 8px 0 #b8860b; }
         .btn:active { transform: translateY(4px); box-shadow: 0 4px 0 #b8860b; }
         #hud { position: fixed; top: 15px; left: 15px; z-index: 100; color: white; background: rgba(0,0,0,0.7); padding: 15px; border-radius: 10px; border: 2px solid #f1c40f; display: none; pointer-events: none; line-height: 1.6; }
@@ -17,32 +17,20 @@
 </head>
 <body>
 
-    <div id="step1" class="ui-box">
-        <h1 style="font-size: 45px;">SUPER HUMAN: 守護者</h1>
-        <button class="btn" onclick="document.getElementById('step1').style.display='none'; window.sSize=1; showStep3();">👤 單人冒險</button>
-        <button class="btn" onclick="document.getElementById('step1').style.display='none'; document.getElementById('step2').style.display='flex';" style="background:#3498db; color:white;">👥 小隊連線</button>
+    <div id="m-step1" class="ui">
+        <h1 style="font-size: 45px;">SUPER HUMAN: 守護者行動</h1>
+        <button class="btn" onclick="document.getElementById('m-step1').style.display='none'; window.sSize=1; goWorld();">👤 單人冒險</button>
+        <button class="btn" onclick="document.getElementById('m-step1').style.display='none'; document.getElementById('m-step2').style.display='flex';" style="background:#3498db; color:white;">👥 派遣小隊</button>
     </div>
 
-    <div id="step2" class="ui-box" style="display:none;">
-        <h1>選擇小隊人數</h1>
+    <div id="m-step2" class="ui" style="display:none;">
+        <h1>選擇支援人數</h1>
         <h2 id="p-lab">5 人</h2>
         <input type="range" min="2" max="10" value="5" oninput="document.getElementById('p-lab').innerText=this.value+' 人'" id="p-slider" style="width:300px; height:30px;">
-        <button class="btn" onclick="document.getElementById('step2').style.display='none'; window.sSize=document.getElementById('p-slider').value; showStep3();">下一步</button>
+        <button class="btn" onclick="document.getElementById('m-step2').style.display='none'; window.sSize=document.getElementById('p-slider').value; goWorld();">進入世界</button>
     </div>
 
-    <div id="step3" class="ui-box" style="display:none;">
-        <div style="background:#2c3e50; padding:25px; border-radius:15px; border:2px solid #f1c40f; max-width:450px; text-align:left; color:white;">
-            <h2 style="color:#f1c40f; text-align:center;">📜 任務說明單</h2>
-            ● <b>WASD</b> 移動 | <b>空白鍵</b> 跳躍<br>
-            ● <b>左鍵</b> 挖掘 | <b>右鍵</b> 放置(石頭)<br>
-            ● <b>K</b> 攻擊怪物 | <b>Q</b> 回血 | <b>ESC</b> 重啟<br>
-            ● <b>地形</b>：平原30%、台地20%、丘陵70%、古蹟65%<br>
-            ● <b>守護 AI</b>：如果你被打，電腦隊友會集結過來救你！<br>
-            <button class="btn" onclick="startWorld()" style="width:100%; margin-top:20px;">進入世界</button>
-        </div>
-    </div>
-
-    <div id="hud">❤️ HP: <span id="hp">100</span> | 📍 <span id="pos">0,0</span><br>🌍 <span id="bio">平原</span> | ⏰ <span id="tm">12:00</span></div>
+    <div id="hud">❤️ HP: <span id="hp">100</span> | 📍 座標: <span id="pos">0,0</span><br>🌍 地貌: <span id="bio">平原</span> | ⏰ 時間: <span id="tm">12:00</span></div>
     <div id="radar"><canvas id="rCvs" width="150" height="150"></canvas></div>
     <div id="rain-fx"></div>
     <canvas id="gCvs"></canvas>
@@ -51,18 +39,16 @@
     const cvs = document.getElementById('gCvs'), ctx = cvs.getContext('2d');
     const rcvs = document.getElementById('rCvs'), rctx = rcvs.getContext('2d');
     let isLive = false, world = {}, keys = {}, entities = [], ticks = 600;
-    let p = { x: 0, y: -200, w: 22, h: 42, vx: 0, vy: 0, hp: 100, maxHp: 100, ground: false, lastHit: null };
+    let p = { x: 0, y: -200, w: 22, h: 42, vx: 0, vy: 0, hp: 100, maxHp: 100, ground: false, hitBy: null };
     const TILE = 32;
 
-    function showStep3() { document.getElementById('step3').style.display = 'flex'; }
-
-    function startWorld() {
-        document.getElementById('step3').style.display = 'none';
+    function goWorld() {
         document.getElementById('hud').style.display = 'block';
         document.getElementById('radar').style.display = 'block';
         cvs.style.display = 'block'; cvs.width = window.innerWidth; cvs.height = window.innerHeight;
         
-        if(Math.random() < 0.4) { document.getElementById('rain-fx').style.display = 'block'; }
+        // 40% 下雨判定
+        if(Math.random() < 0.4) document.getElementById('rain-fx').style.display = 'block';
 
         const size = window.sSize || 1;
         for(let i=0; i<size-1; i++) spawn('ally', (Math.random()-0.5)*600);
@@ -73,17 +59,19 @@
     }
 
     function spawn(type, x) {
-        let h = (type==='pig')?30:100;
-        entities.push({ type, x, y: -500, w: 22, h: 42, vx: 0, vy: 0, hp: h, maxHp: h, dir: 1 });
+        let hp = (type==='pig')?30:100;
+        entities.push({ type, x, y: -500, w: 22, h: 42, vx: 0, vy: 0, hp: hp, maxHp: hp, dir: 1 });
     }
 
     function getBiome(gx) {
-        let x = Math.abs(gx);
-        let h = 35, c = "#2ecc71", amp = 1, ruins = (x % 100 < 65);
-        if (x % 100 < 20) { c = "#e67e22"; h=32; amp=0.5; }
-        if (x % 100 < 70) { c = "#27ae60"; h=28; amp=6; }
-        if (x % 100 < 50) { c = "#95a5a6"; h=15; amp=14; }
-        return { h, c, amp, ruins };
+        let x = Math.abs(gx), h = 35, c = "#2ecc71", amp = 1;
+        let bNames = [];
+        if (x % 100 < 30) { bNames.push("平原"); c = "#2ecc71"; h=35; amp=2; }
+        if (x % 100 < 20) { bNames.push("台地"); c = "#e67e22"; h=32; amp=1; }
+        if (x % 100 < 70) { bNames.push("丘陵"); c = "#27ae60"; h=28; amp=6; }
+        if (x % 100 < 50) { bNames.push("山地"); c = "#95a5a6"; h=15; amp=14; }
+        let ruins = (x % 100 < 65);
+        return { h, c, amp, ruins, name: bNames.join('/') || "荒地" };
     }
 
     function getB(gx, gy) {
@@ -106,7 +94,7 @@
             if(e !== o && Math.abs(e.x - o.x) < 70) {
                 if(t && e !== t) return;
                 e.hp -= 20; e.vx = (e.x > o.x ? 12 : -12);
-                if(e === p) p.lastHit = o; 
+                if(e === p) p.hitBy = o; 
             }
         });
     }
@@ -140,17 +128,17 @@
             e.vy += 0.8; e.y += e.vy;
             if(check(e.x, e.y)) { if(e.vy > 0) while(check(e.x, e.y)) e.y -= 0.5; e.vy = 0; }
             if(e.type === 'ally') {
-                if(p.lastHit && p.lastHit.hp > 0) { // 守護模式
-                    e.x += (p.lastHit.x > e.x ? 4 : -4);
-                    if(Math.abs(e.x - p.lastHit.x) < 60) doAtk(e, p.lastHit);
+                if(p.hitBy && p.hitBy.hp > 0) { // 援護玩家
+                    e.x += (p.hitBy.x > e.x ? 4 : -4);
+                    if(Math.abs(e.x - p.hitBy.x) < 60) doAtk(e, p.hitBy);
                 } else {
-                    if(Math.abs(p.x - e.x) > 180) e.x += (p.x > e.x ? 2.5 : -2.5);
+                    if(Math.abs(p.x - e.x) > 200) e.x += (p.x > e.x ? 2.5 : -2.5);
                     if(Math.random() < 0.005) world[Math.floor(e.x/TILE)+'_'+(Math.floor(e.y/TILE)+2)] = 0;
                     entities.forEach(m => { if(m.type==='mob' && Math.abs(m.x-e.x)<100) doAtk(e); });
                 }
             } else if(e.type === 'mob') {
                 e.x += (p.x > e.x ? 2.3 : -2.3);
-                if(Math.abs(e.x - p.x) < 30) p.hp -= 0.2;
+                if(Math.abs(e.x - p.x) < 30) p.hp -= 0.25;
             } else {
                 if(Math.random()<0.02) e.dir *= -1; e.x += e.dir*1.2;
             }
@@ -161,6 +149,7 @@
         document.getElementById('hp').innerText = Math.ceil(p.hp);
         document.getElementById('pos').innerText = Math.floor(p.x/TILE) + "," + Math.floor(p.y/TILE);
         document.getElementById('tm').innerText = Math.floor(ticks/60).toString().padStart(2,'0')+':'+Math.floor(ticks%60).toString().padStart(2,'0');
+        document.getElementById('bio').innerText = getBiome(Math.floor(p.x/TILE)).name;
         
         draw();
         requestAnimationFrame(loop);
@@ -195,7 +184,7 @@
     }
     function nightColor() {
         let night = ticks > 1050 || ticks < 350;
-        return night ? '#050510' : '#87ceeb';
+        return night ? '#050510' : (document.getElementById('rain-fx').style.display==='block' ? '#4b6584' : '#87ceeb');
     }
 </script>
 </body>
