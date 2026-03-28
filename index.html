@@ -3,172 +3,181 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SUPER HUMAN 2026 - FINAL</title>
+    <title>SUPER HUMAN 2026 - FINAL STABLE</title>
     <style>
-        body, html { margin: 0; padding: 0; width: 100%; height: 100%; background: #000; overflow: hidden; font-family: "Microsoft JhengHei", sans-serif; user-select: none; }
-        .ui-layer { position: fixed; inset: 0; z-index: 999999; display: flex; flex-direction: column; align-items: center; justify-content: center; background: #0a0a0a; color: #f1c40f; text-align: center; }
+        body, html { margin: 0; padding: 0; width: 100%; height: 100%; background: #000; overflow: hidden; font-family: sans-serif; user-select: none; }
+        .ui-screen { position: fixed; inset: 0; z-index: 999999; display: flex; flex-direction: column; align-items: center; justify-content: center; background: #0a0a0a; color: #f1c40f; text-align: center; }
         .btn { padding: 25px 60px; font-size: 32px; cursor: pointer; margin: 15px; background: #f1c40f; border: 4px solid #fff; border-radius: 20px; font-weight: bold; color: #000; box-shadow: 0 8px 0 #b8860b; }
-        .btn:hover { background: #fff; }
         .btn:active { transform: translateY(4px); box-shadow: 0 4px 0 #b8860b; }
-        /* 這裡改回 text，確保啟動碼清晰顯示 */
         .in-box { padding: 18px; font-size: 30px; border: 4px solid #f1c40f; border-radius: 12px; background: #000; color: #f1c40f; text-align: center; margin-bottom: 25px; width: 450px; outline: none; }
-        #hud { position: fixed; top: 15px; left: 15px; z-index: 100; color: white; background: rgba(0,0,0,0.85); padding: 15px; border-radius: 10px; border: 2px solid #f1c40f; display: none; pointer-events: none; line-height: 1.6; font-size: 18px; }
-        canvas#gCanvas { display: none; position: absolute; top: 0; left: 0; z-index: 10; }
-        #rain-fx { position: fixed; inset: 0; pointer-events: none; z-index: 50; background: rgba(40,40,80,0.3); display: none; }
+        #hud { position: fixed; top: 15px; left: 15px; z-index: 1000; color: white; background: rgba(0,0,0,0.8); padding: 15px; border-radius: 10px; border: 2px solid #f1c40f; display: none; pointer-events: none; line-height: 1.6; }
+        canvas#gCvs { display: none; position: absolute; top: 0; left: 0; z-index: 10; }
     </style>
 </head>
 <body>
 
-    <div id="auth-screen" class="ui-layer">
-        <h1 style="font-size: 45px; letter-spacing: 5px; margin-bottom: 10px;">SUPER HUMAN 系統</h1>
-        <p style="font-size: 24px; color: #fff; margin-bottom: 30px;">請輸入啟動碼</p>
-        <input type="text" id="pw-input" class="in-box" placeholder="在此輸入啟動碼" onkeydown="if(event.key==='Enter') window.doAuth()">
-        <button id="auth-btn" class="btn" onclick="window.doAuth()">認證啟動</button>
-        <p id="err-hint" style="color:#e74c3c; display:none; margin-top:20px; font-weight:bold;">啟動碼錯誤，請重新輸入</p>
+    <div id="auth-layer" class="ui-screen">
+        <h1 style="font-size: 50px; margin-bottom: 10px;">SUPER HUMAN 系統</h1>
+        <p style="font-size: 24px; color: #fff;">請輸入啟動碼</p>
+        <input type="text" id="pw" class="in-box" placeholder="在此輸入啟動碼">
+        <button class="btn" onclick="handleAuth()">認證啟動</button>
+        <p id="hint" style="color:red; display:none; margin-top:10px;">密鑰錯誤，請重新檢查</p>
     </div>
 
-    <div id="setup-screen" class="ui-layer" style="display:none;">
+    <div id="setup-layer" class="ui-screen" style="display:none;">
         <h1>認證成功</h1>
-        <div style="margin: 20px 0;">
-            <h2 id="p-label">小隊人數: <span style="color:#f1c40f;">5</span></h2>
-            <input type="range" min="2" max="15" value="5" oninput="document.getElementById('p-label').innerHTML='小隊人數: <span style=color:#f1c40f;>'+this.value+'</span>'" id="p-range" style="width:350px; height:40px;">
-        </div>
-        <button class="btn" onclick="window.goLive()">進入世界</button>
+        <h2 id="p-label">小隊人數: 5</h2>
+        <input type="range" min="2" max="15" value="5" oninput="document.getElementById('p-label').innerText='小隊人數: '+this.value" id="s-range" style="width:350px;">
+        <button class="btn" onclick="handleStart()">進入世界</button>
     </div>
 
-    <div id="hud">❤️ 血量: <span id="hp-ui">100</span> | 📍 座標: <span id="pos-ui">0,0</span><br>🕒 時間: <span id="tm-ui">12:00</span> | ☀️ <span id="sun-ui">日間</span></div>
-    <div id="rain-fx"></div>
-    <canvas id="gCanvas"></canvas>
+    <div id="hud">❤️ HP: <span id="hp-v">100</span> | 📍 POS: <span id="pos-v">0,0</span><br>☀️ 狀態: <span id="sun-v">日間</span></div>
+    <canvas id="gCvs"></canvas>
 
 <script>
-    window.onload = () => {
-        const cvs = document.getElementById('gCanvas'), ctx = cvs.getContext('2d');
-        let live = false, world = {}, keys = {}, ents = [], ticks = 600;
-        let p = { x: 0, y: -800, w: 22, h: 42, vx: 0, vy: 0, hp: 100, max: 100, gr: false, hitBy: null };
-        const TILE = 32;
+    // 1. 立即定義認證邏輯 (不等待 window.onload)
+    function handleAuth() {
+        const input = document.getElementById('pw').value.trim();
+        console.log("嘗試認證: " + input);
+        if(input === 'ryan0111407') {
+            document.getElementById('auth-layer').style.display = 'none';
+            document.getElementById('setup-layer').style.display = 'flex';
+        } else {
+            document.getElementById('hint').style.display = 'block';
+            alert("啟動碼錯誤！請輸入 ryan0111407");
+        }
+    }
 
-        window.doAuth = () => {
-            const val = document.getElementById('pw-input').value.trim();
-            if(val === 'ryan0111407') {
-                document.getElementById('auth-screen').style.display='none';
-                document.getElementById('setup-screen').style.display='flex';
+    // 2. 遊戲核心邏輯
+    let live = false, world = {}, keys = {}, ents = [], ticks = 600;
+    let p = { x: 0, y: -800, w: 22, h: 42, vx: 0, vy: 0, hp: 100, gr: false, hitBy: null };
+    const TILE = 32;
+
+    function handleStart() {
+        const squad = document.getElementById('s-range').value;
+        document.getElementById('setup-layer').style.display = 'none';
+        document.getElementById('hud').style.display = 'block';
+        
+        const cvs = document.getElementById('gCvs');
+        cvs.style.display = 'block';
+        cvs.width = window.innerWidth; cvs.height = window.innerHeight;
+
+        for(let i=0; i<squad-1; i++) spawn('ally', (Math.random()-0.5)*800);
+        for(let i=0; i<5; i++) spawn('pig', (Math.random()-0.5)*2000);
+        
+        live = true;
+        requestAnimationFrame(loop);
+    }
+
+    function spawn(t, x) {
+        ents.push({ type: t, x, y: -700, w: 22, h: 42, vx: 0, vy: 0, hp: 100, max: 100, dir: 1, mineCd: 0 });
+    }
+
+    function getB(gx, gy) {
+        if(world[gx+'_'+gy]!==undefined) return world[gx+'_'+gy];
+        let x = Math.abs(gx);
+        let h = (x%100 < 70) ? 8 : (x%100 < 50 ? 4 : 10);
+        let f = Math.floor(h + Math.sin(gx * 0.15) * 6);
+        return gy < f ? 0 : (gy === f ? 2 : 1);
+    }
+
+    function check(x,y) {
+        for(let i=Math.floor(x/TILE); i<=Math.floor((x+22)/TILE); i++)
+            for(let j=Math.floor(y/TILE); j<=Math.floor((y+42)/TILE); j++)
+                if(getB(i,j)>0) return true;
+        return false;
+    }
+
+    function atk(o) {
+        ents.concat(p).forEach(e=>{
+            if(e!==o && Math.abs(e.x-o.x)<70 && Math.abs(e.y-o.y)<70){
+                e.hp -= 25; e.vx = (e.x>o.x?12:-12);
+                if(e===p) p.hitBy = o;
+            }
+        });
+    }
+
+    window.onmousedown = e => {
+        if(!live) return;
+        const cvs = document.getElementById('gCvs');
+        let gx = Math.floor((e.clientX + (p.x - cvs.width/2))/TILE), gy = Math.floor((e.clientY + (p.y - cvs.height/2))/TILE);
+        if(e.button === 0) { if(getB(gx, gy) > 0) world[gx+'_'+gy] = 0; else atk(p); } 
+        else if(e.button === 2) { if(getB(gx, gy) === 0) world[gx+'_'+gy] = 3; }
+    };
+    window.oncontextmenu = e => e.preventDefault();
+    window.onkeydown=e=>{keys[e.code]=true; if(e.code==='Escape') location.reload();};
+    window.onkeyup=e=>keys[e.code]=false;
+
+    function loop() {
+        if(!live) return;
+        const cvs = document.getElementById('gCvs'), ctx = cvs.getContext('2d');
+        ticks = (ticks + 0.8) % 1440;
+        let isNight = ticks > 1050 || ticks < 350;
+
+        if(!isNight) {
+            ents = ents.filter(e => e.type !== 'mob');
+            document.getElementById('sun-v').innerText = "日間 (安全)";
+        } else {
+            document.getElementById('sun-v').innerText = "夜間 (危險)";
+        }
+
+        [p, ...ents].forEach(e => {
+            e.vy += 0.8; e.y += e.vy;
+            if(check(e.x, e.y)) {
+                if(e.vy > 0) { while(check(e.x, e.y)) e.y -= 0.5; e.gr = true; }
+                e.vy = 0;
+            } else e.gr = false;
+
+            if(e===p) {
+                let dx = (keys['KeyD']?5:0) - (keys['KeyA']?5:0);
+                if(dx!==0) { p.x += dx; if(check(p.x, p.y)) p.x -= dx; }
+                if(keys['Space'] && p.gr) p.vy = -14;
             } else {
-                document.getElementById('err-hint').style.display='block';
-            }
-        };
-
-        window.goLive = () => {
-            const squad = document.getElementById('p-range').value;
-            document.getElementById('setup-screen').style.display='none';
-            document.getElementById('hud').style.display='block';
-            cvs.style.display = 'block'; cvs.width = window.innerWidth; cvs.height = window.innerHeight;
-            
-            if(Math.random() < 0.4) document.getElementById('rain-fx').style.display = 'block';
-            for(let i=0; i<squad-1; i++) spawn('ally', (Math.random()-0.5)*800);
-            for(let i=0; i<5; i++) spawn('pig', (Math.random()-0.5)*2000);
-            
-            live = true; loop();
-        };
-
-        function spawn(t, x) {
-            ents.push({ type: t, x, y: -700, w: 22, h: 42, vx: 0, vy: 0, hp: 100, max: 100, dir: 1, mineCd: 0 });
-        }
-
-        function getB(gx, gy) {
-            if(world[gx+'_'+gy]!==undefined) return world[gx+'_'+gy];
-            let x = Math.abs(gx);
-            let h = (x%100 < 70) ? 8 : (x%100 < 50 ? 4 : 10);
-            let f = Math.floor(h + Math.sin(gx * 0.15) * 6);
-            return gy < f ? 0 : (gy === f ? 2 : 1);
-        }
-
-        function check(x,y) {
-            for(let i=Math.floor(x/TILE); i<=Math.floor((x+22)/TILE); i++)
-                for(let j=Math.floor(y/TILE); j<=Math.floor((y+42)/TILE); j++)
-                    if(getB(i,j)>0) return true;
-            return false;
-        }
-
-        function atk(o, t=null) {
-            ents.concat(p).forEach(e=>{
-                if(e!==o && Math.abs(e.x-o.x)<70 && Math.abs(e.y-o.y)<70){
-                    e.hp -= 25; e.vx = (e.x>o.x?12:-12);
-                    if(e===p) p.hitBy = o;
-                }
-            });
-        }
-
-        window.onmousedown = e => {
-            if(!live) return;
-            let gx = Math.floor((e.clientX + (p.x - cvs.width/2))/TILE), gy = Math.floor((e.clientY + (p.y - cvs.height/2))/TILE);
-            if(e.button === 0) {
-                if(getB(gx, gy) > 0) world[gx+'_'+gy] = 0; else atk(p);
-            } else if(e.button === 2) {
-                if(getB(gx, gy) === 0) world[gx+'_'+gy] = 3;
-            }
-        };
-        window.oncontextmenu = e => e.preventDefault();
-        window.onkeydown=e=>{keys[e.code]=true; if(e.code==='Escape') location.reload();};
-        window.onkeyup=e=>keys[e.code]=false;
-
-        function loop() {
-            if(!live) return;
-            ticks = (ticks + 0.8) % 1440;
-            let isNight = ticks > 1050 || ticks < 350;
-
-            if(!isNight) {
-                ents = ents.filter(e => e.type !== 'mob');
-                document.getElementById('sun-ui').innerText = "日間 (安全)";
-            } else {
-                document.getElementById('sun-ui').innerText = "夜間 (危險)";
-            }
-
-            [p, ...ents].forEach(e => {
-                e.vy += 0.8; e.y += e.vy;
-                if(check(e.x, e.y)) {
-                    if(e.vy > 0) { while(check(e.x, e.y)) e.y -= 0.5; e.gr = true; }
-                    e.vy = 0;
-                } else e.gr = false;
-
-                if(e===p) {
-                    let dx = (keys['KeyD']?5:0) - (keys['KeyA']?5:0);
-                    if(dx!==0) { p.x += dx; if(check(p.x, p.y)) p.x -= dx; }
-                    if(keys['Space'] && p.gr) p.vy = -14;
-                } else {
-                    if(e.type==='ally') {
-                        if(p.hitBy && p.hitBy.hp>0) {
-                            e.x += (p.hitBy.x > e.x ? 4.5 : -4.5);
-                            if(Math.abs(e.x-p.hitBy.x)<60) atk(e, p.hitBy);
-                        } else {
-                            if(Math.abs(p.x-e.x)>250) e.x += (p.x>e.x?2.5:-2.5);
-                            e.mineCd++;
-                            if(e.mineCd > 120) {
-                                let gx = Math.floor(e.x/32), gy = Math.floor(e.y/32)+2;
-                                if(getB(gx, gy)>0){ world[gx+'_'+gy]=0; e.mineCd=0; }
-                            }
-                            ents.forEach(m=>{if(m.type==='mob' && Math.abs(m.x-e.x)<100) atk(e);});
+                if(e.type==='ally') {
+                    if(p.hitBy && p.hitBy.hp>0) {
+                        e.x += (p.hitBy.x > e.x ? 4.5 : -4.5);
+                        if(Math.abs(e.x-p.hitBy.x)<60) atk(e);
+                    } else {
+                        if(Math.abs(p.x-e.x)>250) e.x += (p.x>e.x?2.5:-2.5);
+                        e.mineCd++;
+                        if(e.mineCd > 120) {
+                            let gx = Math.floor(e.x/TILE), gy = Math.floor(e.y/TILE)+2;
+                            if(getB(gx, gy)>0){ world[gx+'_'+gy]=0; e.mineCd=0; }
                         }
-                    } else if(e.type==='mob') {
-                        e.x += (p.x>e.x?2.4:-2.4); if(Math.abs(e.x-p.x)<30) p.hp -= 0.35;
+                        ents.forEach(m=>{if(m.type==='mob' && Math.abs(m.x-e.x)<100) atk(e);});
                     }
+                } else if(e.type==='mob') {
+                    e.x += (p.x>e.x?2.4:-2.4); if(Math.abs(e.x-p.x)<30) p.hp -= 0.35;
                 }
-            });
+            }
+        });
 
-            if(isNight && Math.random()<0.015) spawn('mob', p.x + (Math.random()>0.5?650:-650));
-            ents = ents.filter(e => e.hp > 0);
-            if(p.hp <= 0) { alert("你死亡了！遊戲重啟中..."); location.reload(); return; }
+        if(isNight && Math.random()<0.015) spawn('mob', p.x + (Math.random()>0.5?650:-650));
+        ents = ents.filter(e => e.hp > 0);
+        if(p.hp <= 0) { alert("你死亡了！遊戲重啟中..."); location.reload(); return; }
 
-            document.getElementById('hp-ui').innerText = Math.ceil(p.hp);
-            document.getElementById('pos-ui').innerText = Math.floor(p.x/32) + "," + Math.floor(p.y/32);
-            let hr = Math.floor(ticks/60).toString().padStart(2,'0'), mn = Math.floor(ticks%60).toString().padStart(2,'0');
-            document.getElementById('tm-ui').innerText = `${hr}:${mn}`;
-
-            render();
-            requestAnimationFrame(loop);
+        document.getElementById('hp-v').innerText = Math.ceil(p.hp);
+        document.getElementById('pos-v').innerText = Math.floor(p.x/TILE) + "," + Math.floor(p.y/TILE);
+        
+        // 渲染世界
+        ctx.fillStyle = isNight ? '#050510' : '#87ceeb';
+        ctx.fillRect(0,0,cvs.width,cvs.height);
+        let cx = p.x - cvs.width/2, cy = p.y - cvs.height/2;
+        for(let x=Math.floor(cx/TILE); x<=Math.ceil((cx+cvs.width)/TILE); x++){
+            for(let y=Math.floor(cy/TILE); y<=Math.ceil((cy+cvs.height)/TILE); y++){
+                let b = getB(x, y);
+                if(b > 0) {
+                    ctx.fillStyle = b===2 ? "#2ecc71" : (b===3 ? "#bdc3c7" : "#795548");
+                    ctx.fillRect(x*TILE-cx, y*TILE-cy, TILE+0.5, TILE+0.5);
+                }
+            }
         }
-
-        function render() {
-            let isNight = ticks > 1050 || ticks < 350;
-            ctx.fillStyle = isNight ? '#050510' : (document.getElementById('rain-fx').style.display==='block' ? '#4b6584' : '#87ceeb');
-            ctx.fillRect(0,0,cvs.width,cvs.height);
-            let cx = p.x - cvs.width/2
+        ents.concat(p).forEach(e => {
+            ctx.fillStyle = e===p?'#e67e22':(e.type==='ally'?'#3498db':(e.type==='mob'?'#2ecc71':'#f1c40f'));
+            ctx.fillRect(e.x-cx, e.y-cy, e.w, e.h);
+        });
+        requestAnimationFrame(loop);
+    }
+</script>
+</body>
+</html>
