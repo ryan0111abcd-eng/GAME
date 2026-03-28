@@ -2,208 +2,233 @@
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
-    <title>未來的 Super Human - 穿牆版</title>
+    <title>Future Super Human - 2D Survival</title>
     <style>
         body, html { margin: 0; padding: 0; width: 100%; height: 100%; background: #000; overflow: hidden; font-family: "Microsoft JhengHei", sans-serif; color: white; }
-        .layer { position: fixed; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; background: #1a1a1a; z-index: 10001; }
-        .title-text { color: #f1c40f; font-size: 50px; margin-bottom: 40px; text-shadow: 3px 3px 0 #000; }
-        .btn { padding: 15px 50px; font-size: 24px; cursor: pointer; margin: 10px; background: #f1c40f; border: none; font-weight: bold; border-radius: 12px; color: black; box-shadow: 0 6px 0 #b8860b; z-index: 10002; }
-        .btn:hover { background: #fff; transform: scale(1.05); }
-        .btn:active { transform: translateY(3px); box-shadow: 0 3px 0 #b8860b; }
+        .layer { position: fixed; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; background: #1a1a1a; z-index: 1000; }
+        .btn { padding: 15px 40px; font-size: 24px; cursor: pointer; margin: 10px; background: #f1c40f; border: none; font-weight: bold; border-radius: 10px; color: black; box-shadow: 0 5px 0 #b8860b; }
+        .btn:active { transform: translateY(3px); box-shadow: 0 2px 0 #b8860b; }
         
-        #hud { position: fixed; top: 10px; left: 10px; background: rgba(0,0,0,0.7); padding: 15px; border: 2px solid #f1c40f; display: none; z-index: 5000; border-radius: 10px; pointer-events: none; }
-        #minimap-container { position: fixed; top: 10px; right: 10px; width: 150px; height: 150px; border-radius: 50%; border: 3px solid #fff; background: rgba(0,0,0,0.5); overflow: hidden; display: none; z-index: 5000; }
-        #esc-menu { position: fixed; inset: 0; background: rgba(0,0,0,0.8); display: none; flex-direction: column; align-items: center; justify-content: center; z-index: 10005; }
-        #inv { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); display: none; gap: 8px; z-index: 5000; }
-        .slot { width: 45px; height: 45px; border: 2px solid #777; background: #333; display: flex; align-items: center; justify-content: center; font-size: 14px; font-weight: bold; }
-        .slot.active { border-color: #f1c40f; transform: scale(1.1); background: #444; }
-        canvas#gameCanvas { display: none; position: absolute; top: 0; left: 0; }
+        #hud { position: fixed; top: 10px; left: 10px; background: rgba(0,0,0,0.7); padding: 12px; border: 2px solid #f1c40f; border-radius: 8px; z-index: 500; display: none; font-size: 14px; }
+        #minimap { position: fixed; top: 15px; right: 15px; width: 140px; height: 140px; border-radius: 50%; border: 3px solid #fff; background: rgba(0,0,0,0.5); overflow: hidden; z-index: 500; display: none; }
+        #inv { position: fixed; bottom: 15px; left: 50%; transform: translateX(-50%); display: none; gap: 8px; z-index: 500; }
+        .slot { width: 45px; height: 45px; border: 2px solid #777; background: #333; display: flex; align-items: center; justify-content: center; font-size: 12px; }
+        .slot.active { border-color: #f1c40f; background: #555; }
+        
+        #esc-menu { position: fixed; inset: 0; background: rgba(0,0,0,0.8); display: none; flex-direction: column; align-items: center; justify-content: center; z-index: 2000; }
+        canvas#gameCanvas { display: none; position: absolute; top: 0; left: 0; z-index: 10; }
     </style>
 </head>
 <body>
 
-    <div id="ui-main" class="layer">
-        <h1 class="title-text">未來的 SUPER HUMAN</h1>
-        <button class="btn" onclick="boot(1)">開始鍵</button>
-        <button class="btn" onclick="document.getElementById('ui-main').style.display='none'; document.getElementById('ui-multi').style.display='flex';">多人連線鍵</button>
+    <div id="ui-start" class="layer">
+        <h1 style="color:#f1c40f; font-size:45px;">未來的 SUPER HUMAN</h1>
+        <button class="btn" onclick="initGame(1)">開始遊戲</button>
+        <button class="btn" onclick="showMulti()" style="background:#3498db; color:white;">多人連線模式</button>
     </div>
 
     <div id="ui-multi" class="layer" style="display:none;">
-        <h1 class="title-text">多人小隊設定</h1>
-        <input type="range" id="p-range" min="2" max="10" value="5" oninput="document.getElementById('pv').innerText=this.value" style="width:300px; margin:20px;">
-        <div style="font-size:32px; margin-bottom: 30px;">總人數：<span id="pv" style="color:#f1c40f;">5</span></div>
-        <button class="btn" onclick="boot(document.getElementById('p-range').value)">開始</button>
-        <button class="btn" onclick="location.reload()" style="background:#666;">返回</button>
+        <h1>選擇小隊人數 (2-10)</h1>
+        <input type="range" id="p-count" min="2" max="10" value="5" oninput="document.getElementById('pv').innerText=this.value" style="width:250px;">
+        <div style="font-size:30px; margin:15px;"><span id="pv" style="color:#f1c40f;">5</span> 人</div>
+        <button class="btn" onclick="initGame(document.getElementById('p-count').value)">開始遊戲</button>
     </div>
 
     <div id="esc-menu">
-        <h1 class="title-text">遊戲暫停</h1>
+        <h1 style="color:#f1c40f;">遊戲暫停</h1>
         <button class="btn" onclick="location.reload()">離開遊戲 (重新開始)</button>
+        <button class="btn" onclick="togglePause()" style="background:#888; color:white;">返回</button>
     </div>
 
     <div id="hud">
-        📍 座標: <span id="posX">0</span>, <span id="posY">0</span><br>
-        ❤️ 玩家血量: <span id="hp">100</span> | 🕒 時間: <span id="time-text">07:00</span>
+        📍 <span id="posX">0</span>, <span id="posY">0</span> | ❤️ <span id="hp">100</span><br>
+        🕒 <span id="time-text">07:00</span> <span id="day-icon">☀️</span> | 🗺️ <span id="biome-text">平原</span>
     </div>
-
-    <div id="minimap-container"><canvas id="m-cvs" width="150" height="150"></canvas></div>
-
+    <div id="minimap"><canvas id="miniCanvas" width="140" height="140"></canvas></div>
     <div id="inv">
-        <div class="slot active" id="sl1">1:土</div>
-        <div class="slot" id="sl2">2:草</div>
-        <div class="slot" id="sl3">3:石</div>
-        <div class="slot" id="sl4">4:木</div>
+        <div class="slot active" id="sl1">1:土</div><div class="slot" id="sl2">2:草</div>
+        <div class="slot" id="sl3">3:石</div><div class="slot" id="sl4">4:木</div>
     </div>
 
     <canvas id="gameCanvas"></canvas>
 
 <script>
-const cvs = document.getElementById('gameCanvas'), ctx = cvs.getContext('2d');
-const mcvs = document.getElementById('m-cvs'), mctx = mcvs.getContext('2d');
-let isRunning = false, isEsc = false;
-let ticks = 420, world = {}, camX = 0, camY = 0, curB = 1;
-let p = { x: 500, y: 0, w: 20, h: 40, vx: 0, vy: 0, hp: 100, maxHp: 100, ground: false, atk: 0 };
-let agents = [], keys = {};
-const TILE = 32, COLORS = { 1: '#8B4513', 2: '#228B22', 3: '#666', 4: '#cd853f' };
+    const cvs = document.getElementById('gameCanvas'), ctx = cvs.getContext('2d');
+    const mcvs = document.getElementById('miniCanvas'), mctx = mcvs.getContext('2d');
+    let isRunning = false, isPaused = false, ticks = 420; // 07:00
+    let world = {}, camX = 0, camY = 0, curB = 1;
+    let p = { x: 0, y: 0, w: 20, h: 40, vx: 0, vy: 0, hp: 100, ground: false, atk: 0 };
+    let agents = [], keys = {};
 
-function getGY(gx) { return Math.floor(35 + Math.sin(gx*0.05)*8 + Math.cos(gx*0.02)*10); }
-function getB(gx, gy) {
-    if(world[gx+'_'+gy] !== undefined) return world[gx+'_'+gy];
-    let fY = getGY(gx); return gy < fY ? 0 : (gy === fY ? 2 : 1);
-}
+    const TILE = 32, COLORS = { 1: '#8B4513', 2: '#228B22', 3: '#666', 4: '#cd853f', 5: '#95a5a6', 9: '#3498db' };
 
-function boot(num) {
-    document.querySelectorAll('.layer').forEach(l=>l.style.display='none');
-    document.getElementById('hud').style.display='block';
-    document.getElementById('minimap-container').style.display='block';
-    document.getElementById('inv').style.display='flex';
-    cvs.style.display='block'; cvs.width = window.innerWidth; cvs.height = window.innerHeight;
-    p.y = getGY(Math.floor(p.x/TILE))*TILE - 150;
-    
-    for(let i=0; i < num-1; i++) {
-        agents.push({x: p.x + (i+1)*200, y:p.y, w:20, h:40, vx:0, vy:0, hp:100, maxHp:100, type:'ally', dir:1, sTimer:50});
+    function showMulti() { document.getElementById('ui-start').style.display='none'; document.getElementById('ui-multi').style.display='flex'; }
+
+    function initGame(num) {
+        document.querySelectorAll('.layer').forEach(l => l.style.display='none');
+        document.getElementById('hud').style.display='block';
+        document.getElementById('minimap').style.display='block';
+        document.getElementById('inv').style.display='flex';
+        cvs.style.display='block'; cvs.width = window.innerWidth; cvs.height = window.innerHeight;
+        
+        p.y = getGY(0)*TILE - 100;
+        // 生成隊友
+        for(let i=0; i<num-1; i++) spawnAgent('ally', (Math.random()-0.5)*1000);
+        // 生成初始村民與動物
+        for(let i=0; i<5; i++) spawnAgent('villager', (Math.random()-0.5)*2000);
+        for(let i=0; i<5; i++) spawnAgent('animal', (Math.random()-0.5)*2000);
+
+        isRunning = true;
+        requestAnimationFrame(loop);
     }
-    isRunning = true;
-    requestAnimationFrame(loop);
-}
 
-window.addEventListener('keydown', e => {
-    if(e.code === 'Escape' && isRunning) {
-        isEsc = !isEsc;
-        document.getElementById('esc-menu').style.display = isEsc ? 'flex' : 'none';
+    // 地形生成器：包含平原、台地、丘陵、山地、村莊、古蹟
+    function getBiomeData(gx) {
+        let x = Math.abs(gx);
+        if (x % 1200 < 200) return { name: "山地", h: 25, n: 15 };
+        if (x % 1200 < 500) return { name: "平原", h: 40, n: 2 };
+        if (x % 1200 < 800) return { name: "台地", h: 32, n: 0 };
+        if (x % 1200 < 1000) return { name: "丘陵", h: 35, n: 7 };
+        return { name: "古蹟邊緣", h: 40, n: 1 };
     }
-    keys[e.code] = true;
-    if(e.code === 'KeyK') p.atk = 10;
-    if(e.key >= '1' && e.key <= '4') {
-        curB = parseInt(e.key);
-        document.querySelectorAll('.slot').forEach(s => s.classList.remove('active'));
-        document.getElementById('sl'+curB).classList.add('active');
+
+    function getGY(gx) {
+        let b = getBiomeData(gx);
+        let y = Math.floor(b.h + Math.sin(gx * 0.15) * b.n);
+        // 村莊與古蹟邏輯：特定位置強行平坦
+        if (Math.abs(gx % 400) < 10) return 38; 
+        return y;
     }
-});
-window.addEventListener('keyup', e => keys[e.code] = false);
-window.addEventListener('mousedown', e => {
-    if(!isRunning || isEsc) return;
-    let gx = Math.floor((e.clientX + camX)/TILE), gy = Math.floor((e.clientY + camY)/TILE);
-    if(e.button === 0) world[gx+'_'+gy] = 0;
-    if(e.button === 2) if(getB(gx, gy) === 0) world[gx+'_'+gy] = curB;
-});
-window.oncontextmenu = e => e.preventDefault();
 
-function loop() {
-    if(isRunning && !isEsc) {
-        ticks = (ticks + 0.4) % 1440;
-        // 玩家有碰撞
-        p.vx = keys['KeyD'] ? 5 : (keys['KeyA'] ? -5 : 0);
-        if((keys['KeyW'] || keys['Space']) && p.ground) p.vy = -12;
-        updatePhys(p, true);
+    function getB(gx, gy) {
+        if (world[gx+'_'+gy] !== undefined) return world[gx+'_'+gy];
+        let fY = getGY(gx);
+        // 古蹟裝飾
+        if (Math.abs(gx % 400) === 0 && gy < fY && gy > fY-5) return 5; 
+        return gy < fY ? 0 : (gy === fY ? 2 : 1);
+    }
 
-        // 電腦穿牆移動
-        agents.forEach((a, index) => {
-            a.sTimer--;
-            if(a.sTimer <= 0) {
-                a.dir = Math.random() > 0.5 ? 1 : -1;
-                a.sTimer = 60 + Math.random() * 100;
+    function spawnAgent(type, startX) {
+        agents.push({ type, x: startX, y: getGY(Math.floor(startX/TILE))*TILE-100, w:20, h:40, hp:100, maxHp:100, dir:1, sTimer:50 });
+    }
+
+    function togglePause() {
+        isPaused = !isPaused;
+        document.getElementById('esc-menu').style.display = isPaused ? 'flex' : 'none';
+    }
+
+    window.onkeydown = e => {
+        if(e.code === 'Escape') togglePause();
+        keys[e.code] = true;
+        if(e.code === 'KeyK') p.atk = 15;
+        if(e.key >= '1' && e.key <= '4') {
+            curB = parseInt(e.key);
+            document.querySelectorAll('.slot').forEach(s => s.classList.remove('active'));
+            document.getElementById('sl'+curB).classList.add('active');
+        }
+    };
+    window.onkeyup = e => keys[e.code] = false;
+    window.onmousedown = e => {
+        if(!isRunning || isPaused) return;
+        let gx = Math.floor((e.clientX + camX)/TILE), gy = Math.floor((e.clientY + camY)/TILE);
+        if(e.button === 0) world[gx+'_'+gy] = 0;
+        if(e.button === 2) world[gx+'_'+gy] = curB;
+    };
+    window.oncontextmenu = e => e.preventDefault();
+
+    function loop() {
+        if(isRunning && !isPaused) {
+            ticks = (ticks + 0.3) % 1440; // 一天 1440 分鐘
+            let h = Math.floor(ticks/60), m = Math.floor(ticks%60);
+            let isNight = (ticks > 1090 || ticks < 390); // 18:10 到 06:30
+
+            // 晚上生成怪物
+            if(isNight && Math.random() < 0.01 && agents.filter(a=>a.type==='monster').length < 8) {
+                spawnAgent('monster', p.x + (Math.random()>0.5?600:-600));
             }
-            a.vx = a.dir * (a.type === 'monster' ? 3 : 1.5);
-            a.x += a.vx;
-            // 讓電腦跟隨地形高度 (實現穿牆感)
-            let targetY = getGY(Math.floor(a.x / TILE)) * TILE - a.h;
-            a.y += (targetY - a.y) * 0.1;
 
-            // 攻擊判定
-            if(p.atk > 0 && Math.abs(a.x - p.x) < 50 && Math.abs(a.y - p.y) < 50) {
-                a.hp -= 20;
-                if(a.hp <= 0) agents.splice(index, 1);
+            // 角色移動
+            p.vx = keys['KeyD'] ? 5 : (keys['KeyA'] ? -5 : 0);
+            p.vy += 0.7; if((keys['KeyW'] || keys['Space']) && p.ground) p.vy = -12;
+            p.y += p.vy; p.ground = false;
+            let fy = Math.floor((p.y+p.h)/TILE), lx = Math.floor((p.x+2)/TILE);
+            if(getB(lx, fy)>0) { p.y=fy*TILE-p.h; p.vy=0; p.ground=true; }
+            p.x += p.vx;
+
+            // AI 邏輯
+            agents.forEach((a, idx) => {
+                a.sTimer--; if(a.sTimer <= 0) { a.dir = Math.random()>0.5?1:-1; a.sTimer = 100; }
+                if(a.type === 'monster') a.dir = p.x > a.x ? 1 : -1;
+                
+                // 自動挖礦 (隊友與怪物)
+                let gx = Math.floor((a.dir>0?a.x+a.w+2:a.x-2)/TILE), gy = Math.floor((a.y+a.h-5)/TILE);
+                if(getB(gx, gy)>0) world[gx+'_'+gy] = 0;
+                
+                a.x += a.dir * (a.type==='monster'?3:1.5);
+                a.y += (getGY(Math.floor(a.x/TILE))*TILE - a.h - a.y) * 0.1;
+                
+                // 戰鬥判定
+                if(p.atk > 0 && Math.abs(a.x-p.x)<50 && Math.abs(a.y-p.y)<50) a.hp -= 10;
+                if(a.type === 'monster' && Math.abs(a.x-p.x)<25 && Math.abs(a.y-p.y)<25) p.hp -= 0.3;
+                if(a.hp <= 0) agents.splice(idx, 1);
+            });
+            if(p.atk > 0) p.atk--;
+            
+            // 更新 UI
+            document.getElementById('posX').innerText = Math.floor(p.x/TILE);
+            document.getElementById('posY').innerText = Math.floor(p.y/TILE);
+            document.getElementById('hp').innerText = Math.max(0, Math.ceil(p.hp));
+            document.getElementById('time-text').innerText = `${h.toString().padStart(2,'0')}:${m.toString().padStart(2,'0')}`;
+            document.getElementById('day-icon').innerText = isNight ? "🌙" : (ticks > 1050 ? "🌅" : "☀️");
+            document.getElementById('biome-text').innerText = getBiomeData(Math.floor(p.x/TILE)).name;
+        }
+        render();
+        requestAnimationFrame(loop);
+    }
+
+    function render() {
+        // 天空顏色變換
+        let sky = '#87ceeb';
+        if(ticks > 1050 && ticks <= 1080) sky = '#e67e22'; // 17:30 - 18:00 傍晚
+        else if(ticks > 1080 || ticks < 390) sky = '#1a1a2e'; // 晚上
+        ctx.fillStyle = sky; ctx.fillRect(0,0,cvs.width, cvs.height);
+
+        camX += (p.x - cvs.width/2 - camX) * 0.1;
+        camY += (p.y - cvs.height/2 - camY) * 0.1;
+
+        for(let x=Math.floor(camX/TILE); x<Math.floor((camX+cvs.width)/TILE)+1; x++) {
+            for(let y=Math.floor(camY/TILE); y<Math.floor((camY+cvs.height)/TILE)+1; y++) {
+                let b = getB(x, y);
+                if(b!==0) { ctx.fillStyle = COLORS[b]; ctx.fillRect(x*TILE-camX, y*TILE-camY, TILE, TILE); }
             }
-            if(a.type === 'monster' && Math.abs(a.x - p.x) < 25 && Math.abs(a.y - p.y) < 25) p.hp -= 0.1;
+        }
+
+        agents.forEach(a => {
+            let color = '#f1c40f'; // 隊友
+            if(a.type==='monster') color='#e74c3c';
+            if(a.type==='villager') color='#9b59b6';
+            if(a.type==='animal') color='#2ecc71';
+            ctx.fillStyle = color; ctx.fillRect(a.x-camX, a.y-camY, a.w, a.h);
+            // 血量條
+            ctx.fillStyle = 'red'; ctx.fillRect(a.x-camX-5, a.y-camY-12, 30, 4);
+            ctx.fillStyle = 'lime'; ctx.fillRect(a.x-camX-5, a.y-camY-12, 30*(a.hp/100), 4);
         });
 
-        if((ticks >= 1090 || ticks < 390) && Math.random() < 0.01) {
-            agents.push({x: p.x + (Math.random()-0.5)*1200, y:p.y, w:20, h:40, vx:0, vy:0, hp:60, maxHp:60, type:'monster', dir:1, sTimer:30});
-        }
+        ctx.fillStyle = '#FF5733'; ctx.fillRect(p.x-camX, p.y-camY, p.w, p.h);
+        if(p.atk > 0) { ctx.strokeStyle='white'; ctx.lineWidth=3; ctx.strokeRect(p.x-camX-10, p.y-camY-10, p.w+20, p.h+20); }
+
+        // 繪製圓形小地圖
+        mctx.fillStyle = '#222'; mctx.fillRect(0,0,140,140);
+        mctx.save();
+        mctx.beginPath(); mctx.arc(70, 70, 65, 0, Math.PI*2); mctx.clip();
+        agents.forEach(a => {
+            let dx = (a.x - p.x)/TILE * 3, dy = (a.y - p.y)/TILE * 3;
+            mctx.fillStyle = a.type==='monster'?'red':(a.type==='ally'?'yellow':'white');
+            mctx.fillRect(70+dx, 70+dy, 4, 4);
+        });
+        mctx.fillStyle = 'orange'; mctx.fillRect(68, 68, 5, 5); // 玩家
+        mctx.restore();
     }
-    render();
-    requestAnimationFrame(loop);
-}
-
-function updatePhys(o, isP) {
-    o.vy += 0.7; o.y += o.vy; o.ground = false;
-    let fy = Math.floor((o.y + o.h) / TILE), lx = Math.floor((o.x + 2) / TILE), rx = Math.floor((o.x + o.w - 2) / TILE);
-    if(getB(lx, fy) > 0 || getB(rx, fy) > 0) { o.y = fy * TILE - o.h; o.vy = 0; o.ground = true; }
-    o.x += o.vx;
-    // 側邊碰撞
-    let sideX = o.vx > 0 ? Math.floor((o.x+o.w)/TILE) : Math.floor(o.x/TILE);
-    let headY = Math.floor(o.y/TILE), footY = Math.floor((o.y+o.h-5)/TILE);
-    if(getB(sideX, headY) > 0 || getB(sideX, footY) > 0) o.x -= o.vx;
-}
-
-function render() {
-    let sky = '#87ceeb';
-    if(ticks >= 1050 && ticks < 1080) sky = '#ff7f50';
-    if(ticks >= 1090 || ticks < 390) sky = '#191970';
-    ctx.fillStyle = sky; ctx.fillRect(0, 0, cvs.width, cvs.height);
-
-    camX += (p.x - cvs.width/2 - camX) * 0.1;
-    camY += (p.y - cvs.height/2 - camY) * 0.1;
-    let cx = Math.floor(camX), cy = Math.floor(camY);
-
-    for(let x=Math.floor(cx/TILE); x<Math.floor((cx+cvs.width)/TILE)+1; x++) {
-        for(let y=Math.floor(cy/TILE); y<Math.floor((cy+cvs.height)/TILE)+1; y++) {
-            let b = getB(x, y);
-            if(b!==0) { ctx.fillStyle = COLORS[b]; ctx.fillRect(x*TILE-cx, y*TILE-cy, TILE, TILE); }
-        }
-    }
-
-    agents.forEach(a => {
-        let ax = a.x - cx, ay = a.y - cy;
-        ctx.fillStyle = a.type === 'monster' ? '#f00' : '#f1c40f';
-        ctx.fillRect(ax, ay, a.w, a.h);
-        
-        // --- 繪製頭頂血量條 ---
-        let barW = 30, barH = 5;
-        ctx.fillStyle = 'black';
-        ctx.fillRect(ax + a.w/2 - barW/2, ay - 10, barW, barH); // 背景黑框
-        let hpRatio = a.hp / a.maxHp;
-        ctx.fillStyle = hpRatio > 0.5 ? '#2ecc71' : '#e74c3c'; // 健康綠，受傷紅
-        ctx.fillRect(ax + a.w/2 - barW/2, ay - 10, barW * hpRatio, barH);
-    });
-
-    ctx.fillStyle = "#FF5733"; ctx.fillRect(p.x-cx, p.y-cy, p.w, p.h);
-    if(p.atk > 0) { ctx.strokeStyle="#fff"; ctx.lineWidth=3; ctx.strokeRect(p.x-cx-10, p.y-cy-10, p.w+20, p.h+20); p.atk--; }
-
-    document.getElementById('posX').innerText = Math.floor(p.x/TILE);
-    document.getElementById('posY').innerText = Math.floor(p.y/TILE);
-    document.getElementById('hp').innerText = Math.ceil(p.hp);
-    let h = Math.floor(ticks/60).toString().padStart(2,'0'), m = Math.floor(ticks%60).toString().padStart(2,'0');
-    document.getElementById('time-text').innerText = `${h}:${m}`;
-
-    mctx.fillStyle = sky; mctx.fillRect(0,0,150,150);
-    mctx.fillStyle = "#FF5733"; mctx.fillRect(75, 75, 4, 4);
-    agents.forEach(a => {
-        mctx.fillStyle = a.type==='monster'?'#f00':'#f1c40f';
-        mctx.fillRect(75+(a.x-p.x)/10, 75+(a.y-p.y)/10, 3, 3);
-    });
-}
 </script>
 </body>
 </html>
