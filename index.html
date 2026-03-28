@@ -10,7 +10,8 @@
         .btn { padding: 25px 60px; font-size: 32px; cursor: pointer; margin: 15px; background: #f1c40f; border: 4px solid #fff; border-radius: 20px; font-weight: bold; color: #000; box-shadow: 0 8px 0 #b8860b; }
         .btn:hover { background: #fff; }
         .btn:active { transform: translateY(4px); box-shadow: 0 4px 0 #b8860b; }
-        .in-box { padding: 18px; font-size: 30px; border: 4px solid #f1c40f; border-radius: 12px; background: #000; color: #f1c40f; text-align: center; margin-bottom: 25px; width: 350px; outline: none; }
+        /* 這裡改回 text，確保啟動碼清晰顯示 */
+        .in-box { padding: 18px; font-size: 30px; border: 4px solid #f1c40f; border-radius: 12px; background: #000; color: #f1c40f; text-align: center; margin-bottom: 25px; width: 450px; outline: none; }
         #hud { position: fixed; top: 15px; left: 15px; z-index: 100; color: white; background: rgba(0,0,0,0.85); padding: 15px; border-radius: 10px; border: 2px solid #f1c40f; display: none; pointer-events: none; line-height: 1.6; font-size: 18px; }
         canvas#gCanvas { display: none; position: absolute; top: 0; left: 0; z-index: 10; }
         #rain-fx { position: fixed; inset: 0; pointer-events: none; z-index: 50; background: rgba(40,40,80,0.3); display: none; }
@@ -21,7 +22,7 @@
     <div id="auth-screen" class="ui-layer">
         <h1 style="font-size: 45px; letter-spacing: 5px; margin-bottom: 10px;">SUPER HUMAN 系統</h1>
         <p style="font-size: 24px; color: #fff; margin-bottom: 30px;">請輸入啟動碼</p>
-        <input type="password" id="pw-input" class="in-box" maxlength="11" onkeydown="if(event.key==='Enter') window.doAuth()">
+        <input type="text" id="pw-input" class="in-box" placeholder="在此輸入啟動碼" onkeydown="if(event.key==='Enter') window.doAuth()">
         <button id="auth-btn" class="btn" onclick="window.doAuth()">認證啟動</button>
         <p id="err-hint" style="color:#e74c3c; display:none; margin-top:20px; font-weight:bold;">啟動碼錯誤，請重新輸入</p>
     </div>
@@ -40,23 +41,19 @@
     <canvas id="gCanvas"></canvas>
 
 <script>
-    // 確保 DOM 載入後再綁定邏輯
     window.onload = () => {
         const cvs = document.getElementById('gCanvas'), ctx = cvs.getContext('2d');
         let live = false, world = {}, keys = {}, ents = [], ticks = 600;
         let p = { x: 0, y: -800, w: 22, h: 42, vx: 0, vy: 0, hp: 100, max: 100, gr: false, hitBy: null };
         const TILE = 32;
 
-        // 認證函數掛載到全域
         window.doAuth = () => {
-            const val = document.getElementById('pw-input').value;
-            console.log("正在驗證啟動碼...");
+            const val = document.getElementById('pw-input').value.trim();
             if(val === 'ryan0111407') {
                 document.getElementById('auth-screen').style.display='none';
                 document.getElementById('setup-screen').style.display='flex';
             } else {
                 document.getElementById('err-hint').style.display='block';
-                document.getElementById('pw-input').value = '';
             }
         };
 
@@ -122,10 +119,8 @@
             if(!isNight) {
                 ents = ents.filter(e => e.type !== 'mob');
                 document.getElementById('sun-ui').innerText = "日間 (安全)";
-                document.getElementById('sun-ui').style.color = "#f1c40f";
             } else {
                 document.getElementById('sun-ui').innerText = "夜間 (危險)";
-                document.getElementById('sun-ui').style.color = "#e74c3c";
             }
 
             [p, ...ents].forEach(e => {
@@ -175,4 +170,5 @@
         function render() {
             let isNight = ticks > 1050 || ticks < 350;
             ctx.fillStyle = isNight ? '#050510' : (document.getElementById('rain-fx').style.display==='block' ? '#4b6584' : '#87ceeb');
-            ctx.fillRect(
+            ctx.fillRect(0,0,cvs.width,cvs.height);
+            let cx = p.x - cvs.width/2
