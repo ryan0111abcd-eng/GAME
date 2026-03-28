@@ -3,13 +3,15 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SUPER HUMAN 2026</title>
+    <title>SUPER HUMAN 2026 - FINAL</title>
     <style>
-        body, html { margin: 0; padding: 0; width: 100%; height: 100%; background: #000; overflow: hidden; font-family: sans-serif; user-select: none; }
-        .ui { position: fixed; inset: 0; z-index: 99999; display: flex; flex-direction: column; align-items: center; justify-content: center; background: #050505; color: #f1c40f; text-align: center; }
+        body, html { margin: 0; padding: 0; width: 100%; height: 100%; background: #000; overflow: hidden; font-family: "Microsoft JhengHei", sans-serif; user-select: none; }
+        /* 啟動介面層 */
+        .ui { position: fixed; inset: 0; z-index: 99999; display: flex; flex-direction: column; align-items: center; justify-content: center; background: #0a0a0a; color: #f1c40f; text-align: center; }
         .btn { padding: 25px 60px; font-size: 32px; cursor: pointer; margin: 15px; background: #f1c40f; border: 4px solid #fff; border-radius: 20px; font-weight: bold; color: #000; box-shadow: 0 8px 0 #b8860b; }
         .btn:active { transform: translateY(4px); box-shadow: 0 4px 0 #b8860b; }
         .in { padding: 18px; font-size: 30px; border: 4px solid #f1c40f; border-radius: 12px; background: #000; color: #f1c40f; text-align: center; margin-bottom: 25px; width: 350px; outline: none; }
+        /* 遊戲資訊 HUD */
         #hud { position: fixed; top: 15px; left: 15px; z-index: 100; color: white; background: rgba(0,0,0,0.85); padding: 15px; border-radius: 10px; border: 2px solid #f1c40f; display: none; pointer-events: none; line-height: 1.6; }
         canvas#gCanvas { display: none; position: absolute; top: 0; left: 0; z-index: 10; }
         #rain-fx { position: fixed; inset: 0; pointer-events: none; z-index: 50; background: rgba(40,40,80,0.3); display: none; }
@@ -18,25 +20,25 @@
 <body>
 
     <div id="step-auth" class="ui">
-        <h1 style="font-size: 45px; letter-spacing: 5px;">SUPER HUMAN SYSTEM</h1>
-        <p style="color: #666; margin-bottom: 30px;">Access Restricted - Enter Security Key</p>
+        <h1 style="font-size: 45px; letter-spacing: 5px; margin-bottom: 10px;">SUPER HUMAN 系統</h1>
+        <p style="font-size: 24px; color: #fff; margin-bottom: 30px;">請輸入啟動碼</p>
         <input type="password" id="code-input" class="in" maxlength="11" onkeydown="if(event.key==='Enter') checkCode()">
-        <button class="btn" onclick="checkCode()">LOGIN</button>
-        <p id="err-msg" style="color:#e74c3c; display:none; margin-top:20px;">INVALID ACCESS KEY</p>
+        <button class="btn" onclick="checkCode()">認證啟動</button>
+        <p id="err-msg" style="color:#e74c3c; display:none; margin-top:20px; font-weight:bold;">啟動碼錯誤，請重新輸入</p>
     </div>
 
     <div id="step-setup" class="ui" style="display:none;">
-        <h1>SYSTEM AUTHORIZED</h1>
+        <h1>認證成功</h1>
         <div style="margin: 20px 0;">
-            <h2 id="p-label">SQUAD SIZE: <span style="color:#f1c40f;">5</span></h2>
-            <input type="range" min="2" max="15" value="5" oninput="document.getElementById('p-label').innerHTML='SQUAD SIZE: <span style=color:#f1c40f;>'+this.value+'</span>'" id="p-slider" style="width:350px; height:40px;">
+            <h2 id="p-label">小隊人數: <span style="color:#f1c40f;">5</span></h2>
+            <input type="range" min="2" max="15" value="5" oninput="document.getElementById('p-label').innerHTML='小隊人數: <span style=color:#f1c40f;>'+this.value+'</span>'" id="p-slider" style="width:350px; height:40px;">
         </div>
-        <button class="btn" onclick="startWorld()">INITIALIZE WORLD</button>
+        <button class="btn" onclick="startWorld()">進入世界</button>
     </div>
 
     <div id="hud">
-        ❤️ HP: <span id="hp">100</span> | 📍 POS: <span id="pos">0,0</span><br>
-        🕒 TIME: <span id="tm">12:00</span> | ☀️ <span id="sun-status">DAYTIME</span>
+        ❤️ 血量: <span id="hp">100</span> | 📍 座標: <span id="pos">0,0</span><br>
+        🕒 時間: <span id="tm">12:00</span> | ☀️ 狀態: <span id="sun-status">日間</span>
     </div>
     <div id="rain-fx"></div>
     <canvas id="gCanvas"></canvas>
@@ -45,11 +47,10 @@
     const cvs = document.getElementById('gCanvas'), ctx = cvs.getContext('2d');
     let live = false, world = {}, keys = {}, ents = [], ticks = 600;
     let p = { x: 0, y: -800, w: 22, h: 42, vx: 0, vy: 0, hp: 100, max: 100, gr: false, hitBy: null };
-    let squadSize = 5;
     const TILE = 32;
 
     function checkCode() {
-        // 啟動碼維持原樣，但介面不再提示
+        // 啟動碼仍為：ryan0111407
         if(document.getElementById('code-input').value === 'ryan0111407') {
             document.getElementById('step-auth').style.display='none';
             document.getElementById('step-setup').style.display='flex';
@@ -60,13 +61,13 @@
     }
 
     function startWorld() {
-        squadSize = document.getElementById('p-slider').value;
+        let squad = document.getElementById('p-slider').value;
         document.getElementById('step-setup').style.display='none';
         document.getElementById('hud').style.display='block';
         cvs.style.display = 'block'; cvs.width = window.innerWidth; cvs.height = window.innerHeight;
         
         if(Math.random() < 0.4) document.getElementById('rain-fx').style.display = 'block';
-        for(let i=0; i<squadSize-1; i++) spawn('ally', (Math.random()-0.5)*800);
+        for(let i=0; i<squad-1; i++) spawn('ally', (Math.random()-0.5)*800);
         for(let i=0; i<5; i++) spawn('pig', (Math.random()-0.5)*2000);
         
         live = true; loop();
@@ -91,7 +92,7 @@
         return false;
     }
 
-    // 左鍵：挖掘/攻擊 | 右鍵：放置
+    // 左鍵：攻擊+挖掘 | 右鍵：放置
     window.onmousedown = e => {
         if(!live) return;
         let gx = Math.floor((e.clientX + (p.x - cvs.width/2))/TILE);
@@ -125,10 +126,10 @@
         // --- 早上殭屍全部消失 ---
         if(!isNight) {
             ents = ents.filter(e => e.type !== 'mob');
-            document.getElementById('sun-status').innerText = "DAYTIME";
+            document.getElementById('sun-status').innerText = "日間 (安全)";
             document.getElementById('sun-status').style.color = "#f1c40f";
         } else {
-            document.getElementById('sun-status').innerText = "NIGHTFALL";
+            document.getElementById('sun-status').innerText = "夜間 (危險)";
             document.getElementById('sun-status').style.color = "#e74c3c";
         }
 
@@ -146,57 +147,3 @@
                 if(keys['Space'] && p.gr) p.vy = -14;
             } else {
                 if(e.type==='ally') {
-                    if(p.hitBy && p.hitBy.hp>0) {
-                        e.x += (p.hitBy.x > e.x ? 4.5 : -4.5);
-                        if(Math.abs(e.x-p.hitBy.x)<60) atk(e, p.hitBy);
-                    } else {
-                        if(Math.abs(p.x-e.x)>250) e.x += (p.x>e.x?2.5:-2.5);
-                        e.mineCd++;
-                        if(e.mineCd > 120) { // 限速：2秒挖一格
-                            let gx = Math.floor(e.x/32), gy = Math.floor(e.y/32)+2;
-                            if(getB(gx, gy)>0){ world[gx+'_'+gy]=0; e.mineCd=0; }
-                        }
-                        ents.forEach(m=>{if(m.type==='mob' && Math.abs(m.x-e.x)<100) atk(e);});
-                    }
-                } else if(e.type==='mob') {
-                    e.x += (p.x>e.x?2.4:-2.4); if(Math.abs(e.x-p.x)<30) p.hp -= 0.35;
-                }
-            }
-        });
-
-        if(isNight && Math.random()<0.015) spawn('mob', p.x + (Math.random()>0.5?650:-650));
-        ents = ents.filter(e => e.hp > 0);
-        if(p.hp <= 0) { alert("GAME OVER"); location.reload(); return; }
-
-        // UI
-        document.getElementById('hp').innerText = Math.ceil(p.hp);
-        document.getElementById('pos').innerText = Math.floor(p.x/32) + "," + Math.floor(p.y/32);
-        let hr = Math.floor(ticks/60).toString().padStart(2,'0'), mn = Math.floor(ticks%60).toString().padStart(2,'0');
-        document.getElementById('tm').innerText = `${hr}:${mn}`;
-
-        render();
-        requestAnimationFrame(loop);
-    }
-
-    function render() {
-        let isNight = ticks > 1050 || ticks < 350;
-        ctx.fillStyle = isNight ? '#050510' : (document.getElementById('rain-fx').style.display==='block' ? '#4b6584' : '#87ceeb');
-        ctx.fillRect(0,0,cvs.width,cvs.height);
-        let cx = p.x - cvs.width/2, cy = p.y - cvs.height/2;
-        for(let x=Math.floor(cx/32); x<=Math.ceil((cx+cvs.width)/32); x++){
-            for(let y=Math.floor(cy/32); y<=Math.ceil((cy+cvs.height)/32); y++){
-                let b = getB(x, y);
-                if(b > 0) {
-                    ctx.fillStyle = b===2 ? "#2ecc71" : (b===3 ? "#bdc3c7" : "#795548");
-                    ctx.fillRect(x*32-cx, y*32-cy, 32.5, 32.5);
-                }
-            }
-        }
-        ents.concat(p).forEach(e => {
-            ctx.fillStyle = e===p?'#e67e22':(e.type==='ally'?'#3498db':(e.type==='mob'?'#2ecc71':'#f1c40f'));
-            ctx.fillRect(e.x-cx, e.y-cy, e.w, e.h);
-        });
-    }
-</script>
-</body>
-</html>
