@@ -5,74 +5,117 @@
     <title>Future Super Human - 終極生存版</title>
     <style>
         body, html { margin: 0; padding: 0; width: 100%; height: 100%; background: #000; overflow: hidden; font-family: "Microsoft JhengHei", sans-serif; }
-        .layer { position: fixed; inset: 0; z-index: 9999; display: flex; flex-direction: column; align-items: center; justify-content: center; background: rgba(20, 20, 20, 0.95); color: #f1c40f; }
+        
+        /* 全螢幕 UI 層 */
+        .layer { position: fixed; inset: 0; z-index: 9999; display: flex; flex-direction: column; align-items: center; justify-content: center; background: rgba(20, 20, 20, 0.95); color: #f1c40f; text-align: center; }
         .btn { padding: 15px 40px; font-size: 24px; cursor: pointer; margin: 10px; background: #f1c40f; border: none; border-radius: 10px; font-weight: bold; box-shadow: 0 5px 0 #b8860b; color: #000; }
         .btn:active { transform: translateY(3px); box-shadow: 0 2px 0 #b8860b; }
         
-        /* HUD 元素 */
-        #hud { position: fixed; top: 15px; left: 15px; z-index: 100; color: white; background: rgba(0,0,0,0.6); padding: 10px; border-radius: 8px; pointer-events: none; display: none; }
-        #minimap-container { position: fixed; top: 15px; right: 15px; width: 150px; height: 150px; border: 3px solid #fff; border-radius: 50%; overflow: hidden; z-index: 100; display: none; background: rgba(0,0,0,0.5); }
+        /* HUD 資訊 */
+        #hud { position: fixed; top: 20px; left: 20px; z-index: 100; color: white; background: rgba(0,0,0,0.6); padding: 15px; border-radius: 10px; border: 2px solid #f1c40f; display: none; }
+        #minimap-container { position: fixed; top: 20px; right: 20px; width: 160px; height: 160px; border: 3px solid #fff; border-radius: 50%; overflow: hidden; z-index: 100; display: none; background: rgba(0,0,0,0.5); box-shadow: 0 0 15px rgba(0,0,0,0.5); }
         
-        /* 說明書 */
-        #instruction { text-align: left; color: white; background: #34495e; padding: 20px; border-radius: 10px; max-width: 400px; display: none; }
+        /* 說明書樣式 */
+        #instruction-box { background: #34495e; padding: 30px; border-radius: 15px; max-width: 500px; color: white; line-height: 1.6; border: 2px solid #f1c40f; }
         
-        canvas { display: none; position: absolute; top: 0; left: 0; z-index: 10; }
+        canvas#gameCanvas { display: none; position: absolute; top: 0; left: 0; z-index: 10; }
     </style>
 </head>
 <body>
 
     <div id="ui-mode" class="layer">
-        <h1>未來的 SUPER HUMAN</h1>
-        <button class="btn" onclick="showPlayerSelect(1)">單人連線</button>
-        <button class="btn" onclick="showPlayerSelect(5)" style="background:#3498db; color:white;">多人連線</button>
+        <h1 style="font-size: 50px;">未來的 SUPER HUMAN</h1>
+        <button class="btn" onclick="goPlayerSelect(1)">👤 單人連線</button>
+        <button class="btn" onclick="goPlayerSelect(5)" style="background:#3498db; color:white; box-shadow: 0 5px 0 #2980b9;">👥 多人連線</button>
     </div>
 
     <div id="ui-players" class="layer" style="display:none;">
-        <h2>選擇小隊總人數: <span id="p-val">5</span></h2>
-        <input type="range" min="2" max="10" value="5" oninput="document.getElementById('p-val').innerText=this.value" id="p-slider" style="width:300px;">
-        <button class="btn" onclick="showInstructions()">下一步</button>
+        <h1>選擇小隊人數</h1>
+        <h2 style="color:white;">總共: <span id="p-val" style="color:#f1c40f;">5</span> 人</h2>
+        <input type="range" min="2" max="10" value="5" oninput="document.getElementById('p-val').innerText=this.value" id="p-slider" style="width:300px; height:20px; cursor:pointer;">
+        <br>
+        <button class="btn" onclick="goInstruction()">確定並查看說明</button>
     </div>
 
     <div id="ui-info" class="layer" style="display:none;">
-        <div id="instruction">
-            <h2 style="color:#f1c40f">📜 遊戲說明書</h2>
-            <ul>
-                <li><b>移動：</b> [W][A][S][D] 或 方向鍵</li>
-                <li><b>跳躍：</b> [空白鍵]</li>
-                <li><b>挖掘：</b> [滑鼠左鍵]</li>
-                <li><b>放置：</b> [滑鼠右鍵]</li>
-                <li><b>攻擊：</b> [K] 鍵</li>
-                <li><b>選單：</b> [ESC] 鍵</li>
-                <li><b>目標：</b> 晚上會有怪物，請與隊友生存下去！</li>
-            </ul>
-            <button class="btn" onclick="actuallyStart()" style="width:100%">進入世界</button>
+        <div id="instruction-box">
+            <h2 style="color:#f1c40f; margin-top:0;">📜 任務說明單</h2>
+            <div style="text-align: left;">
+                <p>● <b>WASD</b>：移動角色</p>
+                <p>● <b>空白鍵</b>：跳躍</p>
+                <p>● <b>滑鼠左鍵</b>：挖掘方塊 / <b>右鍵</b>：放置方塊</p>
+                <p>● <b>[K] 鍵</b>：手動攻擊（隊友會自動攻擊）</p>
+                <p>● <b>[ESC]</b>：暫停選單 / 離開遊戲</p>
+                <p>● <b>小地圖</b>：白(你) 藍(隊友) 紅(敵人)</p>
+            </div>
+            <button class="btn" onclick="startGame()" style="width:100%; margin-top:20px;">進入遊戲世界</button>
         </div>
     </div>
 
-    <div id="ui-esc" class="layer" style="display:none; background: rgba(0,0,0,0.7);">
-        <h1>遊戲暫停</h1>
-        <button class="btn" onclick="location.reload()">離開遊戲 (重新開始)</button>
-        <button class="btn" onclick="toggleESC()" style="background:#7f8c8d; color:white;">返回遊戲</button>
+    <div id="ui-esc" class="layer" style="display:none; background: rgba(0,0,0,0.85);">
+        <h1 style="font-size: 60px;">暫停中</h1>
+        <button class="btn" onclick="location.reload()">🚪 離開遊戲 (重新開始)</button>
+        <button class="btn" onclick="toggleEscMenu()" style="background:#7f8c8d; color:white; box-shadow: 0 5px 0 #5f6a6a;">↩️ 返回遊戲</button>
     </div>
 
-    <div id="hud">❤️ HP: <span id="hp">100</span> | 📍 <span id="pos">0,0</span></div>
-    <div id="minimap-container"><canvas id="mcvs" width="150" height="150"></canvas></div>
-    <canvas id="gcvs"></canvas>
+    <div id="hud">
+        ❤️ 血量: <span id="hp-ui">100</span><br>
+        📍 座標: <span id="pos-ui">0,0</span><br>
+        ⏰ 時間: <span id="time-ui">12:00</span>
+    </div>
+
+    <div id="minimap-container">
+        <canvas id="minimapCanvas" width="160" height="160"></canvas>
+    </div>
+
+    <canvas id="gameCanvas"></canvas>
 
 <script>
-    const cvs = document.getElementById('gcvs'), ctx = cvs.getContext('2d');
-    const mcvs = document.getElementById('mcvs'), mctx = mcvs.getContext('2d');
-    let isLive = false, showEsc = false, world = {}, keys = {}, entities = [];
+    const cvs = document.getElementById('gameCanvas'), ctx = cvs.getContext('2d');
+    const mcvs = document.getElementById('minimapCanvas'), mctx = mcvs.getContext('2d');
+    
+    let isLive = false, isEsc = false, world = {}, keys = {}, entities = [];
     let p = { x: 0, y: -200, w: 22, h: 42, vx: 0, vy: 0, ground: false, hp: 100, maxHp: 100 };
-    let totalP = 1;
+    let totalPlayers = 1, gameTicks = 720; // 720 是中午
     const TILE = 32;
 
     // --- 地形生成 ---
-    function getH(gx) { return Math.floor(30 + Math.sin(gx * 0.1) * 5 + Math.cos(gx * 0.5) * 2); }
+    function getH(gx) { return Math.floor(30 + Math.sin(gx * 0.1) * 6 + Math.cos(gx * 0.4) * 2); }
     function getB(gx, gy) {
         if (world[gx+'_'+gy] !== undefined) return world[gx+'_'+gy];
         let h = getH(gx);
         return gy < h ? 0 : (gy === h ? 2 : 1);
     }
 
-    // ---
+    // --- 碰撞檢測 ---
+    function checkColl(x, y, w, h) {
+        for (let i = Math.floor(x/TILE); i <= Math.floor((x+w)/TILE); i++) {
+            for (let j = Math.floor(y/TILE); j <= Math.floor((y+h)/TILE); j++) {
+                if (getB(i, j) > 0) return true;
+            }
+        }
+        return false;
+    }
+
+    // --- UI 切換邏輯 ---
+    function goPlayerSelect(n) {
+        totalPlayers = n;
+        document.getElementById('ui-mode').style.display = 'none';
+        if (n === 1) goInstruction();
+        else document.getElementById('ui-players').style.display = 'flex';
+    }
+    function goInstruction() {
+        if (totalPlayers > 1) totalPlayers = document.getElementById('p-slider').value;
+        document.getElementById('ui-players').style.display = 'none';
+        document.getElementById('ui-info').style.display = 'flex';
+    }
+    function startGame() {
+        document.getElementById('ui-info').style.display = 'none';
+        document.getElementById('hud').style.display = 'block';
+        document.getElementById('minimap-container').style.display = 'block';
+        cvs.style.display = 'block';
+        cvs.width = window.innerWidth; cvs.height = window.innerHeight;
+        
+        // 生成隊友
+        for(let i=0; i<totalPlayers-1; i++) {
+            entities.push({ type: 'ally
