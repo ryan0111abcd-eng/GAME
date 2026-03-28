@@ -2,65 +2,82 @@
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
-    <title>Super Human - 完整生存指南版</title>
+    <title>Super Human - 點擊修復最終版</title>
     <style>
-        body, html { margin: 0; padding: 0; width: 100%; height: 100%; background: #000; overflow: hidden; font-family: "Microsoft JhengHei", sans-serif; color: white; }
-        .layer { position: fixed; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; background: #1a1a1a; z-index: 9999; text-align: center; }
-        .title-text { color: #f1c40f; font-size: 50px; margin-bottom: 20px; text-shadow: 3px 3px 0 #000; }
-        .btn { padding: 15px 50px; font-size: 24px; cursor: pointer; margin: 10px; background: #f1c40f; border: none; font-weight: bold; border-radius: 12px; color: black; box-shadow: 0 6px 0 #b8860b; transition: 0.2s; }
-        .btn:hover { background: #fff; transform: scale(1.05); }
+        body, html { margin: 0; padding: 0; width: 100%; height: 100%; background: #1a1a1a; overflow: hidden; font-family: "Microsoft JhengHei", sans-serif; color: white; }
+        
+        /* 選單層：確保絕對在最上層 */
+        .ui-layer { 
+            position: fixed; inset: 0; 
+            display: flex; flex-direction: column; align-items: center; justify-content: center; 
+            z-index: 999999; 
+            background: #1a1a1a;
+        }
+        
+        .title-text { color: #f1c40f; font-size: 50px; margin-bottom: 30px; text-shadow: 4px 4px 0 #000; }
+        
+        /* 超大好點按鈕 */
+        .btn { 
+            padding: 25px 80px; font-size: 32px; cursor: pointer; 
+            margin: 20px; background: #f1c40f; border: 5px solid #fff; 
+            font-weight: bold; border-radius: 20px; color: black; 
+            box-shadow: 0 10px 0 #b8860b;
+            display: block;
+            pointer-events: auto !important; /* 強制啟動點擊 */
+        }
+        .btn:hover { background: #fff; transform: translateY(-5px); }
+        .btn:active { transform: translateY(5px); box-shadow: 0 5px 0 #b8860b; }
 
-        /* 說明書樣式 */
-        #ui-guide { background: rgba(30, 30, 30, 0.95); border: 4px solid #f1c40f; padding: 30px; border-radius: 20px; max-width: 500px; text-align: left; }
-        .guide-key { color: #f1c40f; font-weight: bold; }
+        /* 說明書 */
+        #ui-guide-box { 
+            background: #222; padding: 40px; border-radius: 20px; border: 4px solid #f1c40f; 
+            max-width: 600px; line-height: 1.8; font-size: 20px;
+        }
 
-        /* ESC 選單 */
-        #esc-menu { position: fixed; inset: 0; background: rgba(0,0,0,0.85); display: none; flex-direction: column; align-items: center; justify-content: center; z-index: 10000; }
-
-        /* 遊戲 UI */
+        /* 遊戲介面 (初始隱藏) */
         #hud { position: fixed; top: 10px; left: 10px; background: rgba(0,0,0,0.8); padding: 15px; border: 2px solid #f1c40f; display: none; z-index: 5000; border-radius: 10px; }
-        #minimap-wrapper { position: fixed; top: 20px; right: 20px; width: 150px; height: 150px; border-radius: 50%; border: 3px solid #fff; background: rgba(0,0,0,0.6); overflow: hidden; display: none; z-index: 5000; }
-        #inv { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); display: none; gap: 8px; z-index: 5000; }
-        .slot { width: 45px; height: 45px; border: 2px solid #777; background: #333; display: flex; align-items: center; justify-content: center; font-size: 12px; }
+        #minimap-wrapper { position: fixed; top: 20px; right: 20px; width: 150px; height: 150px; border-radius: 50%; border: 3px solid #fff; background: rgba(0,0,0,0.6); display: none; z-index: 5000; overflow: hidden; }
+        #inv { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); display: none; gap: 10px; z-index: 5000; }
+        .slot { width: 55px; height: 55px; border: 2px solid #777; background: #333; display: flex; align-items: center; justify-content: center; font-weight: bold; }
         .slot.active { border-color: #f1c40f; background: #555; }
         
-        canvas#gameCanvas { display: none; position: absolute; top: 0; left: 0; z-index: 10; }
+        #esc-menu { position: fixed; inset: 0; background: rgba(0,0,0,0.9); display: none; flex-direction: column; align-items: center; justify-content: center; z-index: 1000000; }
+        
+        canvas#gameCanvas { display: none; position: absolute; top: 0; left: 0; z-index: 1; pointer-events: none; }
+        canvas.active { pointer-events: auto !important; } /* 只有開始遊戲後才允許 Canvas 接收點擊 */
     </style>
 </head>
 <body>
 
-    <div id="ui-mode" class="layer">
+    <div id="ui-mode" class="ui-layer">
         <h1 class="title-text">SUPER HUMAN</h1>
-        <button class="btn" onclick="selectMode('single')">單人模式 (獨自生存)</button>
-        <button class="btn" onclick="selectMode('multi')" style="background:#3498db; color:white;">多人連線 (隊友協助)</button>
+        <button class="btn" onclick="selectMode('single')">單人模式</button>
+        <button class="btn" onclick="selectMode('multi')" style="background:#3498db; color:white;">多人連線</button>
     </div>
 
-    <div id="ui-count" class="layer" style="display:none;">
-        <h1 class="title-text">設置小隊人數</h1>
-        <input type="range" id="p-range" min="2" max="10" value="5" oninput="document.getElementById('pv').innerText=this.value" style="width:300px;">
-        <div style="font-size:32px; margin: 20px;">總人數：<span id="pv" style="color:#f1c40f;">5</span></div>
+    <div id="ui-count" class="ui-layer" style="display:none;">
+        <h1 class="title-text">小隊人數</h1>
+        <input type="range" id="p-range" min="2" max="15" value="8" oninput="document.getElementById('pv').innerText=this.value" style="width:400px; height:30px;">
+        <div style="font-size:40px; margin: 30px;">總人數：<span id="pv" style="color:#f1c40f;">8</span></div>
         <button class="btn" onclick="showGuide()">下一步</button>
     </div>
 
-    <div id="ui-guide" class="layer" style="display:none;">
-        <div style="background:#222; padding:30px; border-radius:15px; border:2px solid #f1c40f;">
-            <h2 style="color:#f1c40f; text-align:center; margin-top:0;">📜 生存指南</h2>
-            <ul style="list-style:none; padding:0; line-height:1.8;">
-                <li><span class="guide-key">[W, A, S, D]</span> 控制移動與跳躍</li>
-                <li><span class="guide-key">[滑鼠左鍵]</span> 挖掘方塊 (水不可挖)</li>
-                <li><span class="guide-key">[滑鼠右鍵]</span> 放置方塊</li>
-                <li><span class="guide-key">[1, 2, 3, 4]</span> 切換建築材料</li>
-                <li><span class="guide-key">[K]</span> 揮拳攻擊 (驅趕怪物/隊友)</li>
-                <li><span class="guide-key">[ESC]</span> 暫停遊戲或退出</li>
-                <li style="margin-top:10px; color:#e74c3c;">⚠️ 晚上 19:00 後會有怪物出沒！</li>
-            </ul>
+    <div id="ui-guide" class="ui-layer" style="display:none;">
+        <div id="ui-guide-box">
+            <h2 style="color:#f1c40f; text-align:center;">📜 生存指南</h2>
+            <p>• <b>W, A, S, D</b>：移動與跳躍 (水中會浮起)<br>
+               • <b>滑鼠左鍵</b>：挖掘 / <b>右鍵</b>：放置<br>
+               • <b>K 鍵</b>：揮拳攻擊 (驅趕怪物/隊友)<br>
+               • <b>1-4 鍵</b>：切換方塊類型<br>
+               • <b>ESC 鍵</b>：暫停或離開遊戲</p>
+            <p style="color:#e74c3c; font-weight:bold;">⚠️ 晚上 19:00 怪物出沒，請務必小心！</p>
             <button class="btn" onclick="startGame()" style="width:100%;">進入世界</button>
         </div>
     </div>
 
     <div id="esc-menu">
         <h1 class="title-text">暫停中</h1>
-        <button class="btn" onclick="location.reload()">離開遊戲</button>
+        <button class="btn" onclick="location.reload()">離開遊戲 (重新開始)</button>
         <button class="btn" onclick="togglePause()" style="background:#888; color:white;">回到遊戲</button>
     </div>
 
@@ -85,71 +102,56 @@
     let p = { x: 0, y: 0, w: 20, h: 40, vx: 0, vy: 0, hp: 100, ground: false, atk: 0 };
     let agents = [], keys = {}, teamSize = 1;
 
-    // --- 選單流程控制 ---
-    function selectMode(mode) {
+    function selectMode(m) {
         document.getElementById('ui-mode').style.display = 'none';
-        if(mode === 'single') {
-            teamSize = 1;
-            showGuide();
-        } else {
-            document.getElementById('ui-count').style.display = 'flex';
-        }
+        if(m === 'single') { teamSize = 1; showGuide(); }
+        else { document.getElementById('ui-count').style.display = 'flex'; }
     }
-
     function showGuide() {
-        if(document.getElementById('ui-count').style.display === 'flex') {
+        if(document.getElementById('ui-count').style.display === 'flex') 
             teamSize = parseInt(document.getElementById('p-range').value);
-        }
         document.getElementById('ui-count').style.display = 'none';
         document.getElementById('ui-guide').style.display = 'flex';
     }
-
     function startGame() {
         document.getElementById('ui-guide').style.display = 'none';
         document.getElementById('hud').style.display = 'block';
         document.getElementById('minimap-wrapper').style.display = 'block';
         document.getElementById('inv').style.display = 'flex';
         cvs.style.display = 'block';
+        cvs.classList.add('active'); // 啟用點擊
         cvs.width = window.innerWidth; cvs.height = window.innerHeight;
-        
         p.y = getGY(0)*TILE - 150;
-        for(let i=0; i < teamSize - 1; i++) {
-            spawnAgent('ally', (Math.random()-0.5)*1200);
-        }
+        for(let i=0; i < teamSize-1; i++) spawnAgent('ally', (Math.random()-0.5)*1000);
         isRunning = true;
         requestAnimationFrame(loop);
     }
 
-    // --- 核心遊戲邏輯 (沿用優化後的物理與 AI) ---
     const TILE = 32, COLORS = { 1: '#8B4513', 2: '#228B22', 3: '#666', 4: '#cd853f', 9: '#3498db' };
-    
     function getGY(gx) {
         let x = Math.abs(gx);
         let h = 35, n = 5;
-        if (x % 500 > 250 && x % 500 < 350) { h = 48; n = 0; } // 河流
+        if (x % 500 > 250 && x % 500 < 350) { h = 48; n = 0; }
         return Math.floor(h + Math.sin(gx * 0.1) * n);
     }
-
     function getB(gx, gy) {
         if (world[gx+'_'+gy] !== undefined) return world[gx+'_'+gy];
         let fY = getGY(gx);
         if (Math.abs(gx) % 500 > 250 && Math.abs(gx) % 500 < 350 && gy >= fY) return 9;
         return gy < fY ? 0 : (gy === fY ? 2 : 1);
     }
-
     function spawnAgent(type, startX) {
-        let a = { type, x: startX, y: getGY(Math.floor(startX/TILE))*TILE-100, w:20, h:40, hp:100, maxHp:100, dir:1, sTimer:50 };
-        agents.push(a);
+        agents.push({ type, x: startX, y: getGY(Math.floor(startX/TILE))*TILE-100, w:20, h:40, hp:100, maxHp:100, dir:1, sTimer:50 });
     }
-
     function togglePause() {
         isPaused = !isPaused;
         document.getElementById('esc-menu').style.display = isPaused ? 'flex' : 'none';
+        if(isPaused) cvs.classList.remove('active'); else cvs.classList.add('active');
     }
 
     window.onkeydown = e => {
         if(e.code === 'Escape') togglePause();
-        keys[e.code] = true;
+        if(!isPaused) keys[e.code] = true;
         if(e.code === 'KeyK') p.atk = 15;
         if(e.key >= '1' && e.key <= '4') {
             curB = parseInt(e.key);
@@ -170,9 +172,8 @@
         if(isRunning && !isPaused) {
             ticks = (ticks + 0.4) % 1440;
             let isNight = (ticks > 1140 || ticks < 360);
-            if(isNight && Math.random() < 0.01 && agents.filter(a=>a.type==='monster').length < 5) {
+            if(isNight && Math.random() < 0.01 && agents.filter(a=>a.type==='monster').length < 5)
                 spawnAgent('monster', p.x + (Math.random()>0.5?500:-500));
-            }
 
             p.vx = keys['KeyD'] ? 5 : (keys['KeyA'] ? -5 : 0);
             let inWater = getB(Math.floor((p.x+10)/TILE), Math.floor((p.y+20)/TILE)) === 9;
@@ -188,14 +189,11 @@
                 if(a.type === 'monster' && !isNight) { agents.splice(idx, 1); return; }
                 a.sTimer--; if(a.sTimer <= 0) { a.dir = Math.random()>0.5?1:-1; a.sTimer = 100; }
                 if(a.type === 'monster') a.dir = p.x > a.x ? 1 : -1;
-                
                 let gx = Math.floor((a.dir>0?a.x+a.w:a.x)/TILE), gy = Math.floor((a.y+a.h-5)/TILE);
-                if(getB(gx, gy)>0 && getB(gx, gy)!==9) world[gx+'_'+gy] = 0; // AI 挖礦
-                
+                if(getB(gx, gy)>0 && getB(gx, gy)!==9) world[gx+'_'+gy] = 0;
                 a.x += a.dir * (a.type==='monster'?3:2);
                 let ty = getGY(Math.floor(a.x/TILE))*TILE - a.h;
                 a.y += (ty - a.y) * 0.1;
-                
                 if(p.atk > 0 && Math.abs(a.x-p.x)<60 && Math.abs(a.y-p.y)<60) a.hp -= 5;
                 if(a.type === 'monster' && Math.abs(a.x-p.x)<30 && Math.abs(a.y-p.y)<30) p.hp -= 0.5;
                 if(a.hp <= 0) agents.splice(idx, 1);
@@ -219,32 +217,24 @@
                 if(b!==0) { ctx.fillStyle = COLORS[b]; ctx.fillRect(x*TILE-camX, y*TILE-camY, TILE, TILE); }
             }
         }
-
         agents.forEach(a => {
             ctx.fillStyle = a.type==='monster'?'#f44336':'#f1c40f';
             ctx.fillRect(a.x-camX, a.y-camY, a.w, a.h);
             ctx.fillStyle = 'lime'; ctx.fillRect(a.x-camX-5, a.y-camY-10, 30*(a.hp/100), 4);
         });
-
         ctx.fillStyle = '#ff5722'; ctx.fillRect(p.x-camX, p.y-camY, p.w, p.h);
         if(p.atk > 0) { ctx.strokeStyle='white'; ctx.strokeRect(p.x-camX-15, p.y-camY-15, p.w+30, p.h+30); }
 
-        // 小地圖繪製
         mctx.fillStyle = '#222'; mctx.fillRect(0,0,150,150);
-        mctx.fillStyle = '#444';
         for(let i=-20; i<20; i++) {
             let gx = Math.floor(p.x/TILE) + i;
-            mctx.fillRect(75+i*4, 75+(getGY(gx)-getGY(Math.floor(p.x/TILE)))*2, 4, 40);
+            mctx.fillStyle='#444'; mctx.fillRect(75+i*4, 75+(getGY(gx)-getGY(Math.floor(p.x/TILE)))*2, 4, 40);
         }
-        mctx.fillStyle = 'orange'; mctx.fillRect(73, 73, 4, 4); // 玩家
+        mctx.fillStyle = 'orange'; mctx.fillRect(73, 73, 4, 4);
         agents.forEach(a => {
             let dx = (a.x-p.x)/TILE*4, dy = (a.y-p.y)/TILE*2;
-            if(Math.abs(dx)<75) {
-                mctx.fillStyle = a.type==='monster'?'red':'yellow';
-                mctx.fillRect(75+dx, 75+dy, 3, 3);
-            }
+            if(Math.abs(dx)<75) { mctx.fillStyle = a.type==='monster'?'red':'yellow'; mctx.fillRect(75+dx, 75+dy, 3, 3); }
         });
-
         document.getElementById('posX').innerText = Math.floor(p.x/TILE);
         document.getElementById('posY').innerText = Math.floor(p.y/TILE);
         document.getElementById('hp').innerText = Math.max(0, Math.ceil(p.hp));
