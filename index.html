@@ -2,75 +2,49 @@
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
-    <title>Super Human - 最終修復版</title>
+    <title>Future Super Human - 2D Survival</title>
     <style>
-        body, html { margin: 0; padding: 0; width: 100%; height: 100%; background: #000; overflow: hidden; font-family: "Microsoft JhengHei", sans-serif; }
+        body, html { margin: 0; padding: 0; width: 100%; height: 100%; background: #000; overflow: hidden; font-family: "Microsoft JhengHei", sans-serif; color: white; }
+        .layer { position: fixed; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; background: #1a1a1a; z-index: 1000; }
+        .btn { padding: 15px 40px; font-size: 24px; cursor: pointer; margin: 10px; background: #f1c40f; border: none; font-weight: bold; border-radius: 10px; color: black; box-shadow: 0 5px 0 #b8860b; }
+        .btn:active { transform: translateY(3px); box-shadow: 0 2px 0 #b8860b; }
         
-        /* 選單層級設定 */
-        .layer { 
-            position: fixed; inset: 0; 
-            display: flex; flex-direction: column; align-items: center; justify-content: center; 
-            background: #1a1a1a; color: white; z-index: 1000; 
-        }
-        
-        .btn { 
-            padding: 20px 60px; font-size: 28px; cursor: pointer; margin: 15px; 
-            background: #f1c40f; border: none; font-weight: bold; border-radius: 15px; 
-            color: black; box-shadow: 0 8px 0 #b8860b; 
-        }
-        .btn:active { transform: translateY(4px); box-shadow: 0 4px 0 #b8860b; }
-
-        /* 遊戲介面 */
-        #hud { position: fixed; top: 10px; left: 10px; background: rgba(0,0,0,0.8); padding: 15px; border: 2px solid #f1c40f; border-radius: 10px; color: white; display: none; z-index: 500; pointer-events: none; }
-        #minimap-wrapper { position: fixed; top: 20px; right: 20px; width: 150px; height: 150px; border-radius: 50%; border: 3px solid #fff; background: rgba(0,0,0,0.6); display: none; z-index: 500; overflow: hidden; }
-        #inv { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); display: none; gap: 8px; z-index: 500; }
-        .slot { width: 50px; height: 50px; border: 2px solid #777; background: #333; display: flex; align-items: center; justify-content: center; color: white; font-weight: bold; }
+        #hud { position: fixed; top: 10px; left: 10px; background: rgba(0,0,0,0.7); padding: 12px; border: 2px solid #f1c40f; border-radius: 8px; z-index: 500; display: none; font-size: 14px; }
+        #minimap { position: fixed; top: 15px; right: 15px; width: 140px; height: 140px; border-radius: 50%; border: 3px solid #fff; background: rgba(0,0,0,0.5); overflow: hidden; z-index: 500; display: none; }
+        #inv { position: fixed; bottom: 15px; left: 50%; transform: translateX(-50%); display: none; gap: 8px; z-index: 500; }
+        .slot { width: 45px; height: 45px; border: 2px solid #777; background: #333; display: flex; align-items: center; justify-content: center; font-size: 12px; }
         .slot.active { border-color: #f1c40f; background: #555; }
-
-        #esc-menu { position: fixed; inset: 0; background: rgba(0,0,0,0.85); display: none; flex-direction: column; align-items: center; justify-content: center; z-index: 2000; color: white; }
-
-        /* 遊戲畫布 */
-        canvas#gameCanvas { display: none; position: absolute; top: 0; left: 0; z-index: 10; cursor: crosshair; }
+        
+        #esc-menu { position: fixed; inset: 0; background: rgba(0,0,0,0.8); display: none; flex-direction: column; align-items: center; justify-content: center; z-index: 2000; }
+        canvas#gameCanvas { display: none; position: absolute; top: 0; left: 0; z-index: 10; }
     </style>
 </head>
 <body>
 
-    <div id="ui-mode" class="layer">
-        <h1 style="color:#f1c40f; font-size:50px;">SUPER HUMAN</h1>
-        <button class="btn" onclick="nextStep('mode', 'single')">單人模式</button>
-        <button class="btn" onclick="nextStep('mode', 'multi')" style="background:#3498db; color:white;">多人連線</button>
+    <div id="ui-start" class="layer">
+        <h1 style="color:#f1c40f; font-size:45px;">未來的 SUPER HUMAN</h1>
+        <button class="btn" onclick="initGame(1)">開始遊戲</button>
+        <button class="btn" onclick="showMulti()" style="background:#3498db; color:white;">多人連線模式</button>
     </div>
 
-    <div id="ui-count" class="layer" style="display:none;">
-        <h1>設定小隊人數</h1>
-        <input type="range" id="p-range" min="1" max="15" value="8" style="width:300px;">
-        <div style="font-size:30px; margin:20px;">人數：<span id="pv" style="color:#f1c40f;">8</span></div>
-        <button class="btn" onclick="nextStep('count')">設定完成</button>
-    </div>
-
-    <div id="ui-guide" class="layer" style="display:none;">
-        <div style="background:#222; padding:30px; border-radius:20px; border:2px solid #f1c40f; max-width:450px;">
-            <h2 style="color:#f1c40f; text-align:center;">📜 生存手冊</h2>
-            <p>• <b>WASD</b>：移動 / <b>Space</b>：跳躍<br>
-               • <b>滑鼠左鍵</b>：挖掘 / <b>右鍵</b>：建造<br>
-               • <b>K 鍵</b>：攻擊 / <b>1~4 鍵</b>：換方塊<br>
-               • <b>ESC 鍵</b>：選單與離開</p>
-            <p style="color:#e74c3c;">⚠️ 晚上 19:00 怪物出沒，請準備戰鬥！</p>
-            <button class="btn" onclick="finalStart()" style="width:100%;">立刻開始遊戲</button>
-        </div>
+    <div id="ui-multi" class="layer" style="display:none;">
+        <h1>選擇小隊人數 (2-10)</h1>
+        <input type="range" id="p-count" min="2" max="10" value="5" oninput="document.getElementById('pv').innerText=this.value" style="width:250px;">
+        <div style="font-size:30px; margin:15px;"><span id="pv" style="color:#f1c40f;">5</span> 人</div>
+        <button class="btn" onclick="initGame(document.getElementById('p-count').value)">開始遊戲</button>
     </div>
 
     <div id="esc-menu">
-        <h1 style="color:#f1c40f;">暫停暫停</h1>
-        <button class="btn" onclick="location.reload()">重新開始遊戲</button>
-        <button class="btn" onclick="togglePause()" style="background:#888; color:white;">回到遊戲</button>
+        <h1 style="color:#f1c40f;">遊戲暫停</h1>
+        <button class="btn" onclick="location.reload()">離開遊戲 (重新開始)</button>
+        <button class="btn" onclick="togglePause()" style="background:#888; color:white;">返回</button>
     </div>
 
     <div id="hud">
-        📍 座標: <span id="posX">0</span>, <span id="posY">0</span> | ❤️ HP: <span id="hp">100</span><br>
-        🕒 時間: <span id="time-text">07:00</span> <span id="day-night">☀️</span>
+        📍 <span id="posX">0</span>, <span id="posY">0</span> | ❤️ <span id="hp">100</span><br>
+        🕒 <span id="time-text">07:00</span> <span id="day-icon">☀️</span> | 🗺️ <span id="biome-text">平原</span>
     </div>
-    <div id="minimap-wrapper"><canvas id="miniCanvas" width="150" height="150"></canvas></div>
+    <div id="minimap"><canvas id="miniCanvas" width="140" height="140"></canvas></div>
     <div id="inv">
         <div class="slot active" id="sl1">1:土</div><div class="slot" id="sl2">2:草</div>
         <div class="slot" id="sl3">3:石</div><div class="slot" id="sl4">4:木</div>
@@ -81,65 +55,63 @@
 <script>
     const cvs = document.getElementById('gameCanvas'), ctx = cvs.getContext('2d');
     const mcvs = document.getElementById('miniCanvas'), mctx = mcvs.getContext('2d');
-    const prange = document.getElementById('p-range'), pv = document.getElementById('pv');
-    
-    let isRunning = false, isPaused = false, teamSize = 1;
-    let ticks = 480, world = {}, camX = 0, camY = 0, curB = 1;
+    let isRunning = false, isPaused = false, ticks = 420; // 07:00
+    let world = {}, camX = 0, camY = 0, curB = 1;
     let p = { x: 0, y: 0, w: 20, h: 40, vx: 0, vy: 0, hp: 100, ground: false, atk: 0 };
     let agents = [], keys = {};
 
-    prange.oninput = () => pv.innerText = prange.value;
+    const TILE = 32, COLORS = { 1: '#8B4513', 2: '#228B22', 3: '#666', 4: '#cd853f', 5: '#95a5a6', 9: '#3498db' };
 
-    function nextStep(step, val) {
-        if(step === 'mode') {
-            document.getElementById('ui-mode').style.display = 'none';
-            if(val === 'single') { teamSize = 1; document.getElementById('ui-guide').style.display = 'flex'; }
-            else { document.getElementById('ui-count').style.display = 'flex'; }
-        } else if(step === 'count') {
-            teamSize = parseInt(prange.value);
-            document.getElementById('ui-count').style.display = 'none';
-            document.getElementById('ui-guide').style.display = 'flex';
-        }
-    }
+    function showMulti() { document.getElementById('ui-start').style.display='none'; document.getElementById('ui-multi').style.display='flex'; }
 
-    function finalStart() {
-        document.getElementById('ui-guide').style.display = 'none';
-        document.getElementById('hud').style.display = 'block';
-        document.getElementById('minimap-wrapper').style.display = 'block';
-        document.getElementById('inv').style.display = 'flex';
+    function initGame(num) {
+        document.querySelectorAll('.layer').forEach(l => l.style.display='none');
+        document.getElementById('hud').style.display='block';
+        document.getElementById('minimap').style.display='block';
+        document.getElementById('inv').style.display='flex';
+        cvs.style.display='block'; cvs.width = window.innerWidth; cvs.height = window.innerHeight;
         
-        // 確保 Canvas 尺寸與顯示
-        cvs.style.display = 'block';
-        cvs.width = window.innerWidth;
-        cvs.height = window.innerHeight;
-        
-        // 初始化地形與隊友
-        p.y = getGY(0)*32 - 150;
-        for(let i=0; i < teamSize-1; i++) {
-            spawnAgent('ally', (Math.random()-0.5)*1200);
-        }
-        
+        p.y = getGY(0)*TILE - 100;
+        // 生成隊友
+        for(let i=0; i<num-1; i++) spawnAgent('ally', (Math.random()-0.5)*1000);
+        // 生成初始村民與動物
+        for(let i=0; i<5; i++) spawnAgent('villager', (Math.random()-0.5)*2000);
+        for(let i=0; i<5; i++) spawnAgent('animal', (Math.random()-0.5)*2000);
+
         isRunning = true;
         requestAnimationFrame(loop);
     }
 
-    // 地形與遊戲邏輯
-    const TILE = 32, COLORS = { 1: '#8B4513', 2: '#228B22', 3: '#666', 4: '#cd853f', 9: '#3498db' };
-    function getGY(gx) {
+    // 地形生成器：包含平原、台地、丘陵、山地、村莊、古蹟
+    function getBiomeData(gx) {
         let x = Math.abs(gx);
-        let h = 35, n = 5;
-        if (x % 500 > 250 && x % 500 < 350) { h = 48; n = 0; } // 河流兩旁平原邏輯
-        return Math.floor(h + Math.sin(gx * 0.1) * n);
+        if (x % 1200 < 200) return { name: "山地", h: 25, n: 15 };
+        if (x % 1200 < 500) return { name: "平原", h: 40, n: 2 };
+        if (x % 1200 < 800) return { name: "台地", h: 32, n: 0 };
+        if (x % 1200 < 1000) return { name: "丘陵", h: 35, n: 7 };
+        return { name: "古蹟邊緣", h: 40, n: 1 };
     }
+
+    function getGY(gx) {
+        let b = getBiomeData(gx);
+        let y = Math.floor(b.h + Math.sin(gx * 0.15) * b.n);
+        // 村莊與古蹟邏輯：特定位置強行平坦
+        if (Math.abs(gx % 400) < 10) return 38; 
+        return y;
+    }
+
     function getB(gx, gy) {
         if (world[gx+'_'+gy] !== undefined) return world[gx+'_'+gy];
         let fY = getGY(gx);
-        if (Math.abs(gx) % 500 > 250 && Math.abs(gx) % 500 < 350 && gy >= fY) return 9;
+        // 古蹟裝飾
+        if (Math.abs(gx % 400) === 0 && gy < fY && gy > fY-5) return 5; 
         return gy < fY ? 0 : (gy === fY ? 2 : 1);
     }
+
     function spawnAgent(type, startX) {
-        agents.push({ type, x: startX, y: getGY(Math.floor(startX/TILE))*TILE-100, w:20, h:40, hp:100, dir:1, sTimer:50 });
+        agents.push({ type, x: startX, y: getGY(Math.floor(startX/TILE))*TILE-100, w:20, h:40, hp:100, maxHp:100, dir:1, sTimer:50 });
     }
+
     function togglePause() {
         isPaused = !isPaused;
         document.getElementById('esc-menu').style.display = isPaused ? 'flex' : 'none';
@@ -147,7 +119,7 @@
 
     window.onkeydown = e => {
         if(e.code === 'Escape') togglePause();
-        if(!isPaused) keys[e.code] = true;
+        keys[e.code] = true;
         if(e.code === 'KeyK') p.atk = 15;
         if(e.key >= '1' && e.key <= '4') {
             curB = parseInt(e.key);
@@ -156,55 +128,71 @@
         }
     };
     window.onkeyup = e => keys[e.code] = false;
-
     window.onmousedown = e => {
         if(!isRunning || isPaused) return;
         let gx = Math.floor((e.clientX + camX)/TILE), gy = Math.floor((e.clientY + camY)/TILE);
-        if(e.button === 0 && getB(gx, gy) !== 9) world[gx+'_'+gy] = 0;
+        if(e.button === 0) world[gx+'_'+gy] = 0;
         if(e.button === 2) world[gx+'_'+gy] = curB;
     };
     window.oncontextmenu = e => e.preventDefault();
 
     function loop() {
         if(isRunning && !isPaused) {
-            ticks = (ticks + 0.4) % 1440;
-            let isNight = (ticks > 1140 || ticks < 360);
-            if(isNight && Math.random() < 0.01 && agents.filter(a=>a.type==='monster').length < 5)
-                spawnAgent('monster', p.x + (Math.random()>0.5?500:-500));
+            ticks = (ticks + 0.3) % 1440; // 一天 1440 分鐘
+            let h = Math.floor(ticks/60), m = Math.floor(ticks%60);
+            let isNight = (ticks > 1090 || ticks < 390); // 18:10 到 06:30
 
+            // 晚上生成怪物
+            if(isNight && Math.random() < 0.01 && agents.filter(a=>a.type==='monster').length < 8) {
+                spawnAgent('monster', p.x + (Math.random()>0.5?600:-600));
+            }
+
+            // 角色移動
             p.vx = keys['KeyD'] ? 5 : (keys['KeyA'] ? -5 : 0);
-            let inWater = getB(Math.floor((p.x+10)/TILE), Math.floor((p.y+20)/TILE)) === 9;
-            if(inWater) { p.vy -= 0.8; if(p.vy < -3) p.vy = -3; if(keys['KeyW']) p.vy = -5; }
-            else { p.vy += 0.7; if((keys['KeyW'] || keys['Space']) && p.ground) p.vy = -12; }
-
+            p.vy += 0.7; if((keys['KeyW'] || keys['Space']) && p.ground) p.vy = -12;
             p.y += p.vy; p.ground = false;
             let fy = Math.floor((p.y+p.h)/TILE), lx = Math.floor((p.x+2)/TILE);
-            if(getB(lx, fy)>0 && getB(lx, fy)!==9) { p.y=fy*TILE-p.h; p.vy=0; p.ground=true; }
+            if(getB(lx, fy)>0) { p.y=fy*TILE-p.h; p.vy=0; p.ground=true; }
             p.x += p.vx;
 
+            // AI 邏輯
             agents.forEach((a, idx) => {
-                if(a.type === 'monster' && !isNight) { agents.splice(idx, 1); return; }
                 a.sTimer--; if(a.sTimer <= 0) { a.dir = Math.random()>0.5?1:-1; a.sTimer = 100; }
                 if(a.type === 'monster') a.dir = p.x > a.x ? 1 : -1;
-                let gx = Math.floor((a.dir>0?a.x+a.w:a.x)/TILE), gy = Math.floor((a.y+a.h-5)/TILE);
-                if(getB(gx, gy)>0 && getB(gx, gy)!==9) world[gx+'_'+gy] = 0;
-                a.x += a.dir * (a.type==='monster'?3:2);
-                let ty = getGY(Math.floor(a.x/TILE))*TILE - a.h;
-                a.y += (ty - a.y) * 0.1;
-                if(p.atk > 0 && Math.abs(a.x-p.x)<60 && Math.abs(a.y-p.y)<60) a.hp -= 5;
-                if(a.type === 'monster' && Math.abs(a.x-p.x)<30 && Math.abs(a.y-p.y)<30) p.hp -= 0.5;
+                
+                // 自動挖礦 (隊友與怪物)
+                let gx = Math.floor((a.dir>0?a.x+a.w+2:a.x-2)/TILE), gy = Math.floor((a.y+a.h-5)/TILE);
+                if(getB(gx, gy)>0) world[gx+'_'+gy] = 0;
+                
+                a.x += a.dir * (a.type==='monster'?3:1.5);
+                a.y += (getGY(Math.floor(a.x/TILE))*TILE - a.h - a.y) * 0.1;
+                
+                // 戰鬥判定
+                if(p.atk > 0 && Math.abs(a.x-p.x)<50 && Math.abs(a.y-p.y)<50) a.hp -= 10;
+                if(a.type === 'monster' && Math.abs(a.x-p.x)<25 && Math.abs(a.y-p.y)<25) p.hp -= 0.3;
                 if(a.hp <= 0) agents.splice(idx, 1);
             });
             if(p.atk > 0) p.atk--;
+            
+            // 更新 UI
+            document.getElementById('posX').innerText = Math.floor(p.x/TILE);
+            document.getElementById('posY').innerText = Math.floor(p.y/TILE);
+            document.getElementById('hp').innerText = Math.max(0, Math.ceil(p.hp));
+            document.getElementById('time-text').innerText = `${h.toString().padStart(2,'0')}:${m.toString().padStart(2,'0')}`;
+            document.getElementById('day-icon').innerText = isNight ? "🌙" : (ticks > 1050 ? "🌅" : "☀️");
+            document.getElementById('biome-text').innerText = getBiomeData(Math.floor(p.x/TILE)).name;
         }
         render();
         requestAnimationFrame(loop);
     }
 
     function render() {
-        let isNight = (ticks > 1140 || ticks < 360);
-        ctx.fillStyle = isNight ? '#0a0a2a' : '#87ceeb';
-        ctx.fillRect(0,0,cvs.width, cvs.height);
+        // 天空顏色變換
+        let sky = '#87ceeb';
+        if(ticks > 1050 && ticks <= 1080) sky = '#e67e22'; // 17:30 - 18:00 傍晚
+        else if(ticks > 1080 || ticks < 390) sky = '#1a1a2e'; // 晚上
+        ctx.fillStyle = sky; ctx.fillRect(0,0,cvs.width, cvs.height);
+
         camX += (p.x - cvs.width/2 - camX) * 0.1;
         camY += (p.y - cvs.height/2 - camY) * 0.1;
 
@@ -214,31 +202,32 @@
                 if(b!==0) { ctx.fillStyle = COLORS[b]; ctx.fillRect(x*TILE-camX, y*TILE-camY, TILE, TILE); }
             }
         }
-        agents.forEach(a => {
-            ctx.fillStyle = a.type==='monster'?'#f44336':'#f1c40f';
-            ctx.fillRect(a.x-camX, a.y-camY, a.w, a.h);
-            ctx.fillStyle = 'lime'; ctx.fillRect(a.x-camX-5, a.y-camY-10, 30*(a.hp/100), 4);
-        });
-        ctx.fillStyle = '#ff5722'; ctx.fillRect(p.x-camX, p.y-camY, p.w, p.h);
-        if(p.atk > 0) { ctx.strokeStyle='white'; ctx.strokeRect(p.x-camX-15, p.y-camY-15, p.w+30, p.h+30); }
 
-        mctx.fillStyle = '#222'; mctx.fillRect(0,0,150,150);
-        for(let i=-20; i<20; i++) {
-            let gx = Math.floor(p.x/TILE) + i;
-            mctx.fillStyle='#444'; mctx.fillRect(75+i*4, 75+(getGY(gx)-getGY(Math.floor(p.x/TILE)))*2, 4, 40);
-        }
-        mctx.fillStyle = 'orange'; mctx.fillRect(73, 73, 4, 4);
         agents.forEach(a => {
-            let dx = (a.x-p.x)/TILE*4, dy = (a.y-p.y)/TILE*2;
-            if(Math.abs(dx)<75) { mctx.fillStyle = a.type==='monster'?'red':'yellow'; mctx.fillRect(75+dx, 75+dy, 3, 3); }
+            let color = '#f1c40f'; // 隊友
+            if(a.type==='monster') color='#e74c3c';
+            if(a.type==='villager') color='#9b59b6';
+            if(a.type==='animal') color='#2ecc71';
+            ctx.fillStyle = color; ctx.fillRect(a.x-camX, a.y-camY, a.w, a.h);
+            // 血量條
+            ctx.fillStyle = 'red'; ctx.fillRect(a.x-camX-5, a.y-camY-12, 30, 4);
+            ctx.fillStyle = 'lime'; ctx.fillRect(a.x-camX-5, a.y-camY-12, 30*(a.hp/100), 4);
         });
-        
-        document.getElementById('posX').innerText = Math.floor(p.x/TILE);
-        document.getElementById('posY').innerText = Math.floor(p.y/TILE);
-        document.getElementById('hp').innerText = Math.max(0, Math.ceil(p.hp));
-        let h = Math.floor(ticks/60).toString().padStart(2,'0'), m = Math.floor(ticks%60).toString().padStart(2,'0');
-        document.getElementById('time-text').innerText = `${h}:${m}`;
-        document.getElementById('day-night').innerText = isNight ? "🌙" : "☀️";
+
+        ctx.fillStyle = '#FF5733'; ctx.fillRect(p.x-camX, p.y-camY, p.w, p.h);
+        if(p.atk > 0) { ctx.strokeStyle='white'; ctx.lineWidth=3; ctx.strokeRect(p.x-camX-10, p.y-camY-10, p.w+20, p.h+20); }
+
+        // 繪製圓形小地圖
+        mctx.fillStyle = '#222'; mctx.fillRect(0,0,140,140);
+        mctx.save();
+        mctx.beginPath(); mctx.arc(70, 70, 65, 0, Math.PI*2); mctx.clip();
+        agents.forEach(a => {
+            let dx = (a.x - p.x)/TILE * 3, dy = (a.y - p.y)/TILE * 3;
+            mctx.fillStyle = a.type==='monster'?'red':(a.type==='ally'?'yellow':'white');
+            mctx.fillRect(70+dx, 70+dy, 4, 4);
+        });
+        mctx.fillStyle = 'orange'; mctx.fillRect(68, 68, 5, 5); // 玩家
+        mctx.restore();
     }
 </script>
 </body>
