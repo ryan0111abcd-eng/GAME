@@ -1,29 +1,29 @@
 <!DOCTYPE html>
-<html>
+<html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
-    <title>Super Human 2D - Final Fix</title>
+    <title>Super Human 2D - 最後救援版</title>
     <style>
-        body, html { margin: 0; padding: 0; background: #1a1a1a; overflow: hidden; font-family: sans-serif; }
+        body, html { margin: 0; padding: 0; width: 100%; height: 100%; background: #1a1a1a; overflow: hidden; font-family: sans-serif; }
         
-        /* 選單層：確保在最上方且可點擊 */
+        /* 選單：放在最頂層 */
         #menu {
-            position: absolute; inset: 0; z-index: 100;
+            position: fixed; inset: 0; z-index: 9999;
             display: flex; flex-direction: column; align-items: center; justify-content: center;
-            background: #1a1a1a; color: #f1c40f;
+            background: #2c3e50; color: #f1c40f;
         }
 
         .btn {
-            padding: 20px 60px; font-size: 32px; cursor: pointer; margin: 15px;
-            background: #f1c40f; border: 4px solid #fff; border-radius: 15px;
+            padding: 20px 60px; font-size: 30px; cursor: pointer;
+            background: #f1c40f; border: none; border-radius: 10px;
             font-weight: bold; box-shadow: 0 6px 0 #b8860b;
         }
         .btn:active { transform: translateY(4px); box-shadow: 0 2px 0 #b8860b; }
 
         #hud {
-            position: fixed; top: 10px; left: 10px; z-index: 50;
+            position: fixed; top: 10px; left: 10px; z-index: 100;
             background: rgba(0,0,0,0.8); color: white; padding: 10px;
-            border: 2px solid #f1c40f; border-radius: 5px; display: none;
+            border: 2px solid #f1c40f; display: none; pointer-events: none;
         }
 
         canvas { display: none; position: absolute; top: 0; left: 0; z-index: 10; }
@@ -32,64 +32,77 @@
 <body>
 
     <div id="menu">
-        <h1>未來的 SUPER HUMAN</h1>
+        <h1 style="font-size: 40px;">未來的 SUPER HUMAN</h1>
+        <p style="color: white;">(點擊下方按鈕開始)</p>
         <button class="btn" onclick="start()">開始遊戲</button>
     </div>
 
-    <div id="hud">❤️ HP: <span id="hp">100</span> | 📍 Pos: <span id="pos">0,0</span></div>
-    <canvas id="g"></canvas>
+    <div id="hud">
+        ❤️ 血量: <span id="hp">100</span> | 📍 座標: <span id="pos">0,0</span>
+    </div>
+
+    <canvas id="gameCanvas"></canvas>
 
 <script>
-    const cvs = document.getElementById('g'), ctx = cvs.getContext('2d');
-    let run = false, keys = {}, world = {}, ticks = 420;
-    let p = { x: 0, y: 0, w: 20, h: 40, vx: 0, vy: 0, ground: false };
+    const cvs = document.getElementById('gameCanvas'), ctx = cvs.getContext('2d');
+    let isRunning = false, world = {}, keys = {};
+    let p = { x: 0, y: 0, w: 24, h: 40, vx: 0, vy: 0, ground: false };
     const TILE = 32;
 
     function start() {
+        // 隱藏選單，顯示遊戲
         document.getElementById('menu').style.display = 'none';
         document.getElementById('hud').style.display = 'block';
         cvs.style.display = 'block';
         cvs.width = window.innerWidth;
         cvs.height = window.innerHeight;
         
-        // 初始化位置
+        // 設定初始高度
         p.y = getH(0) * TILE - 100;
-        run = true;
+        isRunning = true;
         loop();
     }
 
+    // 地形生成器
     function getH(gx) {
         return Math.floor(35 + Math.sin(gx * 0.2) * 5);
     }
 
+    // 取得方塊 (0=空氣, 1=土, 2=草, 3=石)
     function getB(gx, gy) {
         if (world[gx+'_'+gy] !== undefined) return world[gx+'_'+gy];
         let h = getH(gx);
-        return gy < h ? 0 : (gy === h ? 2 : 1);
+        if (gy < h) return 0;
+        if (gy === h) return 2;
+        return 1;
     }
 
+    // 控制監聽
     window.onkeydown = e => keys[e.code] = true;
     window.onkeyup = e => keys[e.code] = false;
     window.onmousedown = e => {
-        if(!run) return;
-        let gx = Math.floor((e.clientX + (p.x - cvs.width/2))/TILE);
-        let gy = Math.floor((e.clientY + (p.y - cvs.height/2))/TILE);
+        if(!isRunning) return;
+        let camX = p.x - cvs.width/2;
+        let camY = p.y - cvs.height/2;
+        let gx = Math.floor((e.clientX + camX) / TILE);
+        let gy = Math.floor((e.clientY + camY) / TILE);
+        // 左鍵挖掉，右鍵放石塊
         world[gx+'_'+gy] = (e.button === 0) ? 0 : 3;
     };
     window.oncontextmenu = e => e.preventDefault();
 
     function loop() {
-        if(!run) return;
+        if(!isRunning) return;
 
-        // --- 核心物理：防穿牆 ---
-        // 1. Y軸 (重力與碰撞)
+        // --- 1. 物理處理：Y軸 (重力與地板碰撞) ---
         p.vy += 0.8;
         let nextY = p.y + p.vy;
-        let pL = Math.floor((p.x + 4)/TILE), pR = Math.floor((p.x + p.w - 4)/TILE);
-        let footY = Math.floor((nextY + p.h)/TILE);
+        let footY = Math.floor((nextY + p.h) / TILE);
+        let pL = Math.floor((p.x + 4) / TILE);
+        let pR = Math.floor((p.x + p.w - 4) / TILE);
 
         if (getB(pL, footY) > 0 || getB(pR, footY) > 0) {
-            p.y = footY * TILE - p.h; // 踩在地面
+            p.y = footY * TILE - p.h; // 踩在方塊頂部
             p.vy = 0;
             p.ground = true;
         } else {
@@ -97,17 +110,56 @@
             p.ground = false;
         }
 
-        // 2. X軸 (左右行走與防穿牆)
-        let vx = (keys['KeyD']?5:0) - (keys['KeyA']?5:0);
-        if (vx !== 0) {
-            let nextX = p.x + vx;
-            let sideX = vx > 0 ? Math.floor((nextX + p.w)/TILE) : Math.floor(nextX/TILE);
-            let headY = Math.floor((p.y + 5)/TILE), bodyY = Math.floor((p.y + p.h - 5)/TILE);
-            
-            // 檢查前進方向是否有方塊
+        // --- 2. 物理處理：X軸 (行走與防穿牆) ---
+        let speed = 5;
+        let moveX = (keys['KeyD'] ? speed : 0) - (keys['KeyA'] ? speed : 0);
+        if (moveX !== 0) {
+            let nextX = p.x + moveX;
+            let sideX = moveX > 0 ? Math.floor((nextX + p.w) / TILE) : Math.floor(nextX / TILE);
+            let headY = Math.floor((p.y + 4) / TILE);
+            let bodyY = Math.floor((p.y + p.h - 4) / TILE);
+
+            // 如果前方是空氣，才允許移動
             if (getB(sideX, headY) === 0 && getB(sideX, bodyY) === 0) {
                 p.x = nextX;
             }
         }
 
+        // 跳躍
         if ((keys['Space'] || keys['KeyW']) && p.ground) p.vy = -12;
+
+        // 更新 UI
+        document.getElementById('pos').innerText = Math.floor(p.x/TILE) + "," + Math.floor(p.y/TILE);
+
+        draw();
+        requestAnimationFrame(loop);
+    }
+
+    function draw() {
+        // 畫天空
+        ctx.fillStyle = '#87ceeb';
+        ctx.fillRect(0, 0, cvs.width, cvs.height);
+
+        let camX = p.x - cvs.width/2;
+        let camY = p.y - cvs.height/2;
+
+        // 畫方塊 (只畫畫面上看的到的)
+        for (let x = Math.floor(camX/TILE); x <= Math.ceil((camX+cvs.width)/TILE); x++) {
+            for (let y = Math.floor(camY/TILE); y <= Math.ceil((camY+cvs.height)/TILE); y++) {
+                let b = getB(x, y);
+                if (b > 0) {
+                    if (b === 2) ctx.fillStyle = '#2ecc71'; // 草
+                    else if (b === 1) ctx.fillStyle = '#795548'; // 土
+                    else ctx.fillStyle = '#7f8c8d'; // 石
+                    ctx.fillRect(x * TILE - camX, y * TILE - camY, TILE, TILE);
+                }
+            }
+        }
+
+        // 畫玩家 (橘色方塊)
+        ctx.fillStyle = '#e67e22';
+        ctx.fillRect(p.x - camX, p.y - camY, p.w, p.h);
+    }
+</script>
+</body>
+</html>
