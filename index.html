@@ -1,86 +1,198 @@
-function loop() {
-        if(isRunning && !isPaused) {
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <title>Future Super Human - 2D Survival</title>
+    <style>
+        /* 基礎設定 */
+        body, html { margin: 0; padding: 0; width: 100%; height: 100%; background: #000; overflow: hidden; font-family: "Microsoft JhengHei", sans-serif; }
+        
+        /* 【關鍵修復】選單層：強制放在最前面，確保點擊有效 */
+        .layer { 
+            position: fixed; inset: 0; 
+            display: flex; flex-direction: column; align-items: center; justify-content: center; 
+            background: #1a1a1a; 
+            z-index: 999999; /* 極高層級 */
+            pointer-events: auto; /* 強制接收點擊 */
+        }
+
+        .btn { 
+            padding: 20px 50px; font-size: 28px; cursor: pointer; margin: 15px; 
+            background: #f1c40f; border: 4px solid #fff; font-weight: bold; 
+            border-radius: 15px; color: black; box-shadow: 0 8px 0 #b8860b; 
+            transition: 0.1s;
+        }
+        .btn:hover { background: #fff; transform: scale(1.05); }
+        .btn:active { transform: translateY(4px); box-shadow: 0 4px 0 #b8860b; }
+
+        /* 遊戲介面設定 */
+        #hud { position: fixed; top: 15px; left: 15px; background: rgba(0,0,0,0.8); padding: 15px; border: 2px solid #f1c40f; color: white; border-radius: 10px; z-index: 1000; display: none; pointer-events: none; }
+        #minimap { position: fixed; top: 15px; right: 15px; width: 150px; height: 150px; border-radius: 50%; border: 3px solid #fff; background: rgba(0,0,0,0.5); overflow: hidden; z-index: 1000; display: none; }
+        #inv { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); display: none; gap: 10px; z-index: 1000; }
+        .slot { width: 55px; height: 55px; border: 3px solid #777; background: #333; display: flex; align-items: center; justify-content: center; color: white; font-weight: bold; }
+        .slot.active { border-color: #f1c40f; background: #555; }
+        
+        canvas#gameCanvas { display: none; position: absolute; top: 0; left: 0; z-index: 10; cursor: crosshair; }
+    </style>
+</head>
+<body>
+
+    <div id="ui-start" class="layer">
+        <h1 style="color:#f1c40f; font-size:50px; text-shadow: 3px 3px 0 #000;">未來的 SUPER HUMAN</h1>
+        <button class="btn" onclick="initGame(1)">單人遊戲開始</button>
+        <button class="btn" onclick="showMulti()" style="background:#3498db; color:white;">多人連線模式</button>
+    </div>
+
+    <div id="ui-multi" class="layer" style="display:none;">
+        <h1 style="color:white;">選擇小隊人數 (2-10)</h1>
+        <input type="range" id="p-count" min="2" max="10" value="5" oninput="document.getElementById('pv').innerText=this.value" style="width:300px; height:30px;">
+        <div style="font-size:40px; margin:20px; color:#f1c40f;"><span id="pv">5</span> 人</div>
+        <button class="btn" onclick="initGame(document.getElementById('p-count').value)">進入遊戲</button>
+    </div>
+
+    <div id="hud">
+        📍 座標: <span id="posX">0</span>, <span id="posY">0</span><br>
+        ❤️ 血量: <span id="hp">100</span><br>
+        🕒 時間: <span id="time-text">07:00</span> <span id="day-icon">☀️</span><br>
+        🗺️ 生物: <span id="biome-text">平原</span>
+    </div>
+    <div id="minimap"><canvas id="miniCanvas" width="150" height="150"></canvas></div>
+    <div id="inv">
+        <div class="slot active" id="sl1">1:土</div>
+        <div class="slot" id="sl2">2:草</div>
+        <div class="slot" id="sl3">3:石</div>
+        <div class="slot" id="sl4">4:木</div>
+    </div>
+
+    <canvas id="gameCanvas"></canvas>
+
+<script>
+    // 初始化變數
+    const cvs = document.getElementById('gameCanvas'), ctx = cvs.getContext('2d');
+    const mcvs = document.getElementById('miniCanvas'), mctx = mcvs.getContext('2d');
+    let isRunning = false, ticks = 420;
+    let world = {}, camX = 0, camY = 0, curB = 1;
+    let p = { x: 0, y: 0, w: 20, h: 40, vx: 0, vy: 0, hp: 100, ground: false, atk: 0 };
+    let agents = [], keys = {};
+    const TILE = 32, COLORS = { 1: '#8B4513', 2: '#228B22', 3: '#666', 4: '#cd853f' };
+
+    function showMulti() {
+        document.getElementById('ui-start').style.display = 'none';
+        document.getElementById('ui-multi').style.display = 'flex';
+    }
+
+    function initGame(num) {
+        // 隱藏選單
+        document.querySelectorAll('.layer').forEach(l => l.style.display='none');
+        document.getElementById('hud').style.display='block';
+        document.getElementById('minimap').style.display='block';
+        document.getElementById('inv').style.display='flex';
+        
+        // 啟動畫布
+        cvs.style.display='block';
+        cvs.width = window.innerWidth;
+        cvs.height = window.innerHeight;
+        
+        // 初始位置
+        p.y = getGY(0) * TILE - 150;
+        
+        // 生成隊友與生物
+        for(let i=0; i<num-1; i++) spawnAgent('ally', (Math.random()-0.5)*1000);
+        for(let i=0; i<6; i++) spawnAgent('villager', (Math.random()-0.5)*2000);
+
+        isRunning = true;
+        requestAnimationFrame(loop);
+    }
+
+    // 地形生成
+    function getBiomeData(gx) {
+        let x = Math.abs(gx);
+        if (x % 1500 < 300) return { name: "山地", h: 22, n: 12 };
+        if (x % 1500 < 800) return { name: "平原", h: 38, n: 2 };
+        return { name: "丘陵", h: 34, n: 6 };
+    }
+    function getGY(gx) {
+        let b = getBiomeData(gx);
+        return Math.floor(b.h + Math.sin(gx * 0.15) * b.n);
+    }
+    function getB(gx, gy) {
+        if (world[gx+'_'+gy] !== undefined) return world[gx+'_'+gy];
+        let fY = getGY(gx);
+        return gy < fY ? 0 : (gy === fY ? 2 : 1);
+    }
+
+    function spawnAgent(type, startX) {
+        agents.push({ type, x: startX, y: getGY(Math.floor(startX/TILE))*TILE-100, w:20, h:40, hp:100, dir:1, sTimer:50 });
+    }
+
+    // 操作監聽
+    window.onkeydown = e => { keys[e.code] = true; if(e.code === 'KeyK') p.atk = 15; if(e.key >= '1' && e.key <= '4') { curB = parseInt(e.key); document.querySelectorAll('.slot').forEach(s => s.classList.remove('active')); document.getElementById('sl'+curB).classList.add('active'); }};
+    window.onkeyup = e => keys[e.code] = false;
+    window.onmousedown = e => {
+        if(!isRunning) return;
+        let gx = Math.floor((e.clientX + camX)/TILE), gy = Math.floor((e.clientY + camY)/TILE);
+        if(e.button === 0) world[gx+'_'+gy] = 0; // 挖掉
+        if(e.button === 2) world[gx+'_'+gy] = curB; // 放置
+    };
+    window.oncontextmenu = e => e.preventDefault();
+
+    // 遊戲循環
+    function loop() {
+        if(isRunning) {
             ticks = (ticks + 0.3) % 1440;
             let h = Math.floor(ticks/60), m = Math.floor(ticks%60);
             let isNight = (ticks > 1090 || ticks < 390);
 
-            // 1. 處理 Y 軸移動（重力與跳躍）
-            p.vy += 0.7; 
-            p.y += p.vy;
-            p.ground = false;
+            // 垂直移動
+            p.vy += 0.8; let nextY = p.y + p.vy; p.ground = false;
+            let fY = Math.floor((nextY + p.h) / TILE);
+            let pL = Math.floor((p.x + 4) / TILE), pR = Math.floor((p.x + p.w - 4) / TILE);
+            if (getB(pL, fY) > 0 || getB(pR, fY) > 0) { if (p.vy > 0) { p.y = fY * TILE - p.h; p.vy = 0; p.ground = true; } } 
+            else { p.y = nextY; }
 
-            // Y 軸碰撞偵測 (地板與天花板)
-            let ty = Math.floor(p.y / TILE);
-            let by = Math.floor((p.y + p.h) / TILE);
-            let lx = Math.floor((p.x + 2) / TILE);
-            let rx = Math.floor((p.x + p.w - 2) / TILE);
-
-            if (getB(lx, by) > 0 || getB(rx, by) > 0) { // 踩到地
-                p.y = by * TILE - p.h;
-                p.vy = 0;
-                p.ground = true;
-            } else if (getB(lx, ty) > 0 || getB(rx, ty) > 0) { // 撞到天花板
-                p.y = (ty + 1) * TILE;
-                p.vy = 0;
+            // 水平移動 (防穿牆)
+            let moveX = (keys['KeyD'] ? 5 : 0) + (keys['KeyA'] ? -5 : 0);
+            if (moveX !== 0) {
+                let nextX = p.x + moveX;
+                let sideX = moveX > 0 ? Math.floor((nextX + p.w) / TILE) : Math.floor(nextX / TILE);
+                let hY = Math.floor((p.y + 4) / TILE), bY = Math.floor((p.y + p.h - 4) / TILE);
+                if (getB(sideX, hY) === 0 && getB(sideX, bY) === 0) p.x = nextX;
             }
 
-            // 2. 處理 X 軸移動（左右走路）
-            let nextVx = keys['KeyD'] ? 5 : (keys['KeyA'] ? -5 : 0);
-            let nextX = p.x + nextVx;
-            
-            // X 軸碰撞偵測 (左右牆壁)
-            let sideX = nextVx > 0 ? Math.floor((nextX + p.w) / TILE) : Math.floor(nextX / TILE);
-            let headY = Math.floor((p.y + 2) / TILE);
-            let footY = Math.floor((p.y + p.h - 2) / TILE);
+            if((keys['KeyW'] || keys['Space']) && p.ground) p.vy = -13;
 
-            if (getB(sideX, headY) > 0 || getB(sideX, footY) > 0) {
-                // 撞到牆壁了，不能移動
-                p.vx = 0;
-            } else {
-                p.x = nextX;
-                p.vx = nextVx;
-            }
-
-            // 3. 跳躍
-            if((keys['KeyW'] || keys['Space']) && p.ground) p.vy = -12;
-
-            // --- 以下維持原有的 AI 與 UI 邏輯 ---
-            if(isNight && Math.random() < 0.01 && agents.filter(a=>a.type==='monster').length < 8) {
-                spawnAgent('monster', p.x + (Math.random()>0.5?600:-600));
-            }
-
-            agents.forEach((a, idx) => {
-                a.sTimer--; if(a.sTimer <= 0) { a.dir = Math.random()>0.5?1:-1; a.sTimer = 100; }
-                if(a.type === 'monster') a.dir = p.x > a.x ? 1 : -1;
-                
-                // AI 的簡單碰撞處理 (撞牆自動跳一下)
-                let ax = a.x + a.dir * (a.type==='monster'?3:1.5);
-                let asX = a.dir > 0 ? Math.floor((ax + a.w) / TILE) : Math.floor(ax / TILE);
-                let ay = Math.floor((a.y + a.h - 5) / TILE);
-                
-                if (getB(asX, ay) > 0) {
-                    // 如果前面有方塊，自動挖掉或嘗試跳過 (這裡設為挖掉)
-                    world[asX + '_' + ay] = 0;
-                } else {
-                    a.x = ax;
-                }
-                
-                a.y += (getGY(Math.floor(a.x/TILE))*TILE - a.h - a.y) * 0.1;
-                
-                if(p.atk > 0 && Math.abs(a.x-p.x)<50 && Math.abs(a.y-p.y)<50) a.hp -= 10;
-                if(a.type === 'monster' && Math.abs(a.x-p.x)<25 && Math.abs(a.y-p.y)<25) p.hp -= 0.3;
-                if(a.hp <= 0) agents.splice(idx, 1);
-            });
-            
-            if(p.atk > 0) p.atk--;
-            
+            // 更新 UI 文字
             document.getElementById('posX').innerText = Math.floor(p.x/TILE);
             document.getElementById('posY').innerText = Math.floor(p.y/TILE);
             document.getElementById('hp').innerText = Math.max(0, Math.ceil(p.hp));
             document.getElementById('time-text').innerText = `${h.toString().padStart(2,'0')}:${m.toString().padStart(2,'0')}`;
-            document.getElementById('day-icon').innerText = isNight ? "🌙" : (ticks > 1050 ? "🌅" : "☀️");
+            document.getElementById('day-icon').innerText = isNight ? "🌙" : "☀️";
             document.getElementById('biome-text').innerText = getBiomeData(Math.floor(p.x/TILE)).name;
+            
+            render();
+            requestAnimationFrame(loop);
         }
-        render();
-        requestAnimationFrame(loop);
     }
+
+    function render() {
+        let sky = (ticks > 1090 || ticks < 390) ? '#1a1a2e' : '#87ceeb';
+        ctx.fillStyle = sky; ctx.fillRect(0,0,cvs.width, cvs.height);
+        camX += (p.x - cvs.width/2 - camX) * 0.1; camY += (p.y - cvs.height/2 - camY) * 0.1;
+        
+        for(let x=Math.floor(camX/TILE); x<Math.floor((camX+cvs.width)/TILE)+1; x++) {
+            for(let y=Math.floor(camY/TILE); y<Math.floor((camY+cvs.height)/TILE)+1; y++) {
+                let b = getB(x, y);
+                if(b!==0) { ctx.fillStyle = COLORS[b]; ctx.fillRect(x*TILE-camX, y*TILE-camY, TILE, TILE); }
+            }
+        }
+        
+        agents.forEach(a => {
+            ctx.fillStyle = a.type==='monster'?'#e74c3c':'#f1c40f';
+            ctx.fillRect(a.x-camX, a.y-camY, a.w, a.h);
+        });
+        
+        ctx.fillStyle = '#FF5733'; ctx.fillRect(p.x-camX, p.y-camY, p.w, p.h);
+    }
+</script>
+</body>
+</html>
