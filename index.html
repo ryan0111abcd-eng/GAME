@@ -2,17 +2,15 @@
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
-    <title>SUPER HUMAN 2026 - EQUAL WORLD</title>
+    <title>SUPER HUMAN 2026 - 1.5X SPEED</title>
     <style>
         body, html { margin: 0; padding: 0; width: 100%; height: 100%; background: #000; overflow: hidden; font-family: sans-serif; user-select: none; }
         .page { position: fixed; inset: 0; z-index: 9999; display: flex; flex-direction: column; align-items: center; justify-content: center; background: #050505; color: #f1c40f; text-align: center; }
         .btn { padding: 18px 45px; font-size: 26px; cursor: pointer; margin: 10px; background: #f1c40f; border: 4px solid #fff; border-radius: 15px; font-weight: bold; color: #000; box-shadow: 0 6px 0 #b8860b; transition: 0.1s; }
         .btn:active { transform: translateY(4px); box-shadow: 0 3px 0 #b8860b; }
         .in-box { padding: 15px; font-size: 24px; border: 3px solid #f1c40f; border-radius: 10px; background: #000; color: #f1c40f; text-align: center; margin-bottom: 20px; width: 380px; outline: none; }
-        .rules-card { background: #111; padding: 30px; border: 2px solid #f1c40f; border-radius: 20px; max-width: 500px; text-align: left; color: #fff; line-height: 1.6; }
         #hud { position: fixed; top: 15px; left: 15px; z-index: 1000; color: white; background: rgba(0,0,0,0.8); padding: 12px; border-radius: 10px; border: 2px solid #f1c40f; display: none; pointer-events: none; }
         #mini-map { position: fixed; top: 15px; right: 15px; width: 160px; height: 160px; border: 3px solid #fff; border-radius: 50%; z-index: 1000; display: none; background: rgba(0,0,0,0.5); overflow: hidden; }
-        #esc-menu { position: fixed; inset: 0; z-index: 20000; display: none; flex-direction: column; align-items: center; justify-content: center; background: rgba(0,0,0,0.9); }
         canvas#g { display: none; position: absolute; top: 0; left: 0; z-index: 10; }
     </style>
 </head>
@@ -34,25 +32,7 @@
         <h1>設定小隊人數</h1>
         <h2 id="pv">5 人</h2>
         <input type="range" min="2" max="15" value="5" oninput="document.getElementById('pv').innerText=this.value+' 人'" id="sld" style="width:300px;">
-        <button class="btn" onclick="showRules(document.getElementById('sld').value)">下一步</button>
-    </div>
-
-    <div id="p-rules" class="page" style="display:none;">
-        <div class="rules-card">
-            <h2 style="text-align:center; color:#f1c40f;">📜 戰訓手冊</h2>
-            ● <b>WASD</b>：移動 | <b>空白鍵</b>：跳躍<br>
-            ● <b>左鍵</b>：挖掘 | <b>右鍵</b>：放置 (8種隨機)<br>
-            ● <b>K鍵</b>：攻擊 | <b>Q鍵</b>：治療自癒<br>
-            ● <b>ESC</b>：選單 (按兩次切換)<br>
-            ● <b>對等 AI</b>：隊友擁有與你相同的行動速率。
-        </div>
-        <button class="btn" onclick="goLive()">啟動</button>
-    </div>
-
-    <div id="esc-menu">
-        <h1 style="color:#f1c40f;">PAUSE</h1>
-        <button class="btn" onclick="location.reload()">🚪 離開遊戲</button>
-        <button class="btn" onclick="toggleEsc()" style="background:#555; color:white;">⬅️ 返回</button>
+        <button class="btn" onclick="goLive(document.getElementById('sld').value)">進入世界</button>
     </div>
 
     <div id="hud">❤️ HP: <span id="hp-u">100</span> | 🕒 <span id="tm-u">12:00</span></div>
@@ -60,28 +40,22 @@
     <canvas id="g"></canvas>
 
 <script>
-    var live = false, esc = false, world = {}, keys = {}, ents = [], ticks = 600, sSize = 1;
+    var live = false, world = {}, keys = {}, ents = [], ticks = 600, sSize = 1;
     var p = { x: 0, y: -800, w: 22, h: 42, vx: 0, vy: 0, hp: 100, max: 100, gr: false, hitBy: null };
     var T = 32;
 
-    // 方塊定義：1石頭 2草地 3泥土 4沙子 5木頭 6葉子 7煤礦 8金屬磚
-    const B_COLORS = {
-        1: '#7f8c8d', 2: '#2ecc71', 3: '#795548', 4: '#f1c40f',
-        5: '#5d4037', 6: '#27ae60', 7: '#2c3e50', 8: '#dcdde1'
-    };
+    const B_COLORS = { 1: '#7f8c8d', 2: '#2ecc71', 3: '#795548', 4: '#f1c40f', 5: '#5d4037', 6: '#27ae60', 7: '#2c3e50', 8: '#dcdde1' };
 
-    function auth() { if(document.getElementById('pw').value.trim()==='ryan0111407'){document.getElementById('p-auth').style.display='none';document.getElementById('p-mode').style.display='flex';} else { alert("DENIED"); } }
+    function auth() { if(document.getElementById('pw').value.trim()==='ryan0111407'){document.getElementById('p-auth').style.display='none';document.getElementById('p-mode').style.display='flex';} }
     
-    function showRules(n) { sSize = n; document.getElementById('p-set').style.display = 'none'; document.getElementById('p-rules').style.display = 'flex'; }
-
-    function goLive() {
+    function goLive(n) {
+        sSize = n;
         document.querySelectorAll('.page').forEach(el=>el.style.display='none');
         document.getElementById('hud').style.display='block';
         document.getElementById('mini-map').style.display='block';
         var cvs=document.getElementById('g'); cvs.style.display='block';
         cvs.width=window.innerWidth; cvs.height=window.innerHeight;
-        // 初始隊友
-        for(var i=0; i<sSize-1; i++) spawn('ally', p.x + (Math.random()-0.5)*1500);
+        for(var i=0; i<sSize-1; i++) spawn('ally', p.x + (Math.random()-0.5)*1000);
         live=true; loop();
     }
 
@@ -94,10 +68,9 @@
         if(world[gx+'_'+gy]!==undefined) return world[gx+'_'+gy];
         var f = Math.floor(8+Math.sin(gx*0.15)*6);
         if(gy < f) return 0;
-        if(gy === f) return 2; // 草
-        if(gy < f + 4) return 3; // 泥
-        if(Math.random() < 0.05) return 7; // 煤
-        return 1; // 石
+        if(gy === f) return 2;
+        if(gy < f + 4) return 3;
+        return 1;
     }
 
     function check(x,y) { for(var i=Math.floor(x/T);i<=Math.floor((x+22)/T);i++)for(var j=Math.floor(y/T);j<=Math.floor((y+42)/T);j++)if(getB(i,j)>0)return true; return false; }
@@ -111,35 +84,33 @@
         });
     }
 
-    function toggleEsc() { if(!live)return; esc=!esc; document.getElementById('esc-menu').style.display=esc?'flex':'none'; }
-
     window.onmousedown=function(e){
-        if(!live||esc)return;
+        if(!live)return;
         var cvs=document.getElementById('g');
         var gx=Math.floor((e.clientX+(p.x-cvs.width/2))/T), gy=Math.floor((e.clientY+(p.y-cvs.height/2))/T);
         if(e.button===0){ if(getB(gx,gy)>0) world[gx+'_'+gy]=0; else atk(p); }
         else if(e.button===2){ if(getB(gx,gy)===0) world[gx+'_'+gy]=Math.floor(Math.random()*8)+1; }
     };
 
-    window.onkeydown=function(e){
-        if(e.code==='Escape') toggleEsc();
-        keys[e.code]=true;
-        if(e.code==='KeyQ') p.hp = Math.min(p.max, p.hp+20);
-        if(e.code==='KeyK') atk(p);
-    };
+    window.onkeydown=function(e){ keys[e.code]=true; if(e.code==='KeyQ') p.hp=Math.min(100,p.hp+20); if(e.code==='KeyK') atk(p); };
     window.onkeyup=function(e){keys[e.code]=false;};
     window.oncontextmenu=function(e){e.preventDefault();};
 
     function loop() {
-        if(!live||esc){requestAnimationFrame(loop);return;}
+        if(!live)return;
         var cvs=document.getElementById('g'), ctx=cvs.getContext('2d');
-        ticks=(ticks+0.05)%1440;
+        
+        // --- 時間調快至 1.5 ---
+        ticks=(ticks+1.5)%1440; 
+        
         var isNight=ticks>1050||ticks<350;
 
-        // 動態動物生成 (視野外生成)
-        if(ents.filter(e=>e.type==='pig').length < 6 && Math.random() < 0.01) spawn('pig', p.x + (Math.random()>0.5?1200:-1200));
-        // 夜間殭屍
-        if(isNight && ents.filter(e=>e.type==='mob').length < 8 && Math.random() < 0.02) spawn('mob', p.x + (Math.random()>0.5?1200:-1200));
+        // --- 強制補足動物引擎 ---
+        if(ents.filter(e=>e.type==='pig').length < 12) {
+            spawn('pig', p.x + (Math.random()>0.5?900:-900));
+        }
+
+        if(isNight && ents.filter(e=>e.type==='mob').length < 8 && Math.random()<0.05) spawn('mob', p.x + (Math.random()>0.5?1000:-1000));
         if(!isNight) ents = ents.filter(e=>e.type!=='mob');
 
         [p].concat(ents).forEach(function(e) {
@@ -147,26 +118,21 @@
             if(check(e.x,e.y)){if(e.vy>0){while(check(e.x,e.y))e.y-=0.5;e.gr=true;}e.vy=0;}else e.gr=false;
             
             if(e===p){
-                var dx=(keys['KeyD']?5:0)-(keys['KeyA']?5:0);
+                var dx=(keys['KeyD']?6:0)-(keys['KeyA']?6:0); // 速度微調
                 if(dx!==0){p.x+=dx; if(check(p.x,p.y))p.x-=dx;}
                 if(keys['Space']&&p.gr)p.vy=-14;
             } else {
-                // AI 隊友/生物邏輯
                 if(e.type==='ally'){
-                    // 攻擊邏輯
                     ents.forEach(m=>{if(m.type==='mob' && Math.abs(m.x-e.x)<80) atk(e);});
-                    if(p.hitBy && p.hitBy.hp>0) { e.x+=(p.hitBy.x>e.x?4.5:-4.5); if(Math.abs(e.x-p.hitBy.x)<50) atk(e); }
+                    if(p.hitBy && p.hitBy.hp>0) { e.x+=(p.hitBy.x>e.x?5:-5); if(Math.abs(e.x-p.hitBy.x)<50) atk(e); }
                     else {
-                        // 自主移動 (速度 1.0 對等)
-                        if(Math.random()<0.01) e.dir*=-1;
-                        e.x+=e.dir*2;
+                        if(Math.random()<0.02) e.dir*=-1; e.x+=e.dir*3;
                         if(check(e.x+e.dir*5,e.y) && e.gr) e.vy=-12;
                         
-                        // 1.0 高速挖掘與建築 (冷卻極短)
                         e.actionCd++;
-                        if(e.actionCd > 60) { // 約一秒判斷一次
+                        if(e.actionCd > 30) { // 快速挖掘與建造
                             var ax=Math.floor((e.x+e.dir*32)/T), ay=Math.floor(e.y/T)+1;
-                            if(Math.random()<0.4){
+                            if(Math.random()<0.5){
                                 if(getB(ax,ay)>0) world[ax+'_'+ay]=0;
                                 else world[ax+'_'+ay]=Math.floor(Math.random()*8)+1;
                             }
@@ -174,18 +140,20 @@
                         }
                     }
                 } else if(e.type==='mob'){
-                    e.x+=(p.x>e.x?2.5:-2.5);
-                    if(Math.abs(e.x-p.x)<25 && Math.abs(e.y-p.y)<40) p.hp-=0.5;
+                    e.x+=(p.x>e.x?3:-3);
+                    if(Math.abs(e.x-p.x)<25 && Math.abs(e.y-p.y)<40) p.hp-=0.8;
                 } else if(e.type==='pig'){
-                    if(Math.random()<0.02) e.dir*=-1; e.x+=e.dir*1.5;
+                    if(Math.random()<0.02) e.dir*=-1; e.x+=e.dir*2;
                     if(check(e.x+e.dir*5,e.y)) e.dir*=-1;
                 }
             }
         });
 
-        ents = ents.filter(e=>e.hp>0 && Math.abs(e.x-p.x)<3000);
+        ents = ents.filter(e=>e.hp>0 && Math.abs(e.x-p.x)<2500);
         if(p.hp<=0){alert("GAME OVER"); location.reload(); return;}
         document.getElementById('hp-u').innerText=Math.ceil(p.hp);
+        document.getElementById('tm-u').innerText=Math.floor(ticks/60).toString().padStart(2,'0')+":"+Math.floor(ticks%60).toString().padStart(2,'0');
+
         render(ctx, cvs);
         requestAnimationFrame(loop);
     }
@@ -204,6 +172,7 @@
         [p].concat(ents).forEach(function(e) {
             ctx.fillStyle=e===p?'#e67e22':(e.type==='ally'?'#3498db':(e.type==='mob'?'#2ecc71':'#ff9ff3'));
             ctx.fillRect(e.x-cx,e.y-cy,e.w,e.h);
+            // 亮綠色血條修正
             ctx.fillStyle='#ff0000'; ctx.fillRect(e.x-cx,e.y-cy-12,e.w,6);
             ctx.fillStyle='#00ff00'; ctx.fillRect(e.x-cx,e.y-cy-12,e.w*(e.hp/e.max),6);
         });
