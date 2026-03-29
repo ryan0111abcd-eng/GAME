@@ -2,7 +2,7 @@
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
-    <title>SUPER HUMAN 2026 - ECO WORLD</title>
+    <title>2051 SUPER HUMAN 1</title>
     <style>
         body, html { margin: 0; padding: 0; width: 100%; height: 100%; background: #000; overflow: hidden; font-family: sans-serif; user-select: none; }
         .page { position: fixed; inset: 0; z-index: 9999; display: flex; flex-direction: column; align-items: center; justify-content: center; background: #050505; color: #f1c40f; text-align: center; }
@@ -27,7 +27,7 @@
 
     <div id="p-mode" class="page" style="display:none;">
         <h1>選擇模式</h1>
-        <button class="btn" onclick="setM(1)">👤 單人模式</button>
+        <button class="btn" onclick="setM(1)">👤 單人冒險</button>
         <button class="btn" onclick="showMulti()">👥 多人模式 (2-15人)</button>
     </div>
 
@@ -39,31 +39,31 @@
     </div>
 
     <div id="p-brief" class="page" style="display:none;">
-        <h1>任務說明：ECO SURVIVAL</h1>
+        <h1>系統說明：COMBAT V2</h1>
         <div class="m-info">
-            <p>● <b>生物：</b>發現野豬、村民與古蹟。所有生物頭頂皆有血條。</p>
-            <p>● <b>地層：</b>草皮區下方精確分佈 5 層泥土。適合農耕與建築。</p>
-            <p>● <b>時間：</b>0.05x 極慢速，讓你盡情享受這片丘陵世界。</p>
-            <p>● <b>操作：</b>1~8鍵切換，滑鼠左鍵挖/右鍵蓋，ESC 暫停。</p>
+            <p>● <b>發現機制：</b>生物與村莊只會在你移動時，於視野外(800px)生成。</p>
+            <p>● <b>村民計時：</b>系統每 10 秒才准許生成一名新村民。</p>
+            <p>● <b>戰鬥操作：</b>按 <b>K</b> 鍵發動近戰攻擊。可用於狩獵或防衛。</p>
+            <p>● <b>時間常數：</b>0.05x 極慢速模擬。環境變化極其緩慢。</p>
         </div>
         <button class="btn" onclick="goLive()">啟動模擬</button>
     </div>
 
     <div id="esc-menu">
         <h1 style="color:#f1c40f; font-size: 50px;">暫停暫停</h1>
-        <button class="btn" onclick="toggleEsc()">➡️ 回到遊戲</button>
-        <button class="btn" onclick="location.reload()" style="background:#555; color:white;">🚪 離開</button>
+        <button class="btn" onclick="toggleEsc()">➡️ 繼續遊戲</button>
+        <button class="btn" onclick="location.reload()" style="background:#555; color:white;">🚪 離開系統</button>
     </div>
 
     <div id="hud">
-        🕒 <span id="tm-u">12:00</span> | 🏗️ <span id="cur-b" class="sel-box">石頭 (1)</span><br>
-        ❤️ HP: <span id="p-hp-hud">100</span> | 🌧️ <span id="wt-u">晴</span>
+        🕒 <span id="tm-u">12:00</span> | ❤️ HP: <span id="p-hp-hud">100</span><br>
+        🏗️ <span id="cur-b" class="sel-box">石頭 (1)</span> | 🌧️ <span id="wt-u">晴</span>
     </div>
     <canvas id="g"></canvas>
 
 <script>
     var live = false, esc = false, world = {}, keys = {}, ents = [], ticks = 600, sSize = 1, isRaining = false;
-    var p = { x: 0, y: -600, w: 22, h: 42, vx: 0, vy: 0, hp: 100, max: 100, gr: false, dmgCd: 0 };
+    var p = { x: 0, y: -600, w: 22, h: 42, vx: 0, vy: 0, hp: 100, max: 100, gr: false, dmgCd: 0, atkCd: 0, face: 1 };
     var T = 32, selB = 1, spawnTimer = 0;
 
     const B_NAMES = { 1:'石頭', 2:'草地', 3:'泥土', 4:'沙子', 5:'木頭', 6:'葉子', 7:'雪地', 8:'水' };
@@ -82,7 +82,9 @@
         live=true; loop();
     }
     
-    function spawn(t, x, y) { ents.push({ type: t, x: x, y: y, w: 22, h: 42, vx: 0, vy: 0, hp: 100, max: 100, dir: 1, dmgCd: 0 }); }
+    function spawn(t, x, y) { 
+        ents.push({ type: t, x: x, y: y, w: 22, h: 42, vx: 0, vy: 0, hp: 100, max: 100, dir: 1, dmgCd: 0 }); 
+    }
 
     function getB(gx, gy) {
         if(world[gx+'_'+gy]!==undefined) return world[gx+'_'+gy];
@@ -91,8 +93,8 @@
         if (f > 110) f = 110; 
         if (gy < f) return 0;
         if (gy === f) {
-            // 隨機地表建築生成
-            if(absGx > 30 && gx % 60 === 0 && Math.random() < 0.3) {
+            // 只在視野外生成建築
+            if(Math.abs(gx*T - p.x) > 850 && gx % 60 === 0 && Math.random() < 0.2) {
                 if(gx % 120 === 0) generateVillage(gx, gy-1); else generateRuins(gx, gy-1);
             }
             return (gy >= 75) ? 7 : (absGx < 180 ? 2 : 1);
@@ -104,7 +106,6 @@
     function generateVillage(gx, gy) {
         for(var i=-1; i<=1; i++) for(var j=0; j>-3; j--) world[(gx+i)+'_'+(gy+j)] = 5;
         world[gx+'_'+(gy-3)] = 6;
-        spawn('villager', gx*T, (gy-2)*T);
     }
     function generateRuins(gx, gy) { for(var j=0; j<5; j++) world[gx+'_'+(gy-j)] = 3; }
 
@@ -130,9 +131,24 @@
             selB = e.keyCode - 48; 
             document.getElementById('cur-b').innerText = B_NAMES[selB] + " (" + selB + ")";
         }
+        if(e.code === 'KeyK' && p.atkCd <= 0) playerAttack();
         keys[e.code]=true;
     };
     window.onkeyup=function(e){keys[e.code]=false;};
+
+    function playerAttack() {
+        p.atkCd = 20; // 攻擊冷卻
+        ents.forEach(e => {
+            // 判斷前方 50px 範圍內的生物
+            var dx = e.x - p.x;
+            var dy = Math.abs(e.y - p.y);
+            if(dy < 40 && ((p.face === 1 && dx > 0 && dx < 60) || (p.face === -1 && dx < 0 && dx > -60))) {
+                e.hp -= 25;
+                e.dmgCd = 10;
+                e.vx = p.face * 5; // 擊退
+            }
+        });
+    }
 
     function loop() {
         if(!live) return;
@@ -142,12 +158,15 @@
         if(Math.random() < 0.001) isRaining = !isRaining;
         document.getElementById('wt-u').innerText = isRaining ? "雨" : "晴";
 
+        // --- 10 秒村民生成邏輯 (視野外) ---
         spawnTimer++;
-        if(spawnTimer > 1500) { // 隨機生成動物或生物
-            var sx = p.x + (Math.random() > 0.5 ? 800 : -800);
+        if(spawnTimer > 600) { 
+            var sx = p.x + (Math.random() > 0.5 ? 900 : -900);
+            var gx = Math.floor(sx/T);
+            var gy = Math.floor(22 + Math.sin(gx*0.3)*6 + Math.cos(gx*0.15)*8 + (Math.abs(gx)>150?(Math.abs(gx)-150)/4:0));
             var isNight = (ticks > 1050 || ticks < 350);
-            if(isNight) spawn('zombie', sx, -1000);
-            else spawn(Math.random()<0.4?'animal':'villager', sx, -1000);
+            if(isNight) spawn('zombie', sx, (gy-2)*T);
+            else spawn(Math.random()<0.4?'animal':'villager', sx, (gy-2)*T);
             spawnTimer = 0;
         }
 
@@ -156,20 +175,25 @@
             if(check(e.x, e.y)) { while(check(e.x, e.y)) e.y -= 0.5; e.gr = true; e.vy = 0; } else e.gr = false;
             if(e.dmgCd > 0) e.dmgCd--;
             if(e === p) {
+                if(p.atkCd > 0) p.atkCd--;
                 var dx = (keys['KeyD']?7:0) - (keys['KeyA']?7:0);
-                if(dx!==0){ p.x += dx; if(check(p.x, p.y)) p.x -= dx; }
+                if(dx!==0){ p.x += dx; if(check(p.x, p.y)) p.x -= dx; p.face = dx > 0 ? 1 : -1; }
                 if(keys['Space'] && p.gr) p.vy = -14;
             } else {
+                if(e.hp <= 0) return; // 死亡不處理
                 if(e.type === 'zombie') {
-                    e.dir = (p.x > e.x ? 1 : -1); e.x += e.dir * 1.5;
+                    e.dir = (p.x > e.x ? 1 : -1); e.x += e.dir * 1.5 + (e.vx||0);
                     if(Math.abs(p.x - e.x) < 25 && Math.abs(p.y - e.y) < 25 && p.dmgCd <= 0) { p.hp -= 5; p.dmgCd = 50; }
                 } else {
                     if(Math.random() < 0.01) e.dir *= -1;
-                    e.x += e.dir * 1.1;
+                    e.x += e.dir * 1.1 + (e.vx||0);
                 }
+                if(e.vx) e.vx *= 0.8; // 擊退衰減
                 if(check(e.x + e.dir*10, e.y) && e.gr) e.vy = -10;
             }
         });
+
+        ents = ents.filter(e => e.hp > 0); // 清除死亡生物
 
         if(p.hp <= 0) { alert("模擬結束。"); location.reload(); }
         document.getElementById('p-hp-hud').innerText = Math.floor(p.hp);
@@ -198,9 +222,18 @@
         ents.concat([p]).forEach(function(e) {
             ctx.fillStyle=e===p?'#e67e22':(e.type==='zombie'?'#27ae60':(e.type==='villager'?'#9b59b6':(e.type==='animal'?'#ff9ff3':'#3498db')));
             ctx.fillRect(e.x-cx,e.y-cy,e.w,e.h);
+            
+            // 繪製攻擊動作
+            if(e === p && p.atkCd > 10) {
+                ctx.fillStyle = 'white';
+                ctx.fillRect(e.x-cx + (p.face===1?e.w: -15), e.y-cy + 10, 15, 5);
+            }
+
+            // 頭頂血量條
             var barW = 30, barH = 5;
             ctx.fillStyle = '#333'; ctx.fillRect(e.x-cx+(e.w/2)-(barW/2), e.y-cy-12, barW, barH);
-            ctx.fillStyle = '#2ecc71'; ctx.fillRect(e.x-cx+(e.w/2)-(barW/2), e.y-cy-12, barW*(e.hp/e.max), barH);
+            ctx.fillStyle = e.type==='zombie'?'#ff4d4d':'#2ecc71'; ctx.fillRect(e.x-cx+(e.w/2)-(barW/2), e.y-cy-12, barW*(e.hp/e.max), barH);
+            if(e.dmgCd > 0) { ctx.fillStyle='rgba(255,0,0,0.4)'; ctx.fillRect(e.x-cx,e.y-cy,e.w,e.h); }
         });
     }
 </script>
