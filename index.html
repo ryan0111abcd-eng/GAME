@@ -2,217 +2,134 @@
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
-    <title>SUPER HUMAN 2026</title>
+    <title>SUPER HUMAN 2026 - SQUAD FIX</title>
     <style>
         body, html { margin: 0; padding: 0; width: 100%; height: 100%; background: #000; overflow: hidden; font-family: sans-serif; user-select: none; }
-        .page { position: fixed; inset: 0; z-index: 99999; display: flex; flex-direction: column; align-items: center; justify-content: center; background: #080808; color: #f1c40f; text-align: center; }
-        .btn { padding: 22px 60px; font-size: 32px; cursor: pointer; margin: 15px; background: #f1c40f; border: 4px solid #fff; border-radius: 20px; font-weight: bold; color: #000; box-shadow: 0 8px 0 #b8860b; }
-        .btn:active { transform: translateY(4px); box-shadow: 0 4px 0 #b8860b; }
-        .in-box { padding: 20px; font-size: 30px; border: 4px solid #f1c40f; border-radius: 12px; background: #000; color: #f1c40f; text-align: center; margin-bottom: 30px; width: 450px; outline: none; }
-        #hud { position: fixed; top: 15px; left: 15px; z-index: 1000; color: white; background: rgba(0,0,0,0.85); padding: 15px; border-radius: 12px; border: 2px solid #f1c40f; display: none; pointer-events: none; line-height: 1.6; }
-        #mini-map { position: fixed; top: 15px; right: 15px; width: 160px; height: 160px; border: 3px solid #fff; border-radius: 50%; z-index: 1000; display: none; background: rgba(0,0,0,0.6); overflow: hidden; }
-        #esc-menu { position: fixed; inset: 0; z-index: 200000; display: none; flex-direction: column; align-items: center; justify-content: center; background: rgba(0,0,0,0.95); }
+        .page { position: fixed; inset: 0; z-index: 9999; display: flex; flex-direction: column; align-items: center; justify-content: center; background: #0a0a0a; color: #f1c40f; text-align: center; }
+        .btn { padding: 20px 50px; font-size: 30px; cursor: pointer; margin: 10px; background: #f1c40f; border: 4px solid #fff; border-radius: 20px; font-weight: bold; color: #000; box-shadow: 0 8px 0 #b8860b; }
+        .in-box { padding: 20px; font-size: 28px; border: 4px solid #f1c40f; border-radius: 12px; background: #000; color: #f1c40f; text-align: center; margin-bottom: 25px; width: 400px; outline: none; }
+        #hud { position: fixed; top: 15px; left: 15px; z-index: 1000; color: white; background: rgba(0,0,0,0.8); padding: 15px; border-radius: 10px; border: 2px solid #f1c40f; display: none; pointer-events: none; }
+        #mini-map { position: fixed; top: 15px; right: 15px; width: 150px; height: 150px; border: 3px solid #fff; border-radius: 50%; z-index: 1000; display: none; background: rgba(0,0,0,0.5); overflow: hidden; }
+        #esc-menu { position: fixed; inset: 0; z-index: 20000; display: none; flex-direction: column; align-items: center; justify-content: center; background: rgba(0,0,0,0.9); }
         canvas#g { display: none; position: absolute; top: 0; left: 0; z-index: 10; }
-        #rain-fx { position: fixed; inset: 0; pointer-events: none; z-index: 50; background: rgba(40,40,80,0.25); display: none; }
     </style>
 </head>
 <body>
 
     <div id="p-auth" class="page">
-        <h1 style="font-size: 55px; letter-spacing: 5px;">SUPER HUMAN SYSTEM</h1>
-        <p style="font-size: 20px; color: #444; margin-bottom: 40px;">系統鎖定 - 請輸入存取金鑰</p>
-        <input type="text" id="pw" class="in-box" placeholder="Access Key">
-        <button class="btn" onclick="auth()">認證並啟動</button>
+        <h1>SUPER HUMAN 系統</h1>
+        <p>請輸入金鑰 (ryan0111407)</p>
+        <input type="text" id="pw" class="in-box">
+        <button class="btn" onclick="auth()">登入系統</button>
     </div>
 
     <div id="p-mode" class="page" style="display:none;">
-        <h1>授權成功</h1>
-        <button class="btn" onclick="setM(1)">👤 單人模式</button>
-        <button class="btn" onclick="document.getElementById('p-mode').style.display='none';document.getElementById('p-set').style.display='flex';">👥 多人模式</button>
+        <h1>選擇模式</h1>
+        <button class="btn" onclick="setM(1)">👤 單人冒險</button>
+        <button class="btn" onclick="document.getElementById('p-mode').style.display='none';document.getElementById('p-set').style.display='flex';">👥 小隊模式</button>
     </div>
 
     <div id="p-set" class="page" style="display:none;">
-        <h1>多人連線設定</h1>
+        <h1>設定隊友人數</h1>
         <h2 id="pv">5 人</h2>
-        <input type="range" min="2" max="15" value="5" oninput="document.getElementById('pv').innerText=this.value+' 人'" id="sld" style="width:380px;">
-        <button class="btn" onclick="setM(document.getElementById('sld').value)">啟動世界</button>
+        <input type="range" min="2" max="15" value="5" oninput="document.getElementById('pv').innerText=this.value+' 人'" id="sld" style="width:300px;">
+        <button class="btn" onclick="setM(document.getElementById('sld').value)">進入世界</button>
     </div>
 
     <div id="esc-menu">
-        <h1 style="color:#f1c40f; font-size: 60px;">暫停</h1>
+        <h1 style="color:#f1c40f;">遊戲暫停</h1>
         <button class="btn" onclick="location.reload()">🚪 離開遊戲</button>
-        <button class="btn" onclick="toggleEsc()" style="background:#555; color:white;">⬅️ 繼續遊戲</button>
+        <button class="btn" onclick="toggleEsc()" style="background:#666; color:white;">⬅️ 繼續</button>
     </div>
 
-    <div id="hud">❤️ HP: <span id="hp-u">100</span> | 📍 <span id="pos-u">0,0</span><br>🕒 時間: <span id="tm-u">12:00</span> | ☀️ <span id="sun-u">日間</span> | ⛈️ <span id="wt-u">晴天</span></div>
-    <div id="mini-map"><canvas id="mC" width="160" height="160"></canvas></div>
-    <div id="rain-fx"></div>
+    <div id="hud">❤️ HP: <span id="hp-u">100</span> | 🕒 <span id="tm-u">12:00</span></div>
+    <div id="mini-map"><canvas id="mC" width="150" height="150"></canvas></div>
     <canvas id="g"></canvas>
 
 <script>
     var live = false, esc = false, world = {}, keys = {}, ents = [], ticks = 600, sSize = 1;
-    var p = { x: 0, y: -800, w: 22, h: 42, vx: 0, vy: 0, hp: 100, gr: false, hitBy: null };
-    var T = 32, isRain = false;
+    var p = { x: 0, y: -800, w: 22, h: 42, vx: 0, vy: 0, hp: 100, gr: false, hitBy: null, max: 100 };
+    var T = 32;
 
-    function auth() {
-        if(document.getElementById('pw').value.trim() === 'ryan0111407') {
-            document.getElementById('p-auth').style.display = 'none';
-            document.getElementById('p-mode').style.display = 'flex';
-        } else { alert("金鑰錯誤"); }
-    }
-
+    function auth() { if(document.getElementById('pw').value.trim()==='ryan0111407'){document.getElementById('p-auth').style.display='none';document.getElementById('p-mode').style.display='flex';} }
+    
     function setM(n) {
         sSize = n;
-        document.querySelectorAll('.page').forEach(el => el.style.display = 'none');
-        document.getElementById('hud').style.display = 'block';
-        document.getElementById('mini-map').style.display = 'block';
-        var cvs = document.getElementById('g');
-        cvs.style.display = 'block'; cvs.width = window.innerWidth; cvs.height = window.innerHeight;
-        if(Math.random() < 0.4) { isRain = true; document.getElementById('rain-fx').style.display = 'block'; document.getElementById('wt-u').innerText = "下雨"; }
-        for(var i=0; i<sSize-1; i++) spawn('ally', p.x + (Math.random() > 0.5 ? 1200 : -1200));
-        live = true; loop();
+        document.querySelectorAll('.page').forEach(el=>el.style.display='none');
+        document.getElementById('hud').style.display='block';
+        document.getElementById('mini-map').style.display='block';
+        var cvs=document.getElementById('g'); cvs.style.display='block';
+        cvs.width=window.innerWidth; cvs.height=window.innerHeight;
+        
+        // 隊友強制出生在你身邊 (多人模式)
+        for(var i=0; i<sSize-1; i++) spawn('ally', p.x + (i*40 - 80));
+        live=true; loop();
     }
 
-    function spawn(t, x) {
-        var h = (t==='pig')?30:100;
-        ents.push({ type: t, x: x, y: -800, w: 22, h: 42, vx: 0, vy: 0, hp: h, max: h, dir: 1, actionCd: 0 });
-    }
-
-    function toggleEsc() { if(!live) return; esc = !esc; document.getElementById('esc-menu').style.display = esc ? 'flex' : 'none'; }
-
-    function getB(gx, gy) {
-        if(world[gx+'_'+gy]!==undefined) return world[gx+'_'+gy];
-        var x = Math.abs(gx);
-        var h = (x%100 < 30)?10:(x%100 < 70?8:5);
-        if (x%100 < 50) h = 4; if (x%100 < 20) h = 12;
-        var f = Math.floor(h + Math.sin(gx * 0.15) * 6);
-        if (x%100 < 65 && gy > f && gy < f + 5 && Math.random() < 0.12) return 3;
-        return gy < f ? 0 : (gy === f ? 2 : 1);
-    }
-
-    function check(x,y) {
-        for(var i=Math.floor(x/T); i<=Math.floor((x+22)/T); i++)
-            for(var j=Math.floor(y/T); j<=Math.floor((y+42)/T); j++)
-                if(getB(i,j)>0) return true;
-        return false;
-    }
-
-    function atk(o) {
-        ents.concat(p).forEach(function(e){
-            if(e!==o && Math.abs(e.x-o.x)<75 && Math.abs(e.y-o.y)<75){
-                e.hp -= 20; e.vx = (e.x>o.x?12:-12);
-                if(e === p) p.hitBy = o;
-            }
-        });
-    }
-
-    window.onmousedown = function(e) {
-        if(!live || esc) return;
-        var cvs = document.getElementById('g');
-        var gx = Math.floor((e.clientX + (p.x - cvs.width/2))/T), gy = Math.floor((e.clientY + (p.y - cvs.height/2))/T);
-        if(e.button === 0) { if(getB(gx, gy) > 0) world[gx+'_'+gy] = 0; else atk(p); } 
-        else if(e.button === 2) { if(getB(gx, gy) === 0) world[gx+'_'+gy] = 3; }
+    function spawn(t, x) { ents.push({ type: t, x: x, y: -800, w: 22, h: 42, vx: 0, vy: 0, hp: 100, max: 100, dir: 1 }); }
+    function toggleEsc() { if(!live)return; esc=!esc; document.getElementById('esc-menu').style.display=esc?'flex':'none'; }
+    function getB(gx, gy) { if(world[gx+'_'+gy]!==undefined) return world[gx+'_'+gy]; var x=Math.abs(gx); var h=(x%100<50?8:5); var f=Math.floor(h+Math.sin(gx*0.15)*6); return gy<f?0:(gy===f?2:1); }
+    function check(x,y) { for(var i=Math.floor(x/T);i<=Math.floor((x+22)/T);i++)for(var j=Math.floor(y/T);j<=Math.floor((y+42)/T);j++)if(getB(i,j)>0)return true; return false; }
+    
+    window.onmousedown=function(e){
+        if(!live||esc)return;
+        var cvs=document.getElementById('g');
+        var gx=Math.floor((e.clientX+(p.x-cvs.width/2))/T), gy=Math.floor((e.clientY+(p.y-cvs.height/2))/T);
+        if(e.button===0){if(getB(gx,gy)>0)world[gx+'_'+gy]=0;}
+        else if(e.button===2){if(getB(gx,gy)===0)world[gx+'_'+gy]=3;}
     };
-
-    window.onkeydown = function(e){ if(e.code === 'Escape') toggleEsc(); keys[e.code] = true; if(e.code === 'KeyQ') p.hp = Math.min(100, p.hp + 20); if(e.code === 'KeyK') atk(p); };
-    window.onkeyup = function(e){ keys[e.code] = false; };
-    window.oncontextmenu = function(e){ e.preventDefault(); };
+    window.onkeydown=function(e){if(e.code==='Escape')toggleEsc(); keys[e.code]=true;};
+    window.onkeyup=function(e){keys[e.code]=false;};
+    window.oncontextmenu=function(e){e.preventDefault();};
 
     function loop() {
-        if(!live || esc) { requestAnimationFrame(loop); return; }
-        var cvs = document.getElementById('g'), ctx = cvs.getContext('2d');
-        ticks = (ticks + 0.05) % 1440; 
-        var isNight = ticks > 1050 || ticks < 350;
-
-        if(!isNight && ents.filter(e=>e.type==='pig').length < 8 && Math.random() < 0.01) spawn('pig', p.x + (Math.random() > 0.5 ? 1200 : -1200));
-        if(isNight && ents.filter(e=>e.type==='mob').length < 8 && Math.random() < 0.02) spawn('mob', p.x + (Math.random() > 0.5 ? 1200 : -1200));
-        if(!isNight) ents = ents.filter(function(e){ return e.type !== 'mob'; });
+        if(!live||esc){requestAnimationFrame(loop);return;}
+        var cvs=document.getElementById('g'), ctx=cvs.getContext('2d');
+        ticks=(ticks+0.05)%1440;
+        var isNight=ticks>1050||ticks<350;
 
         [p].concat(ents).forEach(function(e) {
-            e.vy += 0.8; e.y += e.vy;
-            if(check(e.x, e.y)) { if(e.vy > 0) { while(check(e.x, e.y)) e.y -= 0.5; e.gr = true; } e.vy = 0; } else e.gr = false;
-
-            if(e===p) {
-                var dx = (keys['KeyD']?5:0) - (keys['KeyA']?5:0);
-                if(dx!==0) { p.x += dx; if(check(p.x, p.y)) p.x -= dx; }
-                if(keys['Space'] && p.gr) p.vy = -14;
+            e.vy+=0.8; e.y+=e.vy;
+            if(check(e.x,e.y)){if(e.vy>0){while(check(e.x,e.y))e.y-=0.5;e.gr=true;}e.vy=0;}else e.gr=false;
+            if(e===p){
+                var dx=(keys['KeyD']?5:0)-(keys['KeyA']?5:0);
+                if(dx!==0){p.x+=dx; if(check(p.x,p.y))p.x-=dx;}
+                if(keys['Space']&&p.gr)p.vy=-14;
             } else {
-                if(e.type==='ally') {
-                    if(p.hitBy && p.hitBy.hp>0) {
-                        e.x += (p.hitBy.x > e.x ? 4.5 : -4.5);
-                        if(Math.abs(e.x-p.hitBy.x)<60) atk(e);
-                    } else {
-                        if(Math.abs(p.x-e.x)>250) e.x += (p.x>e.x?2.5:-2.5);
-                        ents.forEach(function(m){ if(m.type==='mob' && Math.abs(m.x-e.x)<100) atk(e); });
-                        
-                        // *** AI 挖掘動作徹底封印 ***
-                        // 改為每 30 分鐘才判斷一次，幾乎等於不會挖
-                        e.actionCd++;
-                        if(e.actionCd > 100000) { 
-                            if(Math.random() < 0.0001) { 
-                                var gx = Math.floor(e.x/T), gy = Math.floor(e.y/T)+2;
-                                if(getB(gx, gy)>0) world[gx+'_'+gy]=0; 
-                            }
-                            e.actionCd = 0;
-                        }
-                    }
-                } else if(e.type==='mob') {
-                    e.x += (p.x>e.x?2.4:-2.4); 
-                    if (e.x < p.x + p.w && e.x + e.w > p.x && e.y < p.y + p.h && e.y + e.h > p.y) p.hp -= 0.6;
-                } else if(e.type==='pig') {
-                    if(Math.random() < 0.01) e.dir *= -1;
-                    e.x += e.dir * 1.2;
-                    if(check(e.x, e.y)) e.dir *= -1;
-                }
+                if(e.type==='ally'){if(Math.abs(p.x-e.x)>150)e.x+=(p.x>e.x?2.5:-2.5);}
             }
         });
 
-        ents = ents.filter(function(e){ return e.hp > 0 && Math.abs(e.x - p.x) < 3000; });
-        if(p.hp <= 0) { alert("你死亡了！重新開始。"); location.reload(); return; }
-
-        document.getElementById('hp-u').innerText = Math.ceil(p.hp);
-        document.getElementById('pos-u').innerText = Math.floor(p.x/T) + "," + Math.floor(p.y/T);
-        document.getElementById('tm-u').innerText = Math.floor(ticks/60).toString().padStart(2,'0')+':'+Math.floor(ticks%60).toString().padStart(2,'0');
-        document.getElementById('sun-u').innerText = isNight ? "夜間" : "日間";
-
+        document.getElementById('tm-u').innerText=Math.floor(ticks/60)+":"+Math.floor(ticks%60);
         render(ctx, cvs);
         requestAnimationFrame(loop);
     }
 
     function render(ctx, cvs) {
-        ctx.fillStyle = (ticks > 1050 || ticks < 350) ? '#050510' : (isRain ? '#4b6584' : '#87ceeb');
+        ctx.fillStyle=(ticks>1050||ticks<350)?'#050510':'#87ceeb';
         ctx.fillRect(0,0,cvs.width,cvs.height);
-        var cx = p.x - cvs.width/2, cy = p.y - cvs.height/2;
+        var cx=p.x-cvs.width/2, cy=p.y-cvs.height/2;
 
-        for(var x=Math.floor(cx/T); x<=Math.ceil((cx+cvs.width)/T); x++){
-            for(var y=Math.floor(cy/T); y<=Math.ceil((cy+cvs.height)/T); y++){
-                var b = getB(x, y);
-                if(b > 0) {
-                    ctx.fillStyle = b===2 ? "#2ecc71" : (b===3 ? "#bdc3c7" : "#795548");
-                    ctx.fillRect(x*T-cx, y*T-cy, T+0.5, T+0.5);
-                }
+        for(var x=Math.floor(cx/T);x<=Math.ceil((cx+cvs.width)/T);x++){
+            for(var y=Math.floor(cy/T);y<=Math.ceil((cy+cvs.height)/T);y++){
+                var b=getB(x,y); if(b>0){ctx.fillStyle=b===2?"#2ecc71":b===3?"#bdc3c7":"#795548";ctx.fillRect(x*T-cx,y*T-cy,T+0.5,T+0.5);}
             }
         }
         [p].concat(ents).forEach(function(e) {
-            ctx.fillStyle = e===p?'#e67e22':(e.type==='ally'?'#3498db':(e.type==='mob'?'#2ecc71':(e.type==='pig'?'#ff9ff3':'#f1c40f')));
-            ctx.fillRect(e.x-cx, e.y-cy, e.w, e.h);
-            
-            // *** 視覺重組：血條強制顯示 ***
-            // 1. 先畫背景 (紅色)
-            ctx.fillStyle = '#ff0000';
-            ctx.fillRect(e.x-cx, e.y-cy-12, e.w, 6);
-            // 2. 蓋上當前血量 (鮮綠色)
-            ctx.fillStyle = '#00ff00';
-            ctx.fillRect(e.x-cx, e.y-cy-12, e.w * (e.hp / e.max), 6);
+            ctx.fillStyle=e===p?'#e67e22':e.type==='ally'?'#3498db':'#2ecc71';
+            ctx.fillRect(e.x-cx,e.y-cy,e.w,e.h);
+            // 血條修正：背景紅，本體亮綠
+            ctx.fillStyle='#ff0000'; ctx.fillRect(e.x-cx,e.y-cy-12,e.w,6);
+            ctx.fillStyle='#00ff00'; ctx.fillRect(e.x-cx,e.y-cy-12,e.w*(e.hp/e.max),6);
         });
 
-        var mC = document.getElementById('mC'), mctx = mC.getContext('2d');
-        mctx.fillStyle='#000'; mctx.fillRect(0,0,160,160);
-        mctx.save(); mctx.translate(80,80);
+        var mC=document.getElementById('mC'), mctx=mC.getContext('2d');
+        mctx.fillStyle='#000'; mctx.fillRect(0,0,150,150);
+        mctx.save(); mctx.translate(75,75);
         [p].concat(ents).forEach(function(e){
-            mctx.fillStyle = e===p?'#fff':(e.type==='ally'?'#3498db':(e.type==='mob'?'#e74c3c':'#ff9ff3'));
+            mctx.fillStyle=e===p?'#fff':'#3498db';
             var dx=(e.x-p.x)*0.1, dy=(e.y-p.y)*0.1;
-            if(dx*dx+dy*dy < 75*75){ mctx.beginPath(); mctx.arc(dx, dy, 3.5, 0, 7); mctx.fill(); }
+            if(dx*dx+dy*dy<70*70){mctx.beginPath(); mctx.arc(dx,dy,3,0,7); mctx.fill();}
         });
         mctx.restore();
     }
