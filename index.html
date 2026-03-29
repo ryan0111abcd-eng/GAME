@@ -2,7 +2,7 @@
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
-    <title>SUPER HUMAN 2026 - THE PEAK</title>
+    <title>SUPER HUMAN 2026</title>
     <style>
         body, html { margin: 0; padding: 0; width: 100%; height: 100%; background: #000; overflow: hidden; font-family: sans-serif; user-select: none; }
         .page { position: fixed; inset: 0; z-index: 9999; display: flex; flex-direction: column; align-items: center; justify-content: center; background: #050505; color: #f1c40f; text-align: center; }
@@ -25,7 +25,7 @@
     </div>
 
     <div id="p-mode" class="page" style="display:none;">
-        <h1>認證成功</h1>
+        <h1>ACCESS GRANTED</h1>
         <button class="btn" onclick="setM(1)">👤 單人模式</button>
         <button class="btn" onclick="document.getElementById('p-mode').style.display='none';document.getElementById('p-set').style.display='flex';">👥 多人連線</button>
     </div>
@@ -34,7 +34,7 @@
         <h1>小隊規模</h1>
         <h2 id="pv">5 人</h2>
         <input type="range" min="2" max="15" value="5" oninput="document.getElementById('pv').innerText=this.value+' 人'" id="sld" style="width:300px;">
-        <button class="btn" onclick="goLive(document.getElementById('sld').value)">進入世界</button>
+        <button class="btn" onclick="goLive(document.getElementById('sld').value)">啟動世界</button>
     </div>
 
     <div id="esc-menu">
@@ -53,7 +53,6 @@
 
 <script>
     var live = false, esc = false, world = {}, keys = {}, ents = [], ticks = 600, sSize = 1;
-    // 初始位置在平原
     var p = { x: 0, y: -300, w: 22, h: 42, vx: 0, vy: 0, hp: 100, max: 100, gr: false };
     var T = 32, selB = 2;
 
@@ -64,7 +63,7 @@
         if(document.getElementById('pw').value.trim() === 'ryan0111407') {
             document.getElementById('p-auth').style.display='none';
             document.getElementById('p-mode').style.display='flex';
-        } else { alert("金鑰無效"); }
+        } else { alert("DENIED"); }
     }
     
     function goLive(n) {
@@ -80,34 +79,30 @@
 
     function spawn(t, x, y) { ents.push({ type: t, x: x, y: y, w: 22, h: 42, vx: 0, vy: 0, hp: 100, max: 100, dir: 1 }); }
 
-    // ==========================================
-    // --- 核心：2500M 轉折垂直地形引擎 ---
-    // ==========================================
+    // --- 修正版地形引擎：真正的慢慢疊上去 ---
     function getB(gx, gy) {
         if(world[gx+'_'+gy]!==undefined) return world[gx+'_'+gy];
         
         var absGx = Math.abs(gx);
-        var f = 8; // 基本高度
+        var f = 8; // 基底
 
-        // 1. 基座階段 (海拔 0-2500m)
-        // 隨著 Gx 增加，高度緩慢平方上升
-        if (absGx < 150) {
-            f = Math.floor(8 + (Math.pow(absGx * 0.05, 2) * 4));
+        // 海拔高度邏輯
+        if (absGx < 400) { 
+            // 0-400單元內 (0 ~ 12800m 距離內) 緩慢上升
+            // 這裡調整係數，讓海拔在 200m 時不會出現懸崖
+            f = Math.floor(8 + (absGx * 0.15)); 
         } else {
-            // 2. 垂直階段 (海拔 > 2500m)
-            // 當走得夠遠，f 直接垂直跳升
-            var baseHigh = Math.floor(8 + (Math.pow(150 * 0.05, 2) * 4)); // 約 80 格 (2560m)
-            f = baseHigh + (absGx - 150) * 10; // 每一格 X 就上升 10 格 Y (超級懸崖)
-            
-            // 限制最高點約 3200m (f=100)
-            if (f > 100) f = 100 + Math.sin(gx*0.5)*2; 
+            // 只有真的走很遠之後，海拔達到 78 (2500m) 以上才觸發垂直
+            var baseH = 8 + (400 * 0.15); // 約 68 (2176m)
+            f = baseH + (absGx - 400) * 12; // 轉為垂直陡峭
+            if (f > 110) f = 110; // 封頂高度 3500m
         }
 
         if (gy < f) return 0;
-        if (gy === f && gy >= 78) return 7; // 高處積雪
-        if (gy === f) return 2; // 草地
-        if (gy > f && gy < f + 5) return 3; // 泥土
-        return 1;
+        if (gy === f && gy >= 78) return 7; // 雪頂
+        if (gy === f) return 2; // 地表草地
+        if (gy > f && gy < f + 4) return 3; // 泥土
+        return 1; // 石頭
     }
 
     function check(x,y) { for(var i=Math.floor(x/T);i<=Math.floor((x+22)/T);i++)for(var j=Math.floor(y/T);j<=Math.floor((y+42)/T);j++)if(getB(i,j)>0)return true; return false; }
@@ -137,9 +132,7 @@
         if(!live || esc) { requestAnimationFrame(loop); return; }
         var cvs=document.getElementById('g'), ctx=cvs.getContext('2d');
         ticks=(ticks+0.05)%1440; 
-
         if(ents.filter(e=>e.type==='pig').length < 8) spawn('pig', p.x + (Math.random()>0.5?1200:-1200), p.y);
-
         [p].concat(ents).forEach(function(e) {
             e.vy+=0.8; e.y+=e.vy;
             if(check(e.x,e.y)){if(e.vy>0){while(check(e.x,e.y))e.y-=0.5;e.gr=true;}e.vy=0;}else e.gr=false;
@@ -152,15 +145,12 @@
                     if(Math.abs(p.x-e.x)>150) e.x+=(p.x>e.x?2.5:-2.5);
                     if(check(e.x+(p.x>e.x?5:-5),e.y) && e.gr) e.vy=-10;
                 } else if(e.type==='pig'){
-                    if(Math.random()<0.01) e.dir*=-1;
                     e.x+=e.dir*1.5; if(check(e.x+e.dir*5,e.y)) e.dir*=-1;
                 }
             }
         });
-
         document.getElementById('tm-u').innerText=Math.floor(ticks/60).toString().padStart(2,'0')+":"+Math.floor(ticks%60).toString().padStart(2,'0');
         document.getElementById('alt-u').innerText=Math.floor(Math.abs(p.y/T));
-        
         render(ctx, cvs);
         requestAnimationFrame(loop);
     }
@@ -169,11 +159,9 @@
         ctx.fillStyle=(ticks>1050||ticks<350)?'#050510':'#87ceeb';
         ctx.fillRect(0,0,cvs.width,cvs.height);
         var cx=p.x-cvs.width/2, cy=p.y-cvs.height/2;
-
         for(var x=Math.floor(cx/T);x<=Math.ceil((cx+cvs.width)/T);x++){
             for(var y=Math.floor(cy/T);y<=Math.ceil((cy+cvs.height)/T);y++){
-                var b=getB(x,y); 
-                if(b>0){ ctx.fillStyle=B_COLORS[b]; ctx.fillRect(x*T-cx,y*T-cy,T+0.5,T+0.5); }
+                var b=getB(x,y); if(b>0){ ctx.fillStyle=B_COLORS[b]; ctx.fillRect(x*T-cx,y*T-cy,T+0.5,T+0.5); }
             }
         }
         [p].concat(ents).forEach(function(e) {
@@ -182,7 +170,6 @@
             ctx.fillStyle='#ff0000'; ctx.fillRect(e.x-cx,e.y-cy-12,e.w,6);
             ctx.fillStyle='#00ff00'; ctx.fillRect(e.x-cx,e.y-cy-12,e.w*(e.hp/e.max),6);
         });
-
         var mctx=document.getElementById('mC').getContext('2d');
         mctx.fillStyle='#000'; mctx.fillRect(0,0,160,160);
         mctx.save(); mctx.translate(80,80);
