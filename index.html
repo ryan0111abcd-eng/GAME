@@ -2,7 +2,7 @@
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
-    <title>SUPER HUMAN 2026 - SURFACE RUINS</title>
+    <title>SUPER HUMAN 2026 - FINAL STABLE</title>
     <style>
         body, html { margin: 0; padding: 0; width: 100%; height: 100%; background: #000; overflow: hidden; font-family: sans-serif; user-select: none; }
         .page { position: fixed; inset: 0; z-index: 9999; display: flex; flex-direction: column; align-items: center; justify-content: center; background: #050505; color: #f1c40f; text-align: center; }
@@ -31,7 +31,7 @@
     </div>
 
     <div id="p-set" class="page" style="display:none;">
-        <h1>小隊人數</h1>
+        <h1>小隊規模</h1>
         <h2 id="pv">5 人</h2>
         <input type="range" min="2" max="15" value="5" oninput="document.getElementById('pv').innerText=this.value+' 人'" id="sld" style="width:300px;">
         <button class="btn" onclick="goLive(document.getElementById('sld').value)">啟動世界</button>
@@ -53,24 +53,14 @@
 
 <script>
     var live = false, esc = false, world = {}, keys = {}, ents = [], ticks = 600, sSize = 1;
-    var p = { x: 0, y: -320, w: 22, h: 42, vx: 0, vy: 0, hp: 100, max: 100, gr: false };
+    var p = { x: 0, y: -400, w: 22, h: 42, vx: 0, vy: 0, hp: 100, max: 100, gr: false };
     var T = 32, selB = 1;
 
     const B_NAMES = { 1:'石頭', 2:'草地', 3:'古蹟磚', 4:'沙子', 5:'木頭', 6:'葉子', 7:'雪地', 8:'水' };
     const B_COLORS = { 1:'#7f8c8d', 2:'#2ecc71', 3:'#bdc3c7', 4:'#f1c40f', 5:'#5d4037', 6:'#27ae60', 7:'#ecf0f1', 8:'#3498db' };
 
-    function auth() {
-        if(document.getElementById('pw').value.trim() === 'ryan0111407') {
-            document.getElementById('p-auth').style.display='none';
-            document.getElementById('p-mode').style.display='flex';
-        } else { alert("金鑰無效"); }
-    }
-
-    function setM(isSingle) {
-        document.getElementById('p-mode').style.display = 'none';
-        if(isSingle) goLive(1); else document.getElementById('p-set').style.display = 'flex';
-    }
-    
+    function auth() { if(document.getElementById('pw').value.trim()==='ryan0111407'){document.getElementById('p-auth').style.display='none';document.getElementById('p-mode').style.display='flex';} }
+    function setM(isS) { document.getElementById('p-mode').style.display='none'; if(isS) goLive(1); else document.getElementById('p-set').style.display='flex'; }
     function goLive(n) {
         sSize = n;
         document.querySelectorAll('.page').forEach(el=>el.style.display='none');
@@ -78,77 +68,62 @@
         document.getElementById('mini-map').style.display='block';
         var cvs=document.getElementById('g'); cvs.style.display='block';
         cvs.width=window.innerWidth; cvs.height=window.innerHeight;
-        for(var i=0; i<sSize-1; i++) spawn('ally', p.x + (Math.random()-0.5)*500, -320);
+        for(var i=0; i<sSize-1; i++) spawn('ally', p.x + (Math.random()-0.5)*400, -400);
         live=true; loop();
     }
+    function spawn(t, x, y) { ents.push({ type: t, x: x, y: y, w: 22, h: 42, vx: 0, vy: 0, hp: 100, max: 100, dir: 1, actionCd: 0 }); }
 
-    function spawn(t, x, y) { ents.push({ type: t, x: x, y: y, w: 22, h: 42, vx: 0, vy: 0, hp: 100, max: 100, dir: 1 }); }
-
-    // --- 地形與地面建築生成引擎 ---
+    // --- 混合式地形引擎：解決斷層問題 ---
     function getB(gx, gy) {
         if(world[gx+'_'+gy]!==undefined) return world[gx+'_'+gy];
         var absGx = Math.abs(gx);
-        var f = 8;
-
-        // 1. 指定大山 (2500m 垂直)
-        if (absGx < 400) {
-            f = Math.floor(8 + (absGx * 0.15));
-            if(absGx > 350) f = Math.floor(f / 10) * 10 + (absGx-350)*15;
-            if (gy < f) return 0;
-            if (gy === f && gy >= 78) return 7;
-            if (gy === f) return 2;
-            if (gy > f && gy < f + 5) return 1;
-            return 1;
+        
+        // 1. 基底高度
+        var f = 10;
+        
+        // 2. 只有在很遠的地方 (absGx > 150) 才開始出現大山坡
+        if(absGx > 150) {
+            f += (absGx - 150) * 0.8; // 平緩爬升
+        }
+        
+        // 3. 2500m 海拔轉折邏輯 (gy=78)
+        if(f > 70) {
+            // 每 10 格階梯式上升，避免單一線條斷裂
+            f = 70 + (Math.floor((absGx-225)/5)*15);
         }
 
-        // 2. 其他群落與地面古蹟生成
-        var biome = "石頭";
-        var h = 8;
-        if (gx > 1500) biome = "雪地", h = 6;
-        else if (gx > 1000) biome = "沙漠", h = 4;
-        else if (gx > 600) biome = "台地", h = 18;
-        else if (gx > 400) biome = "山地", h = 31;
-
-        var noise = Math.sin(gx * 0.1) * 3;
-        f = Math.floor(h + noise);
+        // 限制封頂
+        if (f > 110) f = 110 + Math.sin(gx*0.1)*3;
 
         if (gy < f) return 0;
-
-        // --- 地表觸發事件 ---
+        
+        // --- 地表裝飾與建築生成 ---
         if (gy === f) {
-            // A. 地面古蹟生成 (台地或山地機率出現)
-            if((biome === "台地" || biome === "山地") && gx % 70 === 0 && Math.random() < 0.2) {
-                generateRuins(gx, gy - 1);
+            // 在起點附近 (X=30 到 150 之間) 強制生成
+            if(absGx > 30 && absGx < 150 && gx % 40 === 0) {
+                var r = Math.random();
+                if(r < 0.5) generateVillage(gx, gy-1);
+                else generateRuins(gx, gy-1);
             }
-            // B. 村莊生成 (gx 400-600 區間)
-            if(gx > 400 && gx < 600 && gx % 50 === 0 && Math.random() < 0.1) {
-                generateVillage(gx, gy - 1);
-            }
-
-            if(biome === "沙漠") return 4;
-            if(biome === "雪地") return 7;
-            return 1; // 預設石頭地表 (無平原草地)
+            if (gy >= 78) return 7; // 雪
+            if (absGx > 300) return 4; // 沙漠
+            return 2; // 起點草地
         }
-        return 1;
+        return (gy > f + 5) ? 1 : 3; // 石頭與泥土
     }
 
-    // 地面古蹟生成 (柱狀與破損牆面)
     function generateRuins(gx, gy) {
-        var h = Math.floor(Math.random()*4) + 2;
-        for(var j=0; j<h; j++) world[gx+'_'+(gy-j)] = 3; // 柱子
-        if(Math.random()<0.5) world[(gx+1)+'_'+gy] = 3; // 破損基座
+        for(var j=0; j<5; j++) world[gx+'_'+(gy-j)] = 3; // 柱子
+        world[(gx+1)+'_'+gy] = 3; world[(gx-1)+'_'+gy] = 3;
     }
 
-    // 地面村莊生成
     function generateVillage(gx, gy) {
-        for(var i=-1; i<=1; i++) for(var j=0; j>-3; j--) world[(gx+i)+'_'+(gy+j)] = 5; // 木屋
-        world[gx+'_'+(gy-3)] = 6; // 屋頂
-        spawn('villager', (gx*T), (gy*T) - 32);
+        for(var i=-1; i<=1; i++) for(var j=0; j>-3; j--) world[(gx+i)+'_'+(gy+j)] = 5; // 屋
+        world[gx+'_'+(gy-3)] = 6; spawn('villager', gx*T, (gy-2)*T); 
     }
 
     function check(x,y) { for(var i=Math.floor(x/T);i<=Math.floor((x+22)/T);i++)for(var j=Math.floor(y/T);j<=Math.floor((y+42)/T);j++)if(getB(i,j)>0)return true; return false; }
     function toggleEsc() { if(!live) return; esc = !esc; document.getElementById('esc-menu').style.display = esc ? 'flex' : 'none'; }
-
     window.addEventListener('contextmenu', e => e.preventDefault());
 
     window.onmousedown=function(e){
@@ -173,7 +148,7 @@
         if(!live || esc) { requestAnimationFrame(loop); return; }
         var cvs=document.getElementById('g'), ctx=cvs.getContext('2d');
         ticks=(ticks+0.05)%1440; 
-        if(ents.filter(e=>e.type==='pig').length < 8) spawn('pig', p.x + (Math.random()>0.5?1200:-1200), p.y);
+        if(ents.filter(e=>e.type==='pig').length < 8) spawn('pig', p.x + (Math.random()>0.5?1000:-1000), p.y-100);
         [p].concat(ents).forEach(function(e) {
             e.vy+=0.8; e.y+=e.vy;
             if(check(e.x,e.y)){if(e.vy>0){while(check(e.x,e.y))e.y-=0.5;e.gr=true;}e.vy=0;}else e.gr=false;
@@ -183,7 +158,7 @@
                 if(keys['Space']&&p.gr)p.vy=-14;
             } else {
                 if(e.type==='ally'){
-                    if(Math.abs(p.x-e.x)>180) e.x+=(p.x>e.x?2:-2);
+                    if(Math.abs(p.x-e.x)>150) e.x+=(p.x>e.x?2:-2);
                     if(check(e.x+(p.x>e.x?5:-5),e.y) && e.gr) e.vy=-10;
                 } else if(e.type==='pig' || e.type==='villager'){
                     if(Math.random()<0.01) e.dir*=-1;
