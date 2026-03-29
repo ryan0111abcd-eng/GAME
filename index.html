@@ -2,144 +2,254 @@
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SUPER HUMAN 2026 - FIX</title>
+    <title>SUPER HUMAN 2026 - ANIMAL KINGDOM</title>
     <style>
-        body, html { margin: 0; padding: 0; width: 100%; height: 100%; background: #000; overflow: hidden; font-family: sans-serif; color: #f1c40f; }
-        .page { position: fixed; inset: 0; z-index: 999; display: flex; flex-direction: column; align-items: center; justify-content: center; background: #0a0a0a; text-align: center; }
-        .btn { padding: 20px 50px; font-size: 24px; cursor: pointer; margin: 15px; background: #f1c40f; border: none; border-radius: 8px; font-weight: bold; color: #000; transition: 0.2s; }
-        .btn:hover { background: #fff; }
-        .in-box { padding: 15px; font-size: 22px; border: 2px solid #f1c40f; border-radius: 8px; background: #222; color: #fff; margin-bottom: 20px; outline: none; }
-        #hud { position: fixed; top: 10px; left: 10px; z-index: 100; background: rgba(0,0,0,0.8); padding: 10px; border: 1px solid #f1c40f; display: none; pointer-events: none; }
-        canvas#g { display: none; background: #87ceeb; }
+        body, html { margin: 0; padding: 0; width: 100%; height: 100%; background: #000; overflow: hidden; font-family: sans-serif; user-select: none; }
+        .page { position: fixed; inset: 0; z-index: 9999; display: flex; flex-direction: column; align-items: center; justify-content: center; background: #050505; color: #f1c40f; text-align: center; }
+        .btn { padding: 18px 45px; font-size: 26px; cursor: pointer; margin: 10px; background: #f1c40f; border: 4px solid #fff; border-radius: 15px; font-weight: bold; color: #000; box-shadow: 0 6px 0 #b8860b; transition: 0.1s; outline: none; }
+        .btn:active { transform: translateY(4px); box-shadow: 0 2px 0 #b8860b; }
+        .in-box { padding: 15px; font-size: 24px; border: 4px solid #f1c40f; border-radius: 12px; background: #fff; color: #000; text-align: center; margin-bottom: 25px; width: 320px; outline: none; }
+        #p-brief { background: #111; color: #eee; padding: 50px; text-align: left; align-items: flex-start; border: 8px solid #f1c40f; box-sizing: border-box; overflow-y: auto; }
+        .m-info { font-size: 22px; line-height: 1.6; margin-bottom: 30px; border-left: 5px solid #f1c40f; padding-left: 20px; }
+        #hud { position: fixed; top: 15px; left: 15px; z-index: 1000; color: white; background: rgba(0,0,0,0.85); padding: 15px; border-radius: 12px; border: 2px solid #f1c40f; display: none; pointer-events: none; line-height: 1.6; }
+        #esc-menu { position: fixed; inset: 0; z-index: 10000; display: none; flex-direction: column; align-items: center; justify-content: center; background: rgba(0,0,0,0.7); backdrop-filter: blur(8px); }
+        canvas#g { display: none; position: absolute; top: 0; left: 0; z-index: 10; }
+        .sel-box { color: #f1c40f; font-weight: bold; border-bottom: 2px solid #f1c40f; }
     </style>
 </head>
-<body>
+<body oncontextmenu="return false;">
 
     <div id="p-auth" class="page">
-        <h1>SYSTEM ACCESS</h1>
+        <h1>SUPER HUMAN SYSTEM</h1>
         <input type="password" id="pw" class="in-box" placeholder="Access Key">
         <button class="btn" onclick="auth()">VERIFY</button>
     </div>
 
     <div id="p-mode" class="page" style="display:none;">
-        <h1>SELECT MODE</h1>
-        <button class="btn" onclick="setM(1)">SINGLE PLAYER</button>
-        <button class="btn" onclick="setM(5)">SQUAD (5 PEOP)</button>
+        <h1>選擇模式</h1>
+        <button class="btn" onclick="setM(1)">👤 單人模式</button>
+        <button class="btn" onclick="showMulti()">👥 多人模式 (2-15人)</button>
+    </div>
+
+    <div id="p-multi" class="page" style="display:none;">
+        <h1>設定小隊人數</h1>
+        <h2 id="p-cnt" style="font-size:40px;">5 人</h2>
+        <input type="range" id="sld" min="2" max="15" value="5" oninput="document.getElementById('p-count').innerText=this.value+' 人'" style="width:350px;">
+        <button class="btn" onclick="setM(document.getElementById('sld').value)">確認規模</button>
+    </div>
+
+    <div id="p-brief" class="page" style="display:none;">
+        <h1>任務說明：DISCOVERY V3</h1>
+        <div class="m-info">
+            <p>● <b>生態：</b>生物與村莊將在你探索未知區域（視野外）時生成。</p>
+            <p>● <b>發現：</b>丘陵區已探測到野生小豬與村民的存在。請往遠方探索。</p>
+            <p>● <b>戰鬥：</b>使用 <b>K</b> 鍵發動攻擊。左鍵挖掘，右鍵建造。</p>
+            <p>● <b>時間：</b>0.05x 極慢速，讓你盡情享受與動物們的漫長時光。</p>
+        </div>
+        <button class="btn" onclick="goLive()">啟動模擬</button>
+    </div>
+
+    <div id="esc-menu">
+        <h1 style="color:#f1c40f; font-size: 50px;">暫停暫停</h1>
+        <button class="btn" onclick="toggleEsc()">➡️ 回到遊戲</button>
+        <button class="btn" onclick="location.reload()" style="background:#555; color:white;">🚪 離開</button>
     </div>
 
     <div id="hud">
-        HP: <span id="hp">100</span> | TIME: <span id="tm">12:00</span> | ALT: <span id="alt">0</span>m
+        🕒 <span id="tm-u">12:00</span> | ❤️ HP: <span id="p-hp-hud">100</span><br>
+        🏗️ <span id="cur-b" class="sel-box">石頭 (1)</span> | 🌧️ <span id="wt-u">晴</span>
     </div>
     <canvas id="g"></canvas>
 
 <script>
-    // 基礎參數
-    var live = false, world = {}, keys = {}, ents = [], ticks = 600, sSize = 1;
-    var p = { x: 0, y: -500, w: 22, h: 42, vx: 0, vy: 0, hp: 100, max: 100, gr: false };
-    var T = 32;
+    var live = false, esc = false, world = {}, keys = {}, ents = [], ticks = 600, sSize = 1, isRaining = false;
+    var p = { x: 0, y: -600, w: 22, h: 42, vx: 0, vy: 0, hp: 100, max: 100, gr: false, dmgCd: 0, atkCd: 0, face: 1, anim: 0 };
+    var T = 32, selB = 1, spawnTimer = 0;
 
-    // 1. 認證功能 (確保 ID 正確)
-    function auth() {
-        var val = document.getElementById('pw').value.trim();
-        if(val === 'ryan0111407') {
-            document.getElementById('p-auth').style.display = 'none';
-            document.getElementById('p-mode').style.display = 'flex';
-        } else {
-            alert("ACCESS DENIED");
-        }
+    const B_NAMES = { 1:'石頭', 2:'草地', 3:'泥土', 4:'沙子', 5:'木頭', 6:'葉子', 7:'雪地', 8:'水' };
+    const B_COLORS = { 1:'#7f8c8d', 2:'#2ecc71', 3:'#795548', 4:'#f1c40f', 5:'#5d4037', 6:'#27ae60', 7:'#ecf0f1', 8:'#3498db' };
+
+    function auth() { if(document.getElementById('pw').value.trim()==='ryan0111407'){document.getElementById('p-auth').style.display='none';document.getElementById('p-mode').style.display='flex';} }
+    function showMulti() { document.getElementById('p-mode').style.display='none'; document.getElementById('p-multi').style.display='flex'; }
+    function setM(n) { sSize = parseInt(n); document.querySelectorAll('.page').forEach(p=>p.style.display='none'); document.getElementById('p-brief').style.display='flex'; }
+
+    function goLive() {
+        document.getElementById('p-brief').style.display='none';
+        document.getElementById('hud').style.display='block';
+        var cvs=document.getElementById('g'); cvs.style.display='block';
+        cvs.width=window.innerWidth; cvs.height=window.innerHeight;
+        live=true; 
+        // 生成隊友在玩家附近
+        for(var i=0; i<sSize-1; i++) spawn('ally', p.x + (i*60) - 120, -1000);
+        loop();
     }
+    
+    function spawn(t, x, y) { ents.push({ type: t, x: x, y: y, w: 22, h: 42, vx: 0, vy: 0, hp: 100, max: 100, dir: 1, dmgCd: 0, anim: Math.random()*10 }); }
 
-    // 2. 模式設定
-    function setM(n) {
-        sSize = n;
-        document.getElementById('p-mode').style.display = 'none';
-        initGame();
-    }
-
-    // 3. 啟動遊戲
-    function initGame() {
-        var cvs = document.getElementById('g');
-        cvs.style.display = 'block';
-        cvs.width = window.innerWidth;
-        cvs.height = window.innerHeight;
-        document.getElementById('hud').style.display = 'block';
-        
-        // 生成隊友
-        for(var i=0; i<sSize-1; i++) {
-            ents.push({ type:'ally', x: p.x + (i*50)-100, y: -600, w:22, h:42, vx:0, vy:0, hp:100, max:100 });
-        }
-        
-        live = true;
-        requestAnimationFrame(loop);
-    }
-
-    // 4. 地形引擎 (草皮下 5 層土 + 3000M 大山)
     function getB(gx, gy) {
-        if(world[gx+'_'+gy] !== undefined) return world[gx+'_'+gy];
+        if(world[gx+'_'+gy]!==undefined) return world[gx+'_'+gy];
         var absGx = Math.abs(gx);
+        var f = Math.floor(22 + Math.sin(gx*0.3)*6 + Math.cos(gx*0.15)*8 + (absGx>150?(absGx-150)/4:0));
+        if (f > 110) f = 110; 
+
+        if (gy < f) return 0; // 空氣
         
-        // 3000M 大山階梯 (gx > 100 開始)
-        var f = Math.floor(20 + Math.sin(gx*0.2)*5);
-        if(absGx > 100) f += Math.floor((absGx-100)/5) * 15;
-        if(f > 110) f = 110;
-
-        if(gy < f) return 0; // 空氣
-        if(gy === f) return (gy > 80) ? 7 : 2; // 雪或草
-        if(gy > f && gy <= f+5) return 3; // 5層泥土
-        return 1; // 石頭
+        if (gy === f) {
+            // 在視野外 (Discovery 邏輯) 生成建築與生物
+            var pxGx = Math.floor(p.x/T);
+            if(Math.abs(gx - pxGx) > 25 && gx % 70 === 0 && Math.random() < 0.35) {
+                // 只有地表 gy < 75 才會生成生物/建築 (防止生成在雪地/水中)
+                if(gy < 75) {
+                    var r = Math.random();
+                    if(r < 0.3) generateVillage(gx, gy-1);
+                    else if(r < 0.6) spawnGroundEnt('animal', gx, gy);
+                    else generateRuins(gx, gy-1);
+                }
+            }
+            if (gy >= 75) return 7; // 雪頂
+            if (absGx < 200) return 2; // 起點丘陵草皮
+            return 1; // 遠處石頭
+        }
+        
+        // 草皮下要有土 (5層泥土ID: 3)
+        if (gy > f && gy <= f + 5 && absGx < 200 && gy < 75) return 3; 
+        return 1; // 深層全部是石頭
     }
 
-    // 5. 物理碰撞
-    function check(x, y) {
-        var gx = Math.floor(x/T), gy = Math.floor(y/T);
-        return getB(gx, gy) > 0 || getB(Math.floor((x+21)/T), Math.floor((y+41)/T)) > 0;
+    // 將生物直接生成在遠方地表
+    function spawnGroundEnt(type, gx, gy) {
+        ents.push({ type: type, x: gx*T, y: (gy-2)*T, w: 22, h: 42, vx: 0, vy: 0, hp: 100, max: 100, dir: 1, dmgCd: 0, anim: Math.random()*10 });
     }
 
-    // 6. 遊戲主迴圈
+    function generateVillage(gx, gy) {
+        for(var i=-1; i<=1; i++) for(var j=0; j>-3; j--) world[(gx+i)+'_'+(gy+j)] = 5;
+        world[gx+'_'+(gy-3)] = 6;
+        ents.push({ type: 'villager', x: gx*T, y: (gy-2)*T, w: 22, h: 42, vx: 0, vy: 0, hp: 100, max: 100, dir: 1, dmgCd: 0, anim: Math.random()*10 });
+    }
+    function generateRuins(gx, gy) { for(var j=0; j<5; j++) world[gx+'_'+(gy-j)] = 3; }
+
+    function check(x,y) { 
+        var gx=Math.floor(x/T), gy=Math.floor(y/T);
+        if(getB(gx, gy)>0 || getB(Math.floor((x+21)/T), Math.floor((y+41)/T))>0) return true;
+        return false;
+    }
+
+    function toggleEsc() { if(live) { esc = !esc; document.getElementById('esc-menu').style.display = esc ? 'flex' : 'none'; } }
+    window.addEventListener('contextmenu', e => e.preventDefault());
+
+    window.onmousedown=function(e){
+        if(!live || esc) return;
+        var cvs=document.getElementById('g');
+        var gx=Math.floor((e.clientX+(p.x-cvs.width/2))/T), gy=Math.floor((e.clientY+(p.y-cvs.height/2))/T);
+        if(e.button===0) world[gx+'_'+gy]=0; // 左鍵挖掘
+        else if(e.button===2) world[gx+'_'+gy]=selB; // 右鍵建築
+    };
+
+    window.onkeydown=function(e){
+        if(e.code === 'Escape') toggleEsc();
+        if(!esc && e.keyCode >= 49 && e.keyCode <= 56) {
+            selB = e.keyCode - 48; 
+            document.getElementById('cur-b').innerText = B_NAMES[selB];
+        }
+        if(e.code === 'KeyK' && p.atkCd <= 0) playerAttack();
+        keys[e.code]=true;
+    };
+    window.onkeyup=function(e){keys[e.code]=false;};
+
+    function playerAttack() {
+        p.atkCd = 20; // 攻擊冷卻
+        ents.forEach(e => {
+            // 判斷前方 50px 範圍內的生物
+            var dx = e.x - p.x;
+            var dy = Math.abs(e.y - p.y);
+            if(dy < 40 && ((p.face === 1 && dx > 0 && dx < 60) || (p.face === -1 && dx < 0 && dx > -60))) {
+                e.hp -= 34; // 攻擊力
+                e.dmgCd = 12; // 受傷冷卻
+                e.vx = p.face * 6; // 擊退
+            }
+        });
+    }
+
     function loop() {
         if(!live) return;
-        var cvs = document.getElementById('g'), ctx = cvs.getContext('2d');
-        ticks = (ticks + 0.05) % 1440; // 時間 0.05x
+        if(esc) { requestAnimationFrame(loop); return; } 
+        var cvs=document.getElementById('g'), ctx=cvs.getContext('2d');
+        ticks = (ticks + 0.05) % 1440; 
+        
+        if(Math.random() < 0.001) isRaining = !isRaining;
+        document.getElementById('wt-u').innerText = isRaining ? "雨" : "晴";
 
-        // 玩家與 AI 物理
-        [p].concat(ents).forEach(e => {
+        // 下雨時視野會受限，減少生成 (效能與平衡)
+        var nightSpwnFactor = (ticks > 1050 || ticks < 350)?200:600;
+        spawnTimer++;
+        if(spawnTimer > (isRaining?1200:nightSpwnFactor)) { 
+            // 只有在視野外生成 (距離玩家 800px 以上)
+            var sx = p.x + (Math.random() > 0.5 ? 900 : -900);
+            spawn('animal', sx, -1000); 
+            spawnTimer = 0;
+        }
+
+        [p].concat(ents).forEach(function(e) {
             e.vy += 0.8; e.y += e.vy;
-            if(check(e.x, e.y)) { while(check(e.x, e.y)) e.y -= 0.5; e.vy = 0; e.gr = true; } else e.gr = false;
-            
+            if(check(e.x, e.y)) { while(check(e.x, e.y)) e.y -= 0.5; e.gr = true; e.vy = 0; } else e.gr = false;
+            if(e.dmgCd > 0) e.dmgCd--;
+
             if(e === p) {
-                if(keys['KeyD']) { p.x += 6; if(check(p.x, p.y)) p.x -= 6; }
-                if(keys['KeyA']) { p.x -= 6; if(check(p.x, p.y)) p.x -= 6; }
+                if(p.atkCd > 0) p.atkCd--;
+                var dx = (keys['KeyD']?7:0) - (keys['KeyA']?7:0);
+                if(dx!==0){ p.x += dx; if(check(p.x, p.y)) p.x -= dx; p.face = dx > 0 ? 1 : -1; }
                 if(keys['Space'] && p.gr) p.vy = -14;
+            } else {
+                if(e.hp <= 0) return; // 死亡不移動
+                e.anim += 0.2; // 律動
+                if(e.type === 'animal') { // 動物隨機亂跑
+                    if(Math.random() < 0.02) e.dir *= -1;
+                    e.x += e.dir * 1.5 + (e.vx||0);
+                    // 動物遇到障礙會跳
+                    if(check(e.x + e.dir*10, e.y) && e.gr) e.vy = -10;
+                } else if(e.type === 'villager' || e.type === 'ally') { // 村民與隊友
+                    if(Math.abs(p.x - e.x) > 150) e.dir = (p.x > e.x ? 1 : -1); // 隊友跟隨
+                    e.x += e.dir * 1.2 + (e.vx||0);
+                }
+                if(e.vx) e.vx *= 0.8; // 擊退衰減
             }
         });
 
-        // 更新 HUD
-        document.getElementById('tm').innerText = Math.floor(ticks/60) + ":" + Math.floor(ticks%60);
-        document.getElementById('alt').innerText = Math.floor(Math.abs(p.y/T)*32);
+        // 清除死亡生物
+        ents = ents.filter(e => e.hp > 0);
 
-        // 繪圖
-        ctx.clearRect(0, 0, cvs.width, cvs.height);
-        var cx = p.x - cvs.width/2, cy = p.y - cvs.height/2;
-
-        for(var x=Math.floor(cx/T); x<=Math.ceil((cx+cvs.width)/T); x++) {
-            for(var y=Math.floor(cy/T); y<=Math.ceil((cy+cvs.height)/T); y++) {
-                var b = getB(x, y);
-                if(b > 0) {
-                    ctx.fillStyle = ["","#7f8c8d","#2ecc71","#795548","#f1c40f","#5d4037","#27ae60","#ecf0f1"][b];
-                    ctx.fillRect(x*T-cx, y*T-cy, T, T);
-                }
-            }
-        }
-        
-        ctx.fillStyle = "#e67e22"; ctx.fillRect(p.x-cx, p.y-cy, p.w, p.h);
-        ents.forEach(e => { ctx.fillStyle = "#3498db"; ctx.fillRect(e.x-cx, e.y-cy, e.w, e.h); });
-
+        if(p.hp <= 0) { alert("模擬結束。"); location.reload(); }
+        document.getElementById('p-hp-hud').innerText = Math.floor(p.hp);
+        document.getElementById('tm-u').innerText = Math.floor(ticks/60).toString().padStart(2,'0')+":"+Math.floor(ticks%60).toString().padStart(2,'0');
+        render(ctx, cvs);
         requestAnimationFrame(loop);
     }
 
-    window.onkeydown = e => keys[e.code] = true;
-    window.onkeyup = e => keys[e.code] = false;
+    function render(ctx, cvs) {
+        var isNight = (ticks > 1050 || ticks < 350);
+        ctx.fillStyle = isNight ? '#050510' : (isRaining ? '#576574' : '#87ceeb');
+        ctx.fillRect(0,0,cvs.width,cvs.height);
+        var cx=p.x-cvs.width/2, cy=p.y-cvs.height/2;
+        for(var x=Math.floor(cx/T);x<=Math.ceil((cx+cvs.width)/T);x++){
+            for(var y=Math.floor(cy/T);y<=Math.ceil((cy+cvs.height)/T);y++){
+                var b=getB(x,y); 
+                if(b>0){ ctx.fillStyle=B_COLORS[b]; ctx.fillRect(x*T-cx,y*T-cy,T+0.5,T+0.5); }
+            }
+        }
+        [p].concat(ents).forEach(function(e) {
+            // 隊友藍色，村民紫色，動物粉紅
+            ctx.fillStyle=e===p?'#e67e22':(e.type==='villager'?'#9b59b6':(e.type==='animal'?'#ff9ff3':'#3498db'));
+            var bounce = e.type === 'animal' ? Math.abs(Math.sin(e.anim))*8 : 0;
+            ctx.fillRect(e.x-cx, e.y-cy - bounce, e.w, e.h);
+            
+            // 渲染血條
+            var barW = 32, barH = 5;
+            ctx.fillStyle = '#333'; ctx.fillRect(e.x-cx+(e.w/2)-(barW/2), e.y-cy-15, barW, barH);
+            ctx.fillStyle = '#2ecc71'; ctx.fillRect(e.x-cx+(e.w/2)-(barW/2), e.y-cy-15, barW*(e.hp/e.max), barH);
+            
+            if(e.dmgCd > 0) { ctx.fillStyle='rgba(255,0,0,0.5)'; ctx.fillRect(e.x-cx,e.y-cy,e.w,e.h); }
+        });
+    }
 </script>
 </body>
 </html>
