@@ -68,17 +68,14 @@
         document.getElementById('mini-map').style.display = 'block';
         var cvs = document.getElementById('g');
         cvs.style.display = 'block'; cvs.width = window.innerWidth; cvs.height = window.innerHeight;
-        
         if(Math.random() < 0.4) { isRain = true; document.getElementById('rain-fx').style.display = 'block'; document.getElementById('wt-u').innerText = "下雨"; }
-        // 隊友預生成在遠方
         for(var i=0; i<sSize-1; i++) spawn('ally', p.x + (Math.random() > 0.5 ? 1200 : -1200));
         live = true; loop();
     }
 
     function spawn(t, x) {
         var h = (t==='pig')?30:100;
-        // 電腦挖掘冷卻大幅增加到 30000 幀 (約 8 分鐘)
-        ents.push({ type: t, x: x, y: -800, w: 22, h: 42, vx: 0, vy: 0, hp: h, max: h, dir: 1, actionCd: Math.random()*30000 });
+        ents.push({ type: t, x: x, y: -800, w: 22, h: 42, vx: 0, vy: 0, hp: h, max: h, dir: 1, actionCd: 0 });
     }
 
     function toggleEsc() { if(!live) return; esc = !esc; document.getElementById('esc-menu').style.display = esc ? 'flex' : 'none'; }
@@ -89,7 +86,6 @@
         var h = (x%100 < 30)?10:(x%100 < 70?8:5);
         if (x%100 < 50) h = 4; if (x%100 < 20) h = 12;
         var f = Math.floor(h + Math.sin(gx * 0.15) * 6);
-        // 古蹟生成機率與權重
         if (x%100 < 65 && gy > f && gy < f + 5 && Math.random() < 0.12) return 3;
         return gy < f ? 0 : (gy === f ? 2 : 1);
     }
@@ -128,7 +124,6 @@
         ticks = (ticks + 0.05) % 1440; 
         var isNight = ticks > 1050 || ticks < 350;
 
-        // 預生成動物與殭屍 (在視野外)
         if(!isNight && ents.filter(e=>e.type==='pig').length < 8 && Math.random() < 0.01) spawn('pig', p.x + (Math.random() > 0.5 ? 1200 : -1200));
         if(isNight && ents.filter(e=>e.type==='mob').length < 8 && Math.random() < 0.02) spawn('mob', p.x + (Math.random() > 0.5 ? 1200 : -1200));
         if(!isNight) ents = ents.filter(function(e){ return e.type !== 'mob'; });
@@ -150,12 +145,13 @@
                         if(Math.abs(p.x-e.x)>250) e.x += (p.x>e.x?2.5:-2.5);
                         ents.forEach(function(m){ if(m.type==='mob' && Math.abs(m.x-e.x)<100) atk(e); });
                         
-                        // *** 挖掘大減速：每 30,000 幀才判斷，成功率僅 0.1% ***
+                        // *** AI 挖掘動作徹底封印 ***
+                        // 改為每 30 分鐘才判斷一次，幾乎等於不會挖
                         e.actionCd++;
-                        if(e.actionCd > 30000) { 
-                            if(Math.random() < 0.001) { 
+                        if(e.actionCd > 100000) { 
+                            if(Math.random() < 0.0001) { 
                                 var gx = Math.floor(e.x/T), gy = Math.floor(e.y/T)+2;
-                                if(getB(gx, gy)>0) world[gx+'_'+gy]=0; else world[gx+'_'+(gy-1)]=3;
+                                if(getB(gx, gy)>0) world[gx+'_'+gy]=0; 
                             }
                             e.actionCd = 0;
                         }
@@ -200,9 +196,14 @@
         [p].concat(ents).forEach(function(e) {
             ctx.fillStyle = e===p?'#e67e22':(e.type==='ally'?'#3498db':(e.type==='mob'?'#2ecc71':(e.type==='pig'?'#ff9ff3':'#f1c40f')));
             ctx.fillRect(e.x-cx, e.y-cy, e.w, e.h);
-            // *** 血條顏色更新：背景紅色(扣血)，本體綠色(剩餘) ***
-            ctx.fillStyle = '#ff0000'; ctx.fillRect(e.x-cx, e.y-cy-12, e.w, 5);
-            ctx.fillStyle = '#00ff00'; ctx.fillRect(e.x-cx, e.y-cy-12, e.w*(e.hp/e.max), 5);
+            
+            // *** 視覺重組：血條強制顯示 ***
+            // 1. 先畫背景 (紅色)
+            ctx.fillStyle = '#ff0000';
+            ctx.fillRect(e.x-cx, e.y-cy-12, e.w, 6);
+            // 2. 蓋上當前血量 (鮮綠色)
+            ctx.fillStyle = '#00ff00';
+            ctx.fillRect(e.x-cx, e.y-cy-12, e.w * (e.hp / e.max), 6);
         });
 
         var mC = document.getElementById('mC'), mctx = mC.getContext('2d');
