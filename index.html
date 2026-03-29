@@ -2,22 +2,19 @@
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
-    <title>SUPER HUMAN 2026 - HUD & DEEP SOIL</title>
+    <title>SUPER HUMAN 2026 - ECO WORLD</title>
     <style>
         body, html { margin: 0; padding: 0; width: 100%; height: 100%; background: #000; overflow: hidden; font-family: sans-serif; user-select: none; }
         .page { position: fixed; inset: 0; z-index: 9999; display: flex; flex-direction: column; align-items: center; justify-content: center; background: #050505; color: #f1c40f; text-align: center; }
         .btn { padding: 18px 45px; font-size: 26px; cursor: pointer; margin: 10px; background: #f1c40f; border: 4px solid #fff; border-radius: 15px; font-weight: bold; color: #000; box-shadow: 0 6px 0 #b8860b; transition: 0.1s; outline: none; }
         .btn:active { transform: translateY(4px); box-shadow: 0 2px 0 #b8860b; }
         .in-box { padding: 15px; font-size: 24px; border: 4px solid #f1c40f; border-radius: 12px; background: #fff; color: #000; text-align: center; margin-bottom: 25px; width: 320px; outline: none; }
-        
         #p-brief { background: #111; color: #eee; padding: 50px; text-align: left; align-items: flex-start; border: 8px solid #f1c40f; box-sizing: border-box; overflow-y: auto; }
         .m-info { font-size: 22px; line-height: 1.6; margin-bottom: 30px; border-left: 5px solid #f1c40f; padding-left: 20px; }
-
         #hud { position: fixed; top: 15px; left: 15px; z-index: 1000; color: white; background: rgba(0,0,0,0.85); padding: 15px; border-radius: 12px; border: 2px solid #f1c40f; display: none; pointer-events: none; line-height: 1.6; }
         #esc-menu { position: fixed; inset: 0; z-index: 10000; display: none; flex-direction: column; align-items: center; justify-content: center; background: rgba(0,0,0,0.7); backdrop-filter: blur(8px); }
         canvas#g { display: none; position: absolute; top: 0; left: 0; z-index: 10; }
         .sel-box { color: #f1c40f; font-weight: bold; border-bottom: 2px solid #f1c40f; }
-        input[type=range] { width: 350px; cursor: pointer; }
     </style>
 </head>
 <body oncontextmenu="return false;">
@@ -30,37 +27,37 @@
 
     <div id="p-mode" class="page" style="display:none;">
         <h1>選擇模式</h1>
-        <button class="btn" onclick="setM(1)">👤 單人冒險</button>
+        <button class="btn" onclick="setM(1)">👤 單人模式</button>
         <button class="btn" onclick="showMulti()">👥 多人模式 (2-15人)</button>
     </div>
 
     <div id="p-multi" class="page" style="display:none;">
         <h1>設定小隊人數</h1>
         <h2 id="p-cnt" style="font-size:40px;">5 人</h2>
-        <input type="range" id="sld" min="2" max="15" value="5" oninput="document.getElementById('p-cnt').innerText=this.value+' 人'">
+        <input type="range" id="sld" min="2" max="15" value="5" oninput="document.getElementById('p-cnt').innerText=this.value+' 人'" style="width:350px;">
         <button class="btn" onclick="setM(document.getElementById('sld').value)">確認</button>
     </div>
 
     <div id="p-brief" class="page" style="display:none;">
-        <h1>任務說明單：SURVIVAL 2026</h1>
+        <h1>任務說明：ECO SURVIVAL</h1>
         <div class="m-info">
-            <p>● <b>地質：</b>草皮區下方覆蓋 5 層深厚泥土，適宜資源收集。</p>
-            <p>● <b>時間：</b>極慢速模式 (0.05x)。白晝將持續極長時間。</p>
-            <p>● <b>視覺：</b>所有生物頭頂現在都會顯示實時血量條。</p>
-            <p>● <b>操作：</b>1~8切換材料，A/D移動，Space跳躍，左鍵挖，右鍵蓋。</p>
+            <p>● <b>生物：</b>發現野豬、村民與古蹟。所有生物頭頂皆有血條。</p>
+            <p>● <b>地層：</b>草皮區下方精確分佈 5 層泥土。適合農耕與建築。</p>
+            <p>● <b>時間：</b>0.05x 極慢速，讓你盡情享受這片丘陵世界。</p>
+            <p>● <b>操作：</b>1~8鍵切換，滑鼠左鍵挖/右鍵蓋，ESC 暫停。</p>
         </div>
-        <button class="btn" onclick="goLive()">啟動系統</button>
+        <button class="btn" onclick="goLive()">啟動模擬</button>
     </div>
 
     <div id="esc-menu">
-        <h1 style="color:#f1c40f; font-size: 50px; margin-bottom: 30px;">暫停模擬</h1>
+        <h1 style="color:#f1c40f; font-size: 50px;">暫停暫停</h1>
         <button class="btn" onclick="toggleEsc()">➡️ 回到遊戲</button>
         <button class="btn" onclick="location.reload()" style="background:#555; color:white;">🚪 離開</button>
     </div>
 
     <div id="hud">
         🕒 <span id="tm-u">12:00</span> | 🏗️ <span id="cur-b" class="sel-box">石頭 (1)</span><br>
-        📍 海拔：<span id="alt-u">0</span> m | 🌧️ <span id="wt-u">晴</span>
+        ❤️ HP: <span id="p-hp-hud">100</span> | 🌧️ <span id="wt-u">晴</span>
     </div>
     <canvas id="g"></canvas>
 
@@ -90,23 +87,17 @@
     function getB(gx, gy) {
         if(world[gx+'_'+gy]!==undefined) return world[gx+'_'+gy];
         var absGx = Math.abs(gx);
-        var hills = Math.sin(gx * 0.3) * 6 + Math.cos(gx * 0.15) * 8;
-        var mountains = Math.sin(gx * 0.05) * 20 + Math.abs(Math.cos(gx * 0.02)) * 30;
-        var cliff = (absGx > 150) ? Math.floor((absGx - 150) / 4) * 15 : 0;
-        var f = Math.floor(22 + hills + mountains + cliff);
+        var f = Math.floor(22 + Math.sin(gx*0.3)*6 + Math.cos(gx*0.15)*8 + (absGx>150?(absGx-150)/4:0));
         if (f > 110) f = 110; 
-
         if (gy < f) return 0;
         if (gy === f) {
-            if(Math.abs(gx - Math.floor(p.x/T)) > 25 && gx % 60 === 0 && Math.random() < 0.3) {
+            // 隨機地表建築生成
+            if(absGx > 30 && gx % 60 === 0 && Math.random() < 0.3) {
                 if(gx % 120 === 0) generateVillage(gx, gy-1); else generateRuins(gx, gy-1);
             }
-            if (gy >= 75) return 7;
-            if (absGx < 180) return 2;
-            return 1;
+            return (gy >= 75) ? 7 : (absGx < 180 ? 2 : 1);
         }
-        // 草皮下 5 層土
-        if (gy > f && gy <= f + 5 && absGx < 180 && f < 75) return 3; 
+        if (gy > f && gy <= f + 5 && absGx < 180 && f < 75) return 3; // 泥土層
         return 1;
     }
 
@@ -123,7 +114,6 @@
     }
 
     function toggleEsc() { if(live) { esc = !esc; document.getElementById('esc-menu').style.display = esc ? 'flex' : 'none'; } }
-    
     window.addEventListener('contextmenu', e => e.preventDefault());
 
     window.onmousedown=function(e){
@@ -147,19 +137,17 @@
     function loop() {
         if(!live) return;
         if(esc) { requestAnimationFrame(loop); return; } 
-
         var cvs=document.getElementById('g'), ctx=cvs.getContext('2d');
         ticks = (ticks + 0.05) % 1440; 
-        
         if(Math.random() < 0.001) isRaining = !isRaining;
         document.getElementById('wt-u').innerText = isRaining ? "雨" : "晴";
 
         spawnTimer++;
-        if(spawnTimer > 1500) { 
+        if(spawnTimer > 1500) { // 隨機生成動物或生物
             var sx = p.x + (Math.random() > 0.5 ? 800 : -800);
             var isNight = (ticks > 1050 || ticks < 350);
             if(isNight) spawn('zombie', sx, -1000);
-            else spawn(Math.random()<0.5?'animal':'villager', sx, -1000);
+            else spawn(Math.random()<0.4?'animal':'villager', sx, -1000);
             spawnTimer = 0;
         }
 
@@ -167,7 +155,6 @@
             e.vy += 0.8; e.y += e.vy;
             if(check(e.x, e.y)) { while(check(e.x, e.y)) e.y -= 0.5; e.gr = true; e.vy = 0; } else e.gr = false;
             if(e.dmgCd > 0) e.dmgCd--;
-
             if(e === p) {
                 var dx = (keys['KeyD']?7:0) - (keys['KeyA']?7:0);
                 if(dx!==0){ p.x += dx; if(check(p.x, p.y)) p.x -= dx; }
@@ -175,9 +162,7 @@
             } else {
                 if(e.type === 'zombie') {
                     e.dir = (p.x > e.x ? 1 : -1); e.x += e.dir * 1.5;
-                    if(Math.abs(p.x - e.x) < 25 && Math.abs(p.y - e.y) < 25 && p.dmgCd <= 0) {
-                        p.hp -= 5; p.dmgCd = 50;
-                    }
+                    if(Math.abs(p.x - e.x) < 25 && Math.abs(p.y - e.y) < 25 && p.dmgCd <= 0) { p.hp -= 5; p.dmgCd = 50; }
                 } else {
                     if(Math.random() < 0.01) e.dir *= -1;
                     e.x += e.dir * 1.1;
@@ -187,9 +172,8 @@
         });
 
         if(p.hp <= 0) { alert("模擬結束。"); location.reload(); }
+        document.getElementById('p-hp-hud').innerText = Math.floor(p.hp);
         document.getElementById('tm-u').innerText = Math.floor(ticks/60).toString().padStart(2,'0')+":"+Math.floor(ticks%60).toString().padStart(2,'0');
-        document.getElementById('alt-u').innerText = Math.floor(Math.abs(p.y/T)*32);
-        
         render(ctx, cvs);
         requestAnimationFrame(loop);
     }
@@ -198,15 +182,12 @@
         var isNight = (ticks > 1050 || ticks < 350);
         ctx.fillStyle = isNight ? '#050510' : (isRaining ? '#576574' : '#87ceeb');
         ctx.fillRect(0,0,cvs.width,cvs.height);
-        
         var cx=p.x-cvs.width/2, cy=p.y-cvs.height/2;
         for(var x=Math.floor(cx/T);x<=Math.ceil((cx+cvs.width)/T);x++){
             for(var y=Math.floor(cy/T);y<=Math.ceil((cy+cvs.height)/T);y++){
-                var b=getB(x,y); 
-                if(b>0){ ctx.fillStyle=B_COLORS[b]; ctx.fillRect(x*T-cx,y*T-cy,T+0.5,T+0.5); }
+                var b=getB(x,y); if(b>0){ ctx.fillStyle=B_COLORS[b]; ctx.fillRect(x*T-cx,y*T-cy,T+0.5,T+0.5); }
             }
         }
-
         if(isRaining) {
             ctx.strokeStyle = 'rgba(120,120,255,0.4)'; ctx.lineWidth = 1;
             for(var i=0; i<30; i++) {
@@ -214,20 +195,12 @@
                 ctx.beginPath(); ctx.moveTo(rx, ry); ctx.lineTo(rx-5, ry+15); ctx.stroke();
             }
         }
-
         ents.concat([p]).forEach(function(e) {
-            // 生物繪製
             ctx.fillStyle=e===p?'#e67e22':(e.type==='zombie'?'#27ae60':(e.type==='villager'?'#9b59b6':(e.type==='animal'?'#ff9ff3':'#3498db')));
             ctx.fillRect(e.x-cx,e.y-cy,e.w,e.h);
-
-            // --- 頭頂血量條 ---
             var barW = 30, barH = 5;
-            var bx = e.x - cx + (e.w/2) - (barW/2);
-            var by = e.y - cy - 12;
-            ctx.fillStyle = '#333'; ctx.fillRect(bx, by, barW, barH); // 背景
-            ctx.fillStyle = '#2ecc71'; ctx.fillRect(bx, by, barW * (e.hp/e.max), barH); // 血量
-            
-            if(e.dmgCd > 0) { ctx.fillStyle='rgba(255,0,0,0.3)'; ctx.fillRect(e.x-cx,e.y-cy,e.w,e.h); }
+            ctx.fillStyle = '#333'; ctx.fillRect(e.x-cx+(e.w/2)-(barW/2), e.y-cy-12, barW, barH);
+            ctx.fillStyle = '#2ecc71'; ctx.fillRect(e.x-cx+(e.w/2)-(barW/2), e.y-cy-12, barW*(e.hp/e.max), barH);
         });
     }
 </script>
