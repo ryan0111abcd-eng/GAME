@@ -2,22 +2,16 @@
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
-    <title>SUPER HUMAN 2026 - FINAL</title>
+    <title>SUPER HUMAN 2026</title>
     <style>
         body, html { margin: 0; padding: 0; width: 100%; height: 100%; background: #000; overflow: hidden; font-family: sans-serif; user-select: none; }
-        .page { position: fixed; inset: 0; z-index: 9999; display: flex; flex-direction: column; align-items: center; justify-content: center; background: #0a0a0a; color: #f1c40f; text-align: center; }
+        .page { position: fixed; inset: 0; z-index: 9999; display: flex; flex-direction: column; align-items: center; justify-content: center; background: #050505; color: #f1c40f; text-align: center; }
         .btn { padding: 18px 45px; font-size: 26px; cursor: pointer; margin: 10px; background: #f1c40f; border: 4px solid #fff; border-radius: 15px; font-weight: bold; color: #000; box-shadow: 0 6px 0 #b8860b; transition: 0.1s; }
         .btn:active { transform: translateY(4px); box-shadow: 0 3px 0 #b8860b; }
         .in-box { padding: 15px; font-size: 24px; border: 3px solid #f1c40f; border-radius: 10px; background: #000; color: #f1c40f; text-align: center; margin-bottom: 20px; width: 380px; outline: none; }
-        
-        /* 說明單樣式 */
-        .rules-card { background: #1a1a1a; padding: 30px; border: 3px solid #f1c40f; border-radius: 20px; max-width: 500px; text-align: left; color: #fff; line-height: 1.6; }
-        .rules-card h2 { text-align: center; color: #f1c40f; margin-top: 0; }
-        .rules-card ul { padding-left: 20px; }
-        .rules-card li { margin-bottom: 10px; }
-
+        .rules-card { background: #111; padding: 30px; border: 2px solid #f1c40f; border-radius: 20px; max-width: 500px; text-align: left; color: #fff; line-height: 1.6; }
         #hud { position: fixed; top: 15px; left: 15px; z-index: 1000; color: white; background: rgba(0,0,0,0.8); padding: 12px; border-radius: 10px; border: 2px solid #f1c40f; display: none; pointer-events: none; }
-        #mini-map { position: fixed; top: 15px; right: 15px; width: 150px; height: 150px; border: 3px solid #fff; border-radius: 50%; z-index: 1000; display: none; background: rgba(0,0,0,0.5); overflow: hidden; }
+        #mini-map { position: fixed; top: 15px; right: 15px; width: 160px; height: 160px; border: 3px solid #fff; border-radius: 50%; z-index: 1000; display: none; background: rgba(0,0,0,0.5); overflow: hidden; }
         #esc-menu { position: fixed; inset: 0; z-index: 20000; display: none; flex-direction: column; align-items: center; justify-content: center; background: rgba(0,0,0,0.9); }
         canvas#g { display: none; position: absolute; top: 0; left: 0; z-index: 10; }
     </style>
@@ -25,16 +19,15 @@
 <body>
 
     <div id="p-auth" class="page">
-        <h1 style="font-size: 40px;">SUPER HUMAN 系統鎖定</h1>
-        <p style="color: #666;">請輸入存取金鑰</p>
-        <input type="password" id="pw" class="in-box">
-        <button class="btn" onclick="auth()">驗證金鑰</button>
+        <h1 style="font-size: 40px; letter-spacing: 5px;">SUPER HUMAN SYSTEM</h1>
+        <input type="password" id="pw" class="in-box" placeholder="ACCESS KEY">
+        <button class="btn" onclick="auth()">VERIFY</button>
     </div>
 
     <div id="p-mode" class="page" style="display:none;">
         <h1>存取許可</h1>
         <button class="btn" onclick="setM(1)">👤 單人模式</button>
-        <button class="btn" onclick="document.getElementById('p-mode').style.display='none';document.getElementById('p-set').style.display='flex';">👥 小隊模式</button>
+        <button class="btn" onclick="document.getElementById('p-mode').style.display='none';document.getElementById('p-set').style.display='flex';">👥 多人連線 (AI隊友)</button>
     </div>
 
     <div id="p-set" class="page" style="display:none;">
@@ -46,27 +39,24 @@
 
     <div id="p-rules" class="page" style="display:none;">
         <div class="rules-card">
-            <h2>📜 遊戲說明單</h2>
-            <ul>
-                <li><b>移動：</b> 使用鍵盤 <span style="color:#f1c40f;">WASD</span> 控制方向。</li>
-                <li><b>跳躍：</b> 按下 <span style="color:#f1c40f;">空白鍵</span>。</li>
-                <li><b>挖掘：</b> 使用 <span style="color:#f1c40f;">滑鼠左鍵</span> 點擊方塊。</li>
-                <li><b>建造：</b> 使用 <span style="color:#f1c40f;">滑鼠右鍵</span> 放置方塊。</li>
-                <li><b>選單：</b> 按下 <span style="color:#f1c40f;">ESC</span> 鍵可暫停或離開遊戲。</li>
-                <li><b>小隊 AI：</b> 隊友會自主移動與挖掘，並在玩家受傷時提供保護。</li>
-            </ul>
+            <h2 style="text-align:center; color:#f1c40f;">📜 探索指南</h2>
+            ● <b>WASD</b>：移動 | <b>空白鍵</b>：跳躍<br>
+            ● <b>左鍵</b>：挖掘 | <b>右鍵</b>：建築<br>
+            ● <b>ESC</b>：選單 (按第二次關閉)<br><br>
+            <span style="color:#3498db;">● <b>獨立 AI：</b></span><br>
+            隊友現在是獨立個體，他們會自己去遠方挖礦、蓋房子，不再一直跟著你。但若你在他們附近受傷，他們仍會過來支援。
         </div>
         <button class="btn" onclick="goLive()">進入世界</button>
     </div>
 
     <div id="esc-menu">
-        <h1 style="color:#f1c40f;">暫停選單</h1>
+        <h1 style="color:#f1c40f;">暫停</h1>
         <button class="btn" onclick="location.reload()">🚪 離開遊戲</button>
-        <button class="btn" onclick="toggleEsc()" style="background:#666; color:white;">⬅️ 返回世界</button>
+        <button class="btn" onclick="toggleEsc()" style="background:#555; color:white;">⬅️ 返回</button>
     </div>
 
     <div id="hud">❤️ HP: <span id="hp-u">100</span> | 🕒 <span id="tm-u">12:00</span></div>
-    <div id="mini-map"><canvas id="mC" width="150" height="150"></canvas></div>
+    <div id="mini-map"><canvas id="mC" width="160" height="160"></canvas></div>
     <canvas id="g"></canvas>
 
 <script>
@@ -74,7 +64,7 @@
     var p = { x: 0, y: -800, w: 22, h: 42, vx: 0, vy: 0, hp: 100, gr: false, max: 100 };
     var T = 32;
 
-    function auth() { if(document.getElementById('pw').value.trim()==='ryan0111407'){document.getElementById('p-auth').style.display='none';document.getElementById('p-mode').style.display='flex';} else { alert("金鑰錯誤"); } }
+    function auth() { if(document.getElementById('pw').value.trim()==='ryan0111407'){document.getElementById('p-auth').style.display='none';document.getElementById('p-mode').style.display='flex';} else { alert("ACCESS DENIED"); } }
     
     function showRules(n) {
         sSize = n;
@@ -89,37 +79,18 @@
         document.getElementById('mini-map').style.display='block';
         var cvs=document.getElementById('g'); cvs.style.display='block';
         cvs.width=window.innerWidth; cvs.height=window.innerHeight;
-        for(var i=0; i<sSize-1; i++) spawn('ally', p.x + (i*50 - 100));
+        // 生成隊友，分散在世界各地
+        for(var i=0; i<sSize-1; i++) spawn('ally', p.x + (Math.random()-0.5)*2000);
         live=true; loop();
     }
 
-    function spawn(t, x) { ents.push({ type: t, x: x, y: -800, w: 22, h: 42, vx: 0, vy: 0, hp: 100, max: 100, dir: 1, mineCd: 0 }); }
+    function spawn(t, x) { ents.push({ type: t, x: x, y: -800, w: 22, h: 42, vx: 0, vy: 0, hp: 100, max: 100, dir: (Math.random()>0.5?1:-1), actionCd: 0 }); }
     function toggleEsc() { if(!live)return; esc=!esc; document.getElementById('esc-menu').style.display=esc?'flex':'none'; }
 
-    // 地形方塊邏輯
     function getB(gx, gy) {
         if(world[gx+'_'+gy]!==undefined) return world[gx+'_'+gy];
-        var x=Math.abs(gx);
         var fBase=Math.floor(8+Math.sin(gx*0.15)*6); 
-        var depth = gy - fBase;
-        if(gy < fBase) return 0;
-        if(depth === 0) return 2; // 草
-        if(depth < 4) return 3; // 泥土
-        if(Math.random()<0.03) return 9; // 煤
-        if(depth > 12 && Math.random()<0.02) return 10; // 鐵
-        return 1; // 石頭
-    }
-
-    function getBC(b, gy) {
-        switch(b){
-            case 1: return `rgb(120,120,120)`; // 石
-            case 2: return `rgb(46,204,113)`; // 草
-            case 3: return `rgb(121,85,72)`; // 泥
-            case 9: return `#2c3e50`; // 煤
-            case 10: return `#dcdde1`; // 鐵
-            case 4: return `#f1c40f`; // 建築沙
-            default: return null;
-        }
+        return gy < fBase ? 0 : (gy === fBase ? 2 : 1);
     }
 
     function check(x,y) { for(var i=Math.floor(x/T);i<=Math.floor((x+22)/T);i++)for(var j=Math.floor(y/T);j<=Math.floor((y+42)/T);j++)if(getB(i,j)>0)return true; return false; }
@@ -129,7 +100,7 @@
         var cvs=document.getElementById('g');
         var gx=Math.floor((e.clientX+(p.x-cvs.width/2))/T), gy=Math.floor((e.clientY+(p.y-cvs.height/2))/T);
         if(e.button===0){if(getB(gx,gy)>0)world[gx+'_'+gy]=0;}
-        else if(e.button===2){if(getB(gx,gy)===0)world[gx+'_'+gy]=4;}
+        else if(e.button===2){if(getB(gx,gy)===0)world[gx+'_'+gy]=3;}
     };
 
     window.onkeydown=function(e){if(e.code==='Escape')toggleEsc(); keys[e.code]=true;};
@@ -144,21 +115,30 @@
         [p].concat(ents).forEach(function(e) {
             e.vy+=0.8; e.y+=e.vy;
             if(check(e.x,e.y)){if(e.vy>0){while(check(e.x,e.y))e.y-=0.5;e.gr=true;}e.vy=0;}else e.gr=false;
+            
             if(e===p){
                 var dx=(keys['KeyD']?5:0)-(keys['KeyA']?5:0);
                 if(dx!==0){p.x+=dx; if(check(p.x,p.y))p.x-=dx;}
                 if(keys['Space']&&p.gr)p.vy=-14;
             } else {
-                if(e.type==='ally'){
-                    e.mineCd++;
-                    if(Math.random()<0.02) e.dir*=-1;
-                    e.x+=e.dir*1.2;
-                    if(check(e.x,e.y)){e.x-=e.dir*1.2; e.vy=-10; e.dir*=-1;}
-                    if(e.mineCd>300 && Math.random()<0.1){ 
-                        var ax=Math.floor((e.x+e.dir*20)/T), ay=Math.floor(e.y/T);
-                        if(getB(ax,ay)>0) world[ax+'_'+ay]=0; e.mineCd=0;
+                // --- 獨立 AI 邏輯 ---
+                e.actionCd++;
+                
+                // 1. 隨機移動與轉向 (不再強制跟隨玩家)
+                if(Math.random() < 0.01) e.dir *= -1;
+                e.x += e.dir * 2;
+                
+                // 2. 遇牆自主跳躍
+                if(check(e.x + e.dir*10, e.y) && e.gr) e.vy = -12;
+                
+                // 3. 自主行為：每隔一段時間挖掘或放置
+                if(e.actionCd > 500) { 
+                    var ax=Math.floor((e.x + e.dir*32)/T), ay=Math.floor(e.y/T) + 1;
+                    if(Math.random() < 0.3) {
+                        if(getB(ax, ay) > 0) world[ax+'_'+ay] = 0; // 挖掘
+                        else world[ax+'_'+ay] = 3; // 建築
                     }
-                    if(Math.abs(e.x-p.x)>800) e.x+=(p.x>e.x?1.5:-1.5);
+                    e.actionCd = 0;
                 }
             }
         });
@@ -175,23 +155,24 @@
         for(var x=Math.floor(cx/T);x<=Math.ceil((cx+cvs.width)/T);x++){
             for(var y=Math.floor(cy/T);y<=Math.ceil((cy+cvs.height)/T);y++){
                 var b=getB(x,y); 
-                if(b>0){ ctx.fillStyle=getBC(b,y); ctx.fillRect(x*T-cx,y*T-cy,T+0.5,T+0.5); }
+                if(b>0){ ctx.fillStyle=b===2?"#2ecc71":"#795548"; ctx.fillRect(x*T-cx,y*T-cy,T+0.5,T+0.5); }
             }
         }
         [p].concat(ents).forEach(function(e) {
             ctx.fillStyle=e===p?'#e67e22':'#3498db';
             ctx.fillRect(e.x-cx,e.y-cy,e.w,e.h);
+            // 綠色血條
             ctx.fillStyle='#ff0000'; ctx.fillRect(e.x-cx,e.y-cy-12,e.w,6);
             ctx.fillStyle='#00ff00'; ctx.fillRect(e.x-cx,e.y-cy-12,e.w*(e.hp/e.max),6);
         });
 
         var mctx=document.getElementById('mC').getContext('2d');
-        mctx.fillStyle='#000'; mctx.fillRect(0,0,150,150);
-        mctx.save(); mctx.translate(75,75);
+        mctx.fillStyle='#000'; mctx.fillRect(0,0,160,160);
+        mctx.save(); mctx.translate(80,80);
         [p].concat(ents).forEach(function(e){
             mctx.fillStyle=e===p?'#fff':'#3498db';
-            var dx=(e.x-p.x)*0.1, dy=(e.y-p.y)*0.1;
-            if(dx*dx+dy*dy<70*70){mctx.beginPath(); mctx.arc(dx,dy,3,0,7); mctx.fill();}
+            var dx=(e.x-p.x)*0.08, dy=(e.y-p.y)*0.08;
+            if(dx*dx+dy*dy<75*75){mctx.beginPath(); mctx.arc(dx,dy,3.5,0,7); mctx.fill();}
         });
         mctx.restore();
     }
