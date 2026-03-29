@@ -2,7 +2,7 @@
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
-    <title>SUPER HUMAN 2026 - 3000M PEAK</title>
+    <title>SUPER HUMAN 2026 - CLIFF EDITION</title>
     <style>
         body, html { margin: 0; padding: 0; width: 100%; height: 100%; background: #000; overflow: hidden; font-family: sans-serif; user-select: none; }
         .page { position: fixed; inset: 0; z-index: 9999; display: flex; flex-direction: column; align-items: center; justify-content: center; background: #050505; color: #f1c40f; text-align: center; }
@@ -14,9 +14,7 @@
         .sel-box { color: #f1c40f; font-weight: bold; border-bottom: 2px solid #f1c40f; }
     </style>
 </head>
-<body>
-
-    <div id="p-auth" class="page">
+<body oncontextmenu="return false;"> <div id="p-auth" class="page">
         <h1>SUPER HUMAN SYSTEM</h1>
         <input type="password" id="pw" class="in-box" style="padding:15px; font-size:24px; margin-bottom:20px; width:300px; text-align:center;" placeholder="ACCESS KEY">
         <button class="btn" onclick="auth()">VERIFY</button>
@@ -51,7 +49,6 @@
 
 <script>
     var live = false, esc = false, world = {}, keys = {}, ents = [], ticks = 600, sSize = 1;
-    // 起點在地面海拔約 10m
     var p = { x: 0, y: -320, w: 22, h: 42, vx: 0, vy: 0, hp: 100, max: 100, gr: false };
     var T = 32, selB = 2;
 
@@ -73,21 +70,19 @@
 
     function spawn(t, x, y) { ents.push({ type: t, x: x, y: y, w: 22, h: 42, vx: 0, vy: 0, hp: 100, max: 100, dir: 1 }); }
 
-    // --- 地形引擎：大幅強化坡度，實現 3000M 轉折 ---
+    // --- 地形引擎：垂直懸崖邏輯 ---
     function getB(gx, gy) {
         if(world[gx+'_'+gy]!==undefined) return world[gx+'_'+gy];
         
-        // 使用更劇烈的數學函數：向右走海拔急遽增加
-        var xVal = Math.abs(gx * 0.015); 
-        var noise = Math.abs(Math.sin(gx * 0.1)) * 10;
-        
-        // 海拔高度公式 (海拔 = f * 32)
-        // 當 gx 增加，f 會迅速攀升。2500m 對應 f ≒ 78
-        var f = Math.floor(8 + (Math.pow(xVal, 2) * 5) + noise); 
+        var xVal = Math.abs(gx * 0.02); 
+        var f = Math.floor(8 + (Math.pow(xVal, 2.5) * 0.5)); // 平緩上升
 
-        // 垂直判定：海拔超過 2500m 時 (f > 78)，坡度變為 90 度垂直
-        if(f > 78) {
-            f = 78 + (Math.abs(Math.sin(gx * 0.5)) * 100); 
+        // 垂直懸崖觸發 (海拔超過約 500m 開始出現階梯狀垂直)
+        if (f > 15) {
+            // 讓 f 每 5 個單位跳躍一次，形成垂直牆
+            f = Math.floor(f / 5) * 5; 
+            // 海拔超過 2500m (f=78) 時變成完全垂直的頂峰
+            if (f > 78) f = 78 + (Math.abs(Math.sin(Math.floor(gx/3))) * 100);
         }
 
         if (gy < f) return 0;
@@ -100,6 +95,9 @@
     function check(x,y) { for(var i=Math.floor(x/T);i<=Math.floor((x+22)/T);i++)for(var j=Math.floor(y/T);j<=Math.floor((y+42)/T);j++)if(getB(i,j)>0)return true; return false; }
 
     function toggleEsc() { if(!live) return; esc = !esc; document.getElementById('esc-menu').style.display = esc ? 'flex' : 'none'; }
+
+    // 禁用右鍵預設選單的 JS 處理
+    window.addEventListener('contextmenu', e => e.preventDefault());
 
     window.onmousedown=function(e){
         if(!live || esc) return;
