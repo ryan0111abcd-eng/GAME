@@ -2,21 +2,23 @@
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
-    <title>SUPER HUMAN 2026 - ECO SYSTEM</title>
+    <title>SUPER HUMAN 2026 - GEOLOGY & SLOW TIME</title>
     <style>
         body, html { margin: 0; padding: 0; width: 100%; height: 100%; background: #000; overflow: hidden; font-family: sans-serif; user-select: none; }
         .page { position: fixed; inset: 0; z-index: 9999; display: flex; flex-direction: column; align-items: center; justify-content: center; background: #050505; color: #f1c40f; text-align: center; }
         .btn { padding: 18px 45px; font-size: 26px; cursor: pointer; margin: 10px; background: #f1c40f; border: 4px solid #fff; border-radius: 15px; font-weight: bold; color: #000; box-shadow: 0 6px 0 #b8860b; transition: 0.1s; outline: none; }
         .btn:active { transform: translateY(4px); box-shadow: 0 2px 0 #b8860b; }
         .in-box { padding: 15px; font-size: 24px; border: 4px solid #f1c40f; border-radius: 12px; background: #fff; color: #000; text-align: center; margin-bottom: 25px; width: 320px; outline: none; }
+        
         #p-brief { background: #111; color: #eee; padding: 50px; text-align: left; align-items: flex-start; overflow-y: auto; border: 10px solid #f1c40f; box-sizing: border-box; }
         #p-brief h1 { color: #f1c40f; font-size: 42px; text-shadow: 2px 2px #000; }
         .m-info { font-size: 22px; line-height: 1.5; margin-bottom: 30px; border-left: 5px solid #f1c40f; padding-left: 20px; }
+
         #hud { position: fixed; top: 15px; left: 15px; z-index: 1000; color: white; background: rgba(0,0,0,0.8); padding: 15px; border-radius: 12px; border: 2px solid #f1c40f; display: none; pointer-events: none; line-height: 1.6; }
         #esc-menu { position: fixed; inset: 0; z-index: 10000; display: none; flex-direction: column; align-items: center; justify-content: center; background: rgba(0,0,0,0.7); backdrop-filter: blur(8px); }
         canvas#g { display: none; position: absolute; top: 0; left: 0; z-index: 10; }
         .sel-box { color: #f1c40f; font-weight: bold; border-bottom: 2px solid #f1c40f; }
-        input[type=range] { width: 300px; cursor: pointer; }
+        input[type=range] { width: 350px; cursor: pointer; }
     </style>
 </head>
 <body oncontextmenu="return false;">
@@ -30,30 +32,30 @@
     <div id="p-mode" class="page" style="display:none;">
         <h1>選擇模式</h1>
         <button class="btn" onclick="setM(1)">👤 單人模式</button>
-        <button class="btn" onclick="showMultiSelect()">👥 多人連線 (2-15人)</button>
+        <button class="btn" onclick="showMulti()">👥 多人模式 (2-15人)</button>
     </div>
 
     <div id="p-multi" class="page" style="display:none;">
         <h1>設定小隊人數</h1>
-        <h2 id="p-count" style="font-size: 40px;">5 人</h2>
-        <input type="range" id="member-sld" min="2" max="15" value="5" oninput="document.getElementById('p-count').innerText=this.value+' 人'">
-        <button class="btn" onclick="setM(document.getElementById('member-sld').value)">確認小隊</button>
+        <h2 id="p-cnt" style="font-size:40px;">5 人</h2>
+        <input type="range" id="sld" min="2" max="15" value="5" oninput="document.getElementById('p-cnt').innerText=this.value+' 人'">
+        <button class="btn" onclick="setM(document.getElementById('sld').value)">啟動說明</button>
     </div>
 
     <div id="p-brief" class="page" style="display:none;">
-        <h1>系統說明：SURVIVAL 2026</h1>
+        <h1>任務說明單：SURVIVAL 2026</h1>
         <div class="m-info">
-            <p>● <b>地質偵測</b>：草皮下方現在覆蓋著肥沃泥土層，深處為岩石。</p>
-            <p>● <b>生態警報</b>：探測到夜晚有具攻擊性的殭屍。區域內散佈古蹟、村莊與動物。</p>
-            <p>● <b>模擬時間</b>：流速設定為 <b>0.5x 慢速</b>。日夜交替將更緩慢。</p>
-            <p>● <b>操作</b>：A/D移動，Space跳躍，滑鼠左鍵挖掘，右鍵建築，1-8切換材料。</p>
+            <p>● <b>地層演算法</b>：已實踐地表物理，草皮下方現在模擬 5 層泥土厚度。</p>
+            <p>● <b>快捷鍵</b>：使用鍵盤數字鍵 <b>1 ~ 8</b> 快速切換建築材料。</p>
+            <p>● <b>環境時鐘</b>：模擬流速設定為 <b>0.5x</b>。日夜變換更為緩慢。</p>
+            <p>● <b>生存警告</b>：入夜後殭屍將會生成並追逐玩家。注意保持 HP 高度。</p>
         </div>
-        <button class="btn" onclick="goLive()">啟動系統</button>
+        <button class="btn" onclick="goLive()">進入世界</button>
     </div>
 
     <div id="esc-menu">
-        <h1 style="color:#f1c40f; font-size: 50px; margin-bottom: 30px;">暫停暫停</h1>
-        <button class="btn" onclick="toggleEsc()">➡️ 回到遊戲</button>
+        <h1 style="color:#f1c40f; font-size: 50px;">暫停模擬</h1>
+        <button class="btn" onclick="toggleEsc()">➡️ 繼續</button>
         <button class="btn" onclick="location.reload()" style="background:#555; color:white;">🚪 離開</button>
     </div>
 
@@ -66,35 +68,35 @@
 
 <script>
     var live = false, esc = false, world = {}, keys = {}, ents = [], ticks = 600, sSize = 1, isRaining = false;
-    var p = { x: 0, y: -400, w: 22, h: 42, vx: 0, vy: 0, hp: 100, max: 100, gr: false };
+    var p = { x: 0, y: -500, w: 22, h: 42, vx: 0, vy: 0, hp: 100, max: 100, gr: false };
     var T = 32, selB = 1, spawnTimer = 0;
 
     const B_NAMES = { 1:'石頭', 2:'草地', 3:'泥土', 4:'沙子', 5:'木頭', 6:'葉子', 7:'雪地', 8:'水' };
     const B_COLORS = { 1:'#7f8c8d', 2:'#2ecc71', 3:'#795548', 4:'#f1c40f', 5:'#5d4037', 6:'#27ae60', 7:'#ecf0f1', 8:'#3498db' };
 
     function auth() { if(document.getElementById('pw').value.trim()==='ryan0111407'){document.getElementById('p-auth').style.display='none';document.getElementById('p-mode').style.display='flex';} }
-    function showMultiSelect() { document.getElementById('p-mode').style.display='none'; document.getElementById('p-multi').style.display='flex'; }
-    function setM(n) { sSize = parseInt(n); document.getElementById('p-mode').style.display='none'; document.getElementById('p-multi').style.display='none'; document.getElementById('p-brief').style.display='flex'; }
+    function showMulti() { document.getElementById('p-mode').style.display='none'; document.getElementById('p-multi').style.display='flex'; }
+    function setM(n) { sSize = parseInt(n); document.querySelectorAll('.page').forEach(p=>p.style.display='none'); document.getElementById('p-brief').style.display='flex'; }
 
     function goLive() {
         document.getElementById('p-brief').style.display='none';
         document.getElementById('hud').style.display='block';
         var cvs=document.getElementById('g'); cvs.style.display='block';
         cvs.width=window.innerWidth; cvs.height=window.innerHeight;
-        for(var i=0; i<sSize-1; i++) spawn('ally', p.x + (i*60) - 120, -400);
+        for(var i=0; i<sSize-1; i++) spawn('ally', p.x + (i*60) - 120, -600);
         live=true; loop();
     }
     
-    function spawn(t, x, y) { ents.push({ type: t, x: x, y: y, w: 22, h: 42, vx: 0, vy: 0, hp: 100, max: 100, dir: 1, damageCd: 0 }); }
+    function spawn(t, x, y) { ents.push({ type: t, x: x, y: y, w: 22, h: 42, vx: 0, vy: 0, hp: 100, max: 100, dir: 1, dmgCd: 0 }); }
 
-    // --- 地形生成引擎：草皮下要有土 ---
+    // --- 地形引擎：層次地質系統 ---
     function getB(gx, gy) {
         if(world[gx+'_'+gy]!==undefined) return world[gx+'_'+gy];
         var absGx = Math.abs(gx);
         
-        // 核心起伏
+        // 生成高度曲線 (丘陵 + 山地)
         var hills = Math.sin(gx * 0.3) * 6 + Math.cos(gx * 0.15) * 8;
-        var mountains = Math.sin(gx * 0.05) * 22 + Math.abs(Math.cos(gx * 0.02)) * 35;
+        var mountains = Math.sin(gx * 0.05) * 20 + Math.abs(Math.cos(gx * 0.02)) * 30;
         var cliff = (absGx > 150) ? Math.floor((absGx - 150) / 4) * 15 : 0;
         var f = Math.floor(18 + hills + mountains + cliff);
         if (f > 110) f = 110; 
@@ -102,22 +104,23 @@
         if (gy < f) return 0; // 空氣
         
         if (gy === f) {
-            // 視野外生成建築
+            // 在視野外生成村莊或古蹟
             if(Math.abs(gx - Math.floor(p.x/T)) > 25 && gx % 60 === 0 && Math.random() < 0.3) {
                 if(gx % 120 === 0) generateVillage(gx, gy-1);
                 else generateRuins(gx, gy-1);
             }
-            if (gy >= 80) return 7; // 雪地
-            if (absGx < 200) return 2; // 草皮
-            return 1; // 遠處石頭
+            if (gy >= 75) return 7; // 雪頂
+            if (absGx < 180) return 2; // 地表草皮
+            return 1; // 石頭
         }
         
-        // --- 地層結構：草皮下面要有土 (ID: 3) ---
+        // --- 核心更新：草皮下面要有泥土 (ID: 3) ---
         if (gy > f && gy < f + 5) {
-            if (absGx < 200 && gy < 80) return 3; // 泥土層
+            // 只有在原本地表是草皮且非雪地的地方生成泥土層
+            if (absGx < 180 && gy < 75) return 3; 
         }
         
-        return 1; // 深層全部是石頭
+        return 1; // 其餘地層深處全部是石頭
     }
 
     function generateVillage(gx, gy) {
@@ -133,21 +136,23 @@
     }
 
     function toggleEsc() { if(live) { esc = !esc; document.getElementById('esc-menu').style.display = esc ? 'flex' : 'none'; } }
+    
     window.addEventListener('contextmenu', e => e.preventDefault());
 
     window.onmousedown=function(e){
         if(!live || esc) return;
         var cvs=document.getElementById('g');
         var gx=Math.floor((e.clientX+(p.x-cvs.width/2))/T), gy=Math.floor((e.clientY+(p.y-cvs.height/2))/T);
-        if(e.button===0) world[gx+'_'+gy]=0;
-        else if(e.button===2) world[gx+'_'+gy]=selB; 
+        if(e.button===0) world[gx+'_'+gy]=0; // 左鍵挖掘
+        else if(e.button===2) world[gx+'_'+gy]=selB; // 右鍵建築
     };
 
     window.onkeydown=function(e){
         if(e.code === 'Escape') toggleEsc();
+        // 數字鍵 1-8 切換材料
         if(!esc && e.keyCode >= 49 && e.keyCode <= 56) {
             selB = e.keyCode - 48; 
-            document.getElementById('cur-b').innerText = B_NAMES[selB];
+            document.getElementById('cur-b').innerText = B_NAMES[selB] + " (" + selB + ")";
         }
         keys[e.code]=true;
     };
@@ -158,14 +163,14 @@
         if(esc) { requestAnimationFrame(loop); return; } 
 
         var cvs=document.getElementById('g'), ctx=cvs.getContext('2d');
-        ticks = (ticks + 0.5) % 1440; // 時間調成 0.5 (緩慢)
+        ticks = (ticks + 0.5) % 1440; // 時間速度設定為 0.5
         
         if(Math.random() < 0.001) isRaining = !isRaining;
-        document.getElementById('wt-u').innerText = isRaining ? "下雨" : "晴朗";
+        document.getElementById('wt-u').innerText = isRaining ? "雨" : "晴";
 
         spawnTimer++;
-        if(spawnTimer > 1200) { // 配合 0.5 倍速，生成 CD 拉長
-            var sx = p.x + (Math.random() > 0.5 ? 700 : -700);
+        if(spawnTimer > 1000) { // 隨機生成生物
+            var sx = p.x + (Math.random() > 0.5 ? 800 : -800);
             var isNight = (ticks > 1050 || ticks < 350);
             if(isNight) spawn('zombie', sx, -1000);
             else spawn(Math.random()<0.5?'animal':'villager', sx, -1000);
@@ -175,27 +180,27 @@
         [p].concat(ents).forEach(function(e) {
             e.vy += 0.8; e.y += e.vy;
             if(check(e.x, e.y)) { while(check(e.x, e.y)) e.y -= 0.5; e.gr = true; e.vy = 0; } else e.gr = false;
-            if(e.damageCd > 0) e.damageCd--;
+            if(e.dmgCd > 0) e.dmgCd--;
 
             if(e === p) {
-                var dx = (keys['KeyD']?7.5:0) - (keys['KeyA']?7.5:0);
+                var dx = (keys['KeyD']?7:0) - (keys['KeyA']?7:0);
                 if(dx!==0){ p.x += dx; if(check(p.x, p.y)) p.x -= dx; }
                 if(keys['Space'] && p.gr) p.vy = -14;
             } else {
                 if(e.type === 'zombie') {
                     e.dir = (p.x > e.x ? 1 : -1); e.x += e.dir * 1.8;
-                    if(Math.abs(p.x - e.x) < T && Math.abs(p.y - e.y) < T && p.damageCd <= 0) {
-                        p.hp -= 5; p.damageCd = 40;
+                    if(Math.abs(p.x - e.x) < 25 && Math.abs(p.y - e.y) < 25 && p.dmgCd <= 0) {
+                        p.hp -= 5; p.dmgCd = 40;
                     }
                 } else {
-                    if(Math.random() < 0.01) e.dir *= -1;
+                    if(Math.random() < 0.02) e.dir *= -1;
                     e.x += e.dir * 1.3;
                 }
                 if(check(e.x + e.dir*10, e.y) && e.gr) e.vy = -10;
             }
         });
 
-        if(p.hp <= 0) { alert("模擬結束。"); location.reload(); }
+        if(p.hp <= 0) { alert("模擬終止..."); location.reload(); }
         document.getElementById('hp-u').innerText = Math.floor(p.hp);
         document.getElementById('tm-u').innerText = Math.floor(ticks/60).toString().padStart(2,'0')+":"+Math.floor(ticks%60).toString().padStart(2,'0');
         document.getElementById('alt-u').innerText = Math.floor(Math.abs(p.y/T)*32);
@@ -218,8 +223,8 @@
         }
 
         if(isRaining) {
-            ctx.strokeStyle = 'rgba(100,100,255,0.4)'; ctx.lineWidth = 1;
-            for(var i=0; i<30; i++) {
+            ctx.strokeStyle = 'rgba(120,120,255,0.4)'; ctx.lineWidth = 1;
+            for(var i=0; i<35; i++) {
                 var rx = Math.random()*cvs.width, ry = Math.random()*cvs.height;
                 ctx.beginPath(); ctx.moveTo(rx, ry); ctx.lineTo(rx-5, ry+15); ctx.stroke();
             }
@@ -228,6 +233,7 @@
         ents.concat([p]).forEach(function(e) {
             ctx.fillStyle=e===p?'#e67e22':(e.type==='zombie'?'#27ae60':(e.type==='villager'?'#9b59b6':(e.type==='animal'?'#ff9ff3':'#3498db')));
             ctx.fillRect(e.x-cx,e.y-cy,e.w,e.h);
+            if(e.dmgCd > 0) { ctx.fillStyle='rgba(255,0,0,0.5)'; ctx.fillRect(e.x-cx,e.y-cy,e.w,e.h); }
         });
     }
 </script>
