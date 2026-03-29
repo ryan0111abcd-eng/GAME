@@ -2,7 +2,7 @@
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
-    <title>SUPER HUMAN 2026 - 3000M高峰</title>
+    <title>SUPER HUMAN 2026</title>
     <style>
         body, html { margin: 0; padding: 0; width: 100%; height: 100%; background: #000; overflow: hidden; font-family: sans-serif; user-select: none; }
         .page { position: fixed; inset: 0; z-index: 9999; display: flex; flex-direction: column; align-items: center; justify-content: center; background: #050505; color: #f1c40f; text-align: center; }
@@ -11,6 +11,10 @@
         .in-box { padding: 15px; font-size: 24px; border: 3px solid #f1c40f; border-radius: 10px; background: #000; color: #f1c40f; text-align: center; margin-bottom: 20px; width: 380px; outline: none; }
         #hud { position: fixed; top: 15px; left: 15px; z-index: 1000; color: white; background: rgba(0,0,0,0.85); padding: 15px; border-radius: 12px; border: 2px solid #f1c40f; display: none; pointer-events: none; }
         #mini-map { position: fixed; top: 15px; right: 15px; width: 160px; height: 160px; border: 3px solid #fff; border-radius: 50%; z-index: 1000; display: none; background: rgba(0,0,0,0.5); overflow: hidden; }
+        
+        /* ESC 選單樣式 */
+        #esc-menu { position: fixed; inset: 0; z-index: 20000; display: none; flex-direction: column; align-items: center; justify-content: center; background: rgba(0,0,0,0.9); }
+        
         canvas#g { display: none; position: absolute; top: 0; left: 0; z-index: 10; }
         .sel-box { color: #f1c40f; font-weight: bold; border-bottom: 2px solid #f1c40f; }
     </style>
@@ -26,99 +30,87 @@
     <div id="p-mode" class="page" style="display:none;">
         <h1>ACCESS GRANTED</h1>
         <button class="btn" onclick="setM(1)">👤 單人冒險</button>
-        <button class="btn" onclick="document.getElementById('p-mode').style.display='none';document.getElementById('p-set').style.display='flex';">👥 多人連線</button>
+        <button class="btn" onclick="document.getElementById('p-mode').style.display='none';document.getElementById('p-set').style.display='flex';">👥 多人小隊</button>
     </div>
 
-    <div id="p-rules" class="page" style="display:none;">
-        <div style="background:#111; padding:30px; border:2px solid #f1c40f; border-radius:20px; text-align:left; color:#fff; max-width: 500px;">
-            <h2 style="text-align:center; color:#f1c40f;">📜 探索指南</h2>
-            ● <b>數字 1-8</b>：切換建築方塊<br>
-            ● <b>WASD</b>：移動 | <b>空白鍵</b>：跳躍<br>
-            ● <b>左鍵</b>：挖掘 | <b>右鍵</b>：建築<br>
-            ● <b>世界</b>：擁有一座高度超過 3000M 的巨型山脈，頂部為雪地。<br>
-            ● <b>重要</b>：電腦隊友絕對不會破壞地形。
-        </div>
-        <button class="btn" onclick="goLive()">啟動世界</button>
+    <div id="p-set" class="page" style="display:none;">
+        <h1>小隊設定</h1>
+        <h2 id="pv">5 人</h2>
+        <input type="range" min="2" max="15" value="5" oninput="document.getElementById('pv').innerText=this.value+' 人'" id="sld" style="width:300px;">
+        <button class="btn" onclick="goLive(document.getElementById('sld').value)">啟動世界</button>
+    </div>
+
+    <div id="esc-menu">
+        <h1 style="color:#f1c40f; font-size: 50px; margin-bottom: 30px;">暫停選單</h1>
+        <button class="btn" onclick="toggleEsc()" style="background:#555; color:white;">⬅️ 繼續遊戲</button>
+        <button class="btn" onclick="location.reload()">🚪 離開並重啟</button>
     </div>
 
     <div id="hud">
         ❤️ HP: <span id="hp-u">100</span> | 🕒 <span id="tm-u">12:00</span><br>
         🏗️ 手持：<span id="cur-b" class="sel-box">草地 (2)</span><br>
-        📍 海拔：<span id="alt-u">2000</span> m
+        📍 海拔：<span id="alt-u">0</span> m
     </div>
     <div id="mini-map"><canvas id="mC" width="160" height="160"></canvas></div>
     <canvas id="g"></canvas>
 
 <script>
-    var live = false, world = {}, keys = {}, ents = [], ticks = 600, sSize = 1;
-    // 將玩家初始出生點設定在海拔 2000m (Y=-2000*T)
-    var p = { x: 0, y: -64000, w: 22, h: 42, vx: 0, vy: 0, hp: 100, max: 100, gr: false };
-    var T = 32, selB = 2; // T=32, 所以高度是 Y/32
+    var live = false, esc = false, world = {}, keys = {}, ents = [], ticks = 600, sSize = 1;
+    var p = { x: 0, y: -320, w: 22, h: 42, vx: 0, vy: 0, hp: 100, max: 100, gr: false };
+    var T = 32, selB = 2;
 
     const B_NAMES = { 1:'石頭', 2:'草地', 3:'泥土', 4:'沙子', 5:'木頭', 6:'葉子', 7:'雪地', 8:'水' };
     const B_COLORS = { 1:'#7f8c8d', 2:'#2ecc71', 3:'#795548', 4:'#f1c40f', 5:'#5d4037', 6:'#27ae60', 7:'#ecf0f1', 8:'#3498db' };
 
     function auth() { if(document.getElementById('pw').value.trim()==='ryan0111407'){document.getElementById('p-auth').style.display='none';document.getElementById('p-mode').style.display='flex';} }
-    function setM(n) { sSize = 1; document.getElementById('p-mode').style.display='none'; document.getElementById('p-rules').style.display='flex'; }
-    function goLive() {
+    
+    function goLive(n) {
+        sSize = n;
         document.querySelectorAll('.page').forEach(el=>el.style.display='none');
         document.getElementById('hud').style.display='block';
         document.getElementById('mini-map').style.display='block';
         var cvs=document.getElementById('g'); cvs.style.display='block';
         cvs.width=window.innerWidth; cvs.height=window.innerHeight;
-        // spawn allies near player in mid-air
-        for(var i=0; i<sSize-1; i++) spawn('ally', p.x + (Math.random()-0.5)*1000);
+        for(var i=0; i<sSize-1; i++) spawn('ally', p.x + (Math.random()-0.5)*1000, -320);
         live=true; loop();
     }
 
-    function spawn(t, x) { ents.push({ type: t, x: x, y: -64000, w: 22, h: 42, vx: 0, vy: 0, hp: 100, max: 100, dir: 1 }); }
+    function spawn(t, x, y) { ents.push({ type: t, x: x, y: y, w: 22, h: 42, vx: 0, vy: 0, hp: 100, max: 100, dir: 1 }); }
 
-    // ==========================================
-    // --- 巨型山脈地形生成 (高度 > 3000M) ---
-    // ==========================================
     function getB(gx, gy) {
         if(world[gx+'_'+gy]!==undefined) return world[gx+'_'+gy];
-        
-        // 雜訊演算法，營造壯觀地形
-        var absX = Math.abs(gx);
-        var noise1 = Math.sin(gx * 0.03) * 20; 
-        var noise2 = Math.sin(gx * 0.1) * 5;   
-        
-        // 核心高度 ( gx * T )
-        // 我們讓山脈可以達到 3200 公尺高 (gy = 3200)
-        var hBase = 50; // 基本海拔
-        var hPeak = 3200; // 最高峰
-        
-        // 地形隨X軸垂直變化
-        var f = Math.floor(hBase + (hPeak - hBase) * Math.abs(Math.sin(gx * 0.005)) + noise1 + noise2);
-
-        // 深層判斷
-        if (gy < f) return 0; // 空氣
-        
-        // 山頂雪地 (海拔 > 3000m)
-        if (gy === f && gy >= 3000) return 7; 
-        
-        // 地表層
-        if (gy === f) return 2; // 草地
-        if (gy > f && gy < f + 4) return 3; // 泥土
-        
-        return 1; // 石頭
+        var xValue = Math.abs(gx * 0.003); 
+        var noise1 = Math.abs(Math.sin(gx * 0.05)) * 15; 
+        var hBase = Math.floor(8 + (Math.exp(xValue) * 4) + noise1);
+        var f = hBase;
+        if(gy >= 2500) { f = hBase + Math.abs(Math.sin(gx * 0.2)) * 100; }
+        if (gy < f) return 0;
+        if (gy === f && gy >= 2500) return 7; 
+        if (gy === f) return 2;
+        if (gy > f && gy < f + 4) return 3;
+        return 1;
     }
 
     function check(x,y) { for(var i=Math.floor(x/T);i<=Math.floor((x+22)/T);i++)for(var j=Math.floor(y/T);j<=Math.floor((y+42)/T);j++)if(getB(i,j)>0)return true; return false; }
 
+    function toggleEsc() {
+        if(!live) return;
+        esc = !esc;
+        document.getElementById('esc-menu').style.display = esc ? 'flex' : 'none';
+    }
+
     window.onmousedown=function(e){
-        if(!live)return;
+        if(!live || esc) return;
         var cvs=document.getElementById('g');
         var gx=Math.floor((e.clientX+(p.x-cvs.width/2))/T), gy=Math.floor((e.clientY+(p.y-cvs.height/2))/T);
         if(e.button===0) world[gx+'_'+gy]=0;
-        else if(e.button===2) world[gx+'_'+gy]=selB; // 使用選中的方塊
+        else if(e.button===2) world[gx+'_'+gy]=selB; 
     };
 
     window.onkeydown=function(e){
-        // --- 數字鍵 1-8 切換方塊 ---
-        if(e.keyCode >= 49 && e.keyCode <= 56) { // 1-8
-            selB = e.keyCode - 48; // 計算方塊ID
+        if(e.code === 'Escape') toggleEsc();
+        if(!esc && e.keyCode >= 49 && e.keyCode <= 56) {
+            selB = e.keyCode - 48; 
             document.getElementById('cur-b').innerText = B_NAMES[selB] + " (" + selB + ")";
         }
         keys[e.code]=true;
@@ -126,23 +118,20 @@
     window.onkeyup=function(e){keys[e.code]=false;};
 
     function loop() {
-        if(!live)return;
+        if(!live || esc) { requestAnimationFrame(loop); return; }
         var cvs=document.getElementById('g'), ctx=cvs.getContext('2d');
-        ticks=(ticks+0.05)%1440; // 慢速時間
+        ticks=(ticks+0.05)%1440; 
 
-        // 動物補足
-        if(ents.filter(e=>e.type==='pig').length < 8) spawn('pig', p.x + (Math.random()>0.5?1500:-1500));
+        if(ents.filter(e=>e.type==='pig').length < 8) spawn('pig', p.x + (Math.random()>0.5?1500:-1500), -320);
 
         [p].concat(ents).forEach(function(e) {
             e.vy+=0.8; e.y+=e.vy;
             if(check(e.x,e.y)){if(e.vy>0){while(check(e.x,e.y))e.y-=0.5;e.gr=true;}e.vy=0;}else e.gr=false;
-            
             if(e===p){
                 var dx=(keys['KeyD']?6:0)-(keys['KeyA']?6:0);
                 if(dx!==0){p.x+=dx; if(check(p.x,p.y))p.x-=dx;}
                 if(keys['Space']&&p.gr)p.vy=-14;
             } else {
-                // AI 行為：純跟隨，不挖掘
                 if(e.type==='ally'){
                     if(Math.abs(p.x-e.x)>200) e.x+=(p.x>e.x?2:-2);
                     if(check(e.x+(p.x>e.x?5:-5),e.y) && e.gr) e.vy=-10;
@@ -153,13 +142,8 @@
             }
         });
 
-        ents = ents.filter(e=>Math.abs(e.x-p.x)<3500);
-        
-        // --- 更新介面 ---
         document.getElementById('tm-u').innerText=Math.floor(ticks/60).toString().padStart(2,'0')+":"+Math.floor(ticks%60).toString().padStart(2,'0');
-        // 計算海拔 (T=32)
-        var altitude = Math.floor(Math.abs(p.y/T));
-        document.getElementById('alt-u').innerText=altitude;
+        document.getElementById('alt-u').innerText=Math.floor(Math.abs(p.y/T));
         
         render(ctx, cvs);
         requestAnimationFrame(loop);
@@ -173,11 +157,7 @@
         for(var x=Math.floor(cx/T);x<=Math.ceil((cx+cvs.width)/T);x++){
             for(var y=Math.floor(cy/T);y<=Math.ceil((cy+cvs.height)/T);y++){
                 var b=getB(x,y); 
-                if(b>0){ 
-                    ctx.fillStyle=B_COLORS[b]; 
-                    // 高山視覺修正 (+0.5防止縫隙)
-                    ctx.fillRect(x*T-cx,y*T-cy,T+0.5,T+0.5); 
-                }
+                if(b>0){ ctx.fillStyle=B_COLORS[b]; ctx.fillRect(x*T-cx,y*T-cy,T+0.5,T+0.5); }
             }
         }
         [p].concat(ents).forEach(function(e) {
