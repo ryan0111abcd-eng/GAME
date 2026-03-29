@@ -2,19 +2,14 @@
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
-    <title>SUPER HUMAN 2026</title>
+    <title>SUPER HUMAN 2026 - 3000M PEAK</title>
     <style>
         body, html { margin: 0; padding: 0; width: 100%; height: 100%; background: #000; overflow: hidden; font-family: sans-serif; user-select: none; }
         .page { position: fixed; inset: 0; z-index: 9999; display: flex; flex-direction: column; align-items: center; justify-content: center; background: #050505; color: #f1c40f; text-align: center; }
-        .btn { padding: 18px 45px; font-size: 26px; cursor: pointer; margin: 10px; background: #f1c40f; border: 4px solid #fff; border-radius: 15px; font-weight: bold; color: #000; box-shadow: 0 6px 0 #b8860b; transition: 0.1s; }
-        .btn:active { transform: translateY(4px); box-shadow: 0 3px 0 #b8860b; }
-        .in-box { padding: 15px; font-size: 24px; border: 3px solid #f1c40f; border-radius: 10px; background: #000; color: #f1c40f; text-align: center; margin-bottom: 20px; width: 380px; outline: none; }
-        #hud { position: fixed; top: 15px; left: 15px; z-index: 1000; color: white; background: rgba(0,0,0,0.85); padding: 15px; border-radius: 12px; border: 2px solid #f1c40f; display: none; pointer-events: none; }
+        .btn { padding: 18px 45px; font-size: 26px; cursor: pointer; margin: 10px; background: #f1c40f; border: 4px solid #fff; border-radius: 15px; font-weight: bold; color: #000; box-shadow: 0 6px 0 #b8860b; }
+        #hud { position: fixed; top: 15px; left: 15px; z-index: 1000; color: white; background: rgba(0,0,0,0.85); padding: 15px; border-radius: 12px; border: 2px solid #f1c40f; display: none; pointer-events: none; line-height: 1.6; }
         #mini-map { position: fixed; top: 15px; right: 15px; width: 160px; height: 160px; border: 3px solid #fff; border-radius: 50%; z-index: 1000; display: none; background: rgba(0,0,0,0.5); overflow: hidden; }
-        
-        /* ESC 選單樣式 */
-        #esc-menu { position: fixed; inset: 0; z-index: 20000; display: none; flex-direction: column; align-items: center; justify-content: center; background: rgba(0,0,0,0.9); }
-        
+        #esc-menu { position: fixed; inset: 0; z-index: 20000; display: none; flex-direction: column; align-items: center; justify-content: center; background: rgba(0,0,0,0.95); }
         canvas#g { display: none; position: absolute; top: 0; left: 0; z-index: 10; }
         .sel-box { color: #f1c40f; font-weight: bold; border-bottom: 2px solid #f1c40f; }
     </style>
@@ -22,8 +17,8 @@
 <body>
 
     <div id="p-auth" class="page">
-        <h1 style="font-size: 40px; letter-spacing: 5px;">SUPER HUMAN SYSTEM</h1>
-        <input type="password" id="pw" class="in-box" placeholder="ACCESS KEY">
+        <h1>SUPER HUMAN SYSTEM</h1>
+        <input type="password" id="pw" class="in-box" style="padding:15px; font-size:24px; margin-bottom:20px; width:300px; text-align:center;" placeholder="ACCESS KEY">
         <button class="btn" onclick="auth()">VERIFY</button>
     </div>
 
@@ -41,9 +36,9 @@
     </div>
 
     <div id="esc-menu">
-        <h1 style="color:#f1c40f; font-size: 50px; margin-bottom: 30px;">暫停選單</h1>
+        <h1 style="color:#f1c40f; font-size: 50px;">暫停</h1>
         <button class="btn" onclick="toggleEsc()" style="background:#555; color:white;">⬅️ 繼續遊戲</button>
-        <button class="btn" onclick="location.reload()">🚪 離開並重啟</button>
+        <button class="btn" onclick="location.reload()">🚪 離開</button>
     </div>
 
     <div id="hud">
@@ -56,6 +51,7 @@
 
 <script>
     var live = false, esc = false, world = {}, keys = {}, ents = [], ticks = 600, sSize = 1;
+    // 起點在地面海拔約 10m
     var p = { x: 0, y: -320, w: 22, h: 42, vx: 0, vy: 0, hp: 100, max: 100, gr: false };
     var T = 32, selB = 2;
 
@@ -71,33 +67,39 @@
         document.getElementById('mini-map').style.display='block';
         var cvs=document.getElementById('g'); cvs.style.display='block';
         cvs.width=window.innerWidth; cvs.height=window.innerHeight;
-        for(var i=0; i<sSize-1; i++) spawn('ally', p.x + (Math.random()-0.5)*1000, -320);
+        for(var i=0; i<sSize-1; i++) spawn('ally', p.x + (Math.random()-0.5)*500, -320);
         live=true; loop();
     }
 
     function spawn(t, x, y) { ents.push({ type: t, x: x, y: y, w: 22, h: 42, vx: 0, vy: 0, hp: 100, max: 100, dir: 1 }); }
 
+    // --- 地形引擎：大幅強化坡度，實現 3000M 轉折 ---
     function getB(gx, gy) {
         if(world[gx+'_'+gy]!==undefined) return world[gx+'_'+gy];
-        var xValue = Math.abs(gx * 0.003); 
-        var noise1 = Math.abs(Math.sin(gx * 0.05)) * 15; 
-        var hBase = Math.floor(8 + (Math.exp(xValue) * 4) + noise1);
-        var f = hBase;
-        if(gy >= 2500) { f = hBase + Math.abs(Math.sin(gx * 0.2)) * 100; }
+        
+        // 使用更劇烈的數學函數：向右走海拔急遽增加
+        var xVal = Math.abs(gx * 0.015); 
+        var noise = Math.abs(Math.sin(gx * 0.1)) * 10;
+        
+        // 海拔高度公式 (海拔 = f * 32)
+        // 當 gx 增加，f 會迅速攀升。2500m 對應 f ≒ 78
+        var f = Math.floor(8 + (Math.pow(xVal, 2) * 5) + noise); 
+
+        // 垂直判定：海拔超過 2500m 時 (f > 78)，坡度變為 90 度垂直
+        if(f > 78) {
+            f = 78 + (Math.abs(Math.sin(gx * 0.5)) * 100); 
+        }
+
         if (gy < f) return 0;
-        if (gy === f && gy >= 2500) return 7; 
-        if (gy === f) return 2;
-        if (gy > f && gy < f + 4) return 3;
+        if (gy === f && gy >= 78) return 7; // 雪地頂部
+        if (gy === f) return 2; // 草地
+        if (gy > f && gy < f + 4) return 3; // 泥土
         return 1;
     }
 
     function check(x,y) { for(var i=Math.floor(x/T);i<=Math.floor((x+22)/T);i++)for(var j=Math.floor(y/T);j<=Math.floor((y+42)/T);j++)if(getB(i,j)>0)return true; return false; }
 
-    function toggleEsc() {
-        if(!live) return;
-        esc = !esc;
-        document.getElementById('esc-menu').style.display = esc ? 'flex' : 'none';
-    }
+    function toggleEsc() { if(!live) return; esc = !esc; document.getElementById('esc-menu').style.display = esc ? 'flex' : 'none'; }
 
     window.onmousedown=function(e){
         if(!live || esc) return;
@@ -122,22 +124,21 @@
         var cvs=document.getElementById('g'), ctx=cvs.getContext('2d');
         ticks=(ticks+0.05)%1440; 
 
-        if(ents.filter(e=>e.type==='pig').length < 8) spawn('pig', p.x + (Math.random()>0.5?1500:-1500), -320);
+        if(ents.filter(e=>e.type==='pig').length < 8) spawn('pig', p.x + (Math.random()>0.5?1200:-1200), p.y);
 
         [p].concat(ents).forEach(function(e) {
             e.vy+=0.8; e.y+=e.vy;
             if(check(e.x,e.y)){if(e.vy>0){while(check(e.x,e.y))e.y-=0.5;e.gr=true;}e.vy=0;}else e.gr=false;
             if(e===p){
-                var dx=(keys['KeyD']?6:0)-(keys['KeyA']?6:0);
+                var dx=(keys['KeyD']?7:0)-(keys['KeyA']?7:0);
                 if(dx!==0){p.x+=dx; if(check(p.x,p.y))p.x-=dx;}
                 if(keys['Space']&&p.gr)p.vy=-14;
             } else {
                 if(e.type==='ally'){
-                    if(Math.abs(p.x-e.x)>200) e.x+=(p.x>e.x?2:-2);
+                    if(Math.abs(p.x-e.x)>150) e.x+=(p.x>e.x?2.5:-2.5);
                     if(check(e.x+(p.x>e.x?5:-5),e.y) && e.gr) e.vy=-10;
                 } else if(e.type==='pig'){
-                    if(Math.random()<0.01) e.dir*=-1;
-                    e.x+=e.dir*1.2; if(check(e.x+e.dir*5,e.y)) e.dir*=-1;
+                    e.x+=e.dir*1.5; if(check(e.x+e.dir*5,e.y)) e.dir*=-1;
                 }
             }
         });
