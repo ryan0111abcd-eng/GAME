@@ -2,157 +2,233 @@
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SUPER HUMAN 2026 - BUILD & SQUAD</title>
+    <title>SUPER HUMAN 2026 - HUD & DEEP SOIL</title>
     <style>
         body, html { margin: 0; padding: 0; width: 100%; height: 100%; background: #000; overflow: hidden; font-family: sans-serif; user-select: none; }
         .page { position: fixed; inset: 0; z-index: 9999; display: flex; flex-direction: column; align-items: center; justify-content: center; background: #050505; color: #f1c40f; text-align: center; }
         .btn { padding: 18px 45px; font-size: 26px; cursor: pointer; margin: 10px; background: #f1c40f; border: 4px solid #fff; border-radius: 15px; font-weight: bold; color: #000; box-shadow: 0 6px 0 #b8860b; transition: 0.1s; outline: none; }
         .btn:active { transform: translateY(4px); box-shadow: 0 2px 0 #b8860b; }
-        .in-box { padding: 15px; font-size: 24px; border: 4px solid #f1c40f; border-radius: 12px; background: #222; color: #fff; text-align: center; margin-bottom: 25px; width: 320px; outline: none; }
+        .in-box { padding: 15px; font-size: 24px; border: 4px solid #f1c40f; border-radius: 12px; background: #fff; color: #000; text-align: center; margin-bottom: 25px; width: 320px; outline: none; }
+        
+        #p-brief { background: #111; color: #eee; padding: 50px; text-align: left; align-items: flex-start; border: 8px solid #f1c40f; box-sizing: border-box; overflow-y: auto; }
+        .m-info { font-size: 22px; line-height: 1.6; margin-bottom: 30px; border-left: 5px solid #f1c40f; padding-left: 20px; }
+
         #hud { position: fixed; top: 15px; left: 15px; z-index: 1000; color: white; background: rgba(0,0,0,0.85); padding: 15px; border-radius: 12px; border: 2px solid #f1c40f; display: none; pointer-events: none; line-height: 1.6; }
-        canvas#g { display: none; position: absolute; top: 0; left: 0; }
+        #esc-menu { position: fixed; inset: 0; z-index: 10000; display: none; flex-direction: column; align-items: center; justify-content: center; background: rgba(0,0,0,0.7); backdrop-filter: blur(8px); }
+        canvas#g { display: none; position: absolute; top: 0; left: 0; z-index: 10; }
         .sel-box { color: #f1c40f; font-weight: bold; border-bottom: 2px solid #f1c40f; }
-        input[type=range] { width: 300px; cursor: pointer; margin: 20px; }
+        input[type=range] { width: 350px; cursor: pointer; }
     </style>
 </head>
 <body oncontextmenu="return false;">
 
     <div id="p-auth" class="page">
-        <h1 style="font-size: 40px; letter-spacing: 5px;">SYSTEM ACCESS</h1>
+        <h1>SUPER HUMAN SYSTEM</h1>
         <input type="password" id="pw" class="in-box" placeholder="Access Key">
-        <button class="btn" onclick="checkAuth()">VERIFY</button>
+        <button class="btn" onclick="auth()">VERIFY</button>
     </div>
 
     <div id="p-mode" class="page" style="display:none;">
-        <h1>SQUAD SIZE</h1>
-        <h2 id="p-count" style="font-size: 40px;">5 人</h2>
-        <input type="range" id="member-sld" min="1" max="15" value="5" oninput="document.getElementById('p-count').innerText=this.value+' 人'">
-        <button class="btn" onclick="startGame()">START SIMULATION</button>
+        <h1>選擇模式</h1>
+        <button class="btn" onclick="setM(1)">👤 單人冒險</button>
+        <button class="btn" onclick="showMulti()">👥 多人模式 (2-15人)</button>
+    </div>
+
+    <div id="p-multi" class="page" style="display:none;">
+        <h1>設定小隊人數</h1>
+        <h2 id="p-cnt" style="font-size:40px;">5 人</h2>
+        <input type="range" id="sld" min="2" max="15" value="5" oninput="document.getElementById('p-cnt').innerText=this.value+' 人'">
+        <button class="btn" onclick="setM(document.getElementById('sld').value)">確認</button>
+    </div>
+
+    <div id="p-brief" class="page" style="display:none;">
+        <h1>任務說明單：SURVIVAL 2026</h1>
+        <div class="m-info">
+            <p>● <b>地質：</b>草皮區下方覆蓋 5 層深厚泥土，適宜資源收集。</p>
+            <p>● <b>時間：</b>極慢速模式 (0.05x)。白晝將持續極長時間。</p>
+            <p>● <b>視覺：</b>所有生物頭頂現在都會顯示實時血量條。</p>
+            <p>● <b>操作：</b>1~8切換材料，A/D移動，Space跳躍，左鍵挖，右鍵蓋。</p>
+        </div>
+        <button class="btn" onclick="goLive()">啟動系統</button>
+    </div>
+
+    <div id="esc-menu">
+        <h1 style="color:#f1c40f; font-size: 50px; margin-bottom: 30px;">暫停模擬</h1>
+        <button class="btn" onclick="toggleEsc()">➡️ 回到遊戲</button>
+        <button class="btn" onclick="location.reload()" style="background:#555; color:white;">🚪 離開</button>
     </div>
 
     <div id="hud">
-        ❤️ HP: 100 | 🕒 <span id="tm-v">12:00</span><br>
-        🏗️ 建築：<span id="cur-b" class="sel-box">石頭 (1)</span><br>
-        📍 海拔：<span id="alt-v">0</span> m
+        🕒 <span id="tm-u">12:00</span> | 🏗️ <span id="cur-b" class="sel-box">石頭 (1)</span><br>
+        📍 海拔：<span id="alt-u">0</span> m | 🌧️ <span id="wt-u">晴</span>
     </div>
     <canvas id="g"></canvas>
 
 <script>
-    var live = false, world = {}, keys = {}, ents = [], ticks = 600, sSize = 5;
-    var p = { x: 0, y: -600, w: 22, h: 42, vx: 0, vy: 0, hp: 100, max: 100, gr: false };
-    var T = 32, selB = 1;
+    var live = false, esc = false, world = {}, keys = {}, ents = [], ticks = 600, sSize = 1, isRaining = false;
+    var p = { x: 0, y: -600, w: 22, h: 42, vx: 0, vy: 0, hp: 100, max: 100, gr: false, dmgCd: 0 };
+    var T = 32, selB = 1, spawnTimer = 0;
 
     const B_NAMES = { 1:'石頭', 2:'草地', 3:'泥土', 4:'沙子', 5:'木頭', 6:'葉子', 7:'雪地', 8:'水' };
-    const B_COLORS = ["", "#7f8c8d", "#2ecc71", "#795548", "#f1c40f", "#5d4037", "#27ae60", "#ecf0f1", "#3498db"];
+    const B_COLORS = { 1:'#7f8c8d', 2:'#2ecc71', 3:'#795548', 4:'#f1c40f', 5:'#5d4037', 6:'#27ae60', 7:'#ecf0f1', 8:'#3498db' };
 
-    // 1. 認證
-    function checkAuth() {
-        if(document.getElementById('pw').value.trim() === 'ryan0111407') {
-            document.getElementById('p-auth').style.display = 'none';
-            document.getElementById('p-mode').style.display = 'flex';
-        } else { alert("ACCESS DENIED"); }
+    function auth() { if(document.getElementById('pw').value.trim()==='ryan0111407'){document.getElementById('p-auth').style.display='none';document.getElementById('p-mode').style.display='flex';} }
+    function showMulti() { document.getElementById('p-mode').style.display='none'; document.getElementById('p-multi').style.display='flex'; }
+    function setM(n) { sSize = parseInt(n); document.querySelectorAll('.page').forEach(p=>p.style.display='none'); document.getElementById('p-brief').style.display='flex'; }
+
+    function goLive() {
+        document.getElementById('p-brief').style.display='none';
+        document.getElementById('hud').style.display='block';
+        var cvs=document.getElementById('g'); cvs.style.display='block';
+        cvs.width=window.innerWidth; cvs.height=window.innerHeight;
+        for(var i=0; i<sSize-1; i++) spawn('ally', p.x + (i*60) - 120, -800);
+        live=true; loop();
     }
+    
+    function spawn(t, x, y) { ents.push({ type: t, x: x, y: y, w: 22, h: 42, vx: 0, vy: 0, hp: 100, max: 100, dir: 1, dmgCd: 0 }); }
 
-    // 2. 啟動遊戲
-    function startGame() {
-        sSize = parseInt(document.getElementById('member-sld').value);
-        document.getElementById('p-mode').style.display = 'none';
-        document.getElementById('hud').style.display = 'block';
-        
-        var cvs = document.getElementById('g');
-        cvs.style.display = 'block';
-        cvs.width = window.innerWidth;
-        cvs.height = window.innerHeight;
-
-        // 生成隊友
-        for(var i=0; i<sSize-1; i++) ents.push({ type:'ally', x: p.x + (i*60)-120, y: -700, w:22, h:42, vx:0, vy:0, hp:100, max:100 });
-        
-        live = true;
-        loop();
-    }
-
-    // 3. 地形引擎 (草皮下 5 層土 + 3000M 大山)
     function getB(gx, gy) {
-        if(world[gx+'_'+gy] !== undefined) return world[gx+'_'+gy];
+        if(world[gx+'_'+gy]!==undefined) return world[gx+'_'+gy];
         var absGx = Math.abs(gx);
-        var f = Math.floor(22 + Math.sin(gx*0.35)*6);
-        if(absGx > 80) f += Math.floor((absGx-80)/5) * 16;
-        if(f > 115) f = 115;
+        var hills = Math.sin(gx * 0.3) * 6 + Math.cos(gx * 0.15) * 8;
+        var mountains = Math.sin(gx * 0.05) * 20 + Math.abs(Math.cos(gx * 0.02)) * 30;
+        var cliff = (absGx > 150) ? Math.floor((absGx - 150) / 4) * 15 : 0;
+        var f = Math.floor(22 + hills + mountains + cliff);
+        if (f > 110) f = 110; 
 
         if (gy < f) return 0;
-        if (gy === f) return (gy > 85) ? 7 : 2; 
-        if (gy > f && gy <= f + 5) return 3; 
+        if (gy === f) {
+            if(Math.abs(gx - Math.floor(p.x/T)) > 25 && gx % 60 === 0 && Math.random() < 0.3) {
+                if(gx % 120 === 0) generateVillage(gx, gy-1); else generateRuins(gx, gy-1);
+            }
+            if (gy >= 75) return 7;
+            if (absGx < 180) return 2;
+            return 1;
+        }
+        // 草皮下 5 層土
+        if (gy > f && gy <= f + 5 && absGx < 180 && f < 75) return 3; 
         return 1;
     }
 
-    // 4. 碰撞檢查
-    function check(x, y) {
-        var gx = Math.floor(x/T), gy = Math.floor(y/T);
-        return getB(gx, gy) > 0 || getB(Math.floor((x+21)/T), Math.floor((y+41)/T)) > 0;
+    function generateVillage(gx, gy) {
+        for(var i=-1; i<=1; i++) for(var j=0; j>-3; j--) world[(gx+i)+'_'+(gy+j)] = 5;
+        world[gx+'_'+(gy-3)] = 6;
+        spawn('villager', gx*T, (gy-2)*T);
+    }
+    function generateRuins(gx, gy) { for(var j=0; j<5; j++) world[gx+'_'+(gy-j)] = 3; }
+
+    function check(x,y) { 
+        var gx=Math.floor(x/T), gy=Math.floor(y/T);
+        return getB(gx, gy)>0 || getB(Math.floor((x+21)/T), Math.floor((y+41)/T))>0;
     }
 
-    // 5. 挖塊與放塊 (滑鼠監聽)
-    window.onmousedown = function(e) {
-        if(!live) return;
-        var cvs = document.getElementById('g');
-        var cx = p.x - cvs.width/2, cy = p.y - cvs.height/2;
-        var gx = Math.floor((e.clientX + cx) / T);
-        var gy = Math.floor((e.clientY + cy) / T);
+    function toggleEsc() { if(live) { esc = !esc; document.getElementById('esc-menu').style.display = esc ? 'flex' : 'none'; } }
+    
+    window.addEventListener('contextmenu', e => e.preventDefault());
 
-        if(e.button === 0) world[gx+'_'+gy] = 0; // 左鍵：挖塊
-        if(e.button === 2) world[gx+'_'+gy] = selB; // 右鍵：放塊
+    window.onmousedown=function(e){
+        if(!live || esc) return;
+        var cvs=document.getElementById('g');
+        var gx=Math.floor((e.clientX+(p.x-cvs.width/2))/T), gy=Math.floor((e.clientY+(p.y-cvs.height/2))/T);
+        if(e.button===0) world[gx+'_'+gy]=0; 
+        else if(e.button===2) world[gx+'_'+gy]=selB; 
     };
 
-    // 6. 鍵盤監聽 (1-8 切換材料)
-    window.onkeydown = function(e) {
-        if(e.keyCode >= 49 && e.keyCode <= 56) {
-            selB = e.keyCode - 48;
+    window.onkeydown=function(e){
+        if(e.code === 'Escape') toggleEsc();
+        if(!esc && e.keyCode >= 49 && e.keyCode <= 56) {
+            selB = e.keyCode - 48; 
             document.getElementById('cur-b').innerText = B_NAMES[selB] + " (" + selB + ")";
         }
-        keys[e.code] = true;
+        keys[e.code]=true;
     };
-    window.onkeyup = function(e) { keys[e.code] = false; };
+    window.onkeyup=function(e){keys[e.code]=false;};
 
-    // 7. 遊戲主迴圈
     function loop() {
         if(!live) return;
-        var cvs = document.getElementById('g'), ctx = cvs.getContext('2d');
-        ticks = (ticks + 0.05) % 1440; // 0.05x 極慢時間
+        if(esc) { requestAnimationFrame(loop); return; } 
 
-        [p].concat(ents).forEach(e => {
+        var cvs=document.getElementById('g'), ctx=cvs.getContext('2d');
+        ticks = (ticks + 0.05) % 1440; 
+        
+        if(Math.random() < 0.001) isRaining = !isRaining;
+        document.getElementById('wt-u').innerText = isRaining ? "雨" : "晴";
+
+        spawnTimer++;
+        if(spawnTimer > 1500) { 
+            var sx = p.x + (Math.random() > 0.5 ? 800 : -800);
+            var isNight = (ticks > 1050 || ticks < 350);
+            if(isNight) spawn('zombie', sx, -1000);
+            else spawn(Math.random()<0.5?'animal':'villager', sx, -1000);
+            spawnTimer = 0;
+        }
+
+        [p].concat(ents).forEach(function(e) {
             e.vy += 0.8; e.y += e.vy;
-            if(check(e.x, e.y)) { while(check(e.x, e.y)) e.y -= 0.5; e.vy = 0; e.gr = true; } else e.gr = false;
+            if(check(e.x, e.y)) { while(check(e.x, e.y)) e.y -= 0.5; e.gr = true; e.vy = 0; } else e.gr = false;
+            if(e.dmgCd > 0) e.dmgCd--;
+
             if(e === p) {
-                var dx = (keys['KeyD']?7.5:0) - (keys['KeyA']?7.5:0);
-                if(dx !== 0) { p.x += dx; if(check(p.x, p.y)) p.x -= dx; }
+                var dx = (keys['KeyD']?7:0) - (keys['KeyA']?7:0);
+                if(dx!==0){ p.x += dx; if(check(p.x, p.y)) p.x -= dx; }
                 if(keys['Space'] && p.gr) p.vy = -14;
+            } else {
+                if(e.type === 'zombie') {
+                    e.dir = (p.x > e.x ? 1 : -1); e.x += e.dir * 1.5;
+                    if(Math.abs(p.x - e.x) < 25 && Math.abs(p.y - e.y) < 25 && p.dmgCd <= 0) {
+                        p.hp -= 5; p.dmgCd = 50;
+                    }
+                } else {
+                    if(Math.random() < 0.01) e.dir *= -1;
+                    e.x += e.dir * 1.1;
+                }
+                if(check(e.x + e.dir*10, e.y) && e.gr) e.vy = -10;
             }
         });
 
-        // 更新 HUD
-        document.getElementById('tm-v').innerText = Math.floor(ticks/60).toString().padStart(2,'0')+":"+Math.floor(ticks%60).toString().padStart(2,'0');
-        document.getElementById('alt-v').innerText = Math.floor(Math.abs(p.y/T)*32);
-
-        // 渲染畫面
-        ctx.fillStyle = (ticks > 1050 || ticks < 350) ? '#050510' : '#87ceeb';
-        ctx.fillRect(0, 0, cvs.width, cvs.height);
+        if(p.hp <= 0) { alert("模擬結束。"); location.reload(); }
+        document.getElementById('tm-u').innerText = Math.floor(ticks/60).toString().padStart(2,'0')+":"+Math.floor(ticks%60).toString().padStart(2,'0');
+        document.getElementById('alt-u').innerText = Math.floor(Math.abs(p.y/T)*32);
         
-        var cx = p.x - cvs.width/2, cy = p.y - cvs.height/2;
-        for(var x=Math.floor(cx/T); x<=Math.ceil((cx+cvs.width)/T); x++) {
-            for(var y=Math.floor(cy/T); y<=Math.ceil((cy+cvs.height)/T); y++) {
-                var b = getB(x, y);
-                if(b > 0) {
-                    ctx.fillStyle = B_COLORS[b];
-                    ctx.fillRect(x*T-cx, y*T-cy, T, T);
-                    ctx.strokeStyle = "rgba(0,0,0,0.05)"; ctx.strokeRect(x*T-cx, y*T-cy, T, T);
-                }
+        render(ctx, cvs);
+        requestAnimationFrame(loop);
+    }
+
+    function render(ctx, cvs) {
+        var isNight = (ticks > 1050 || ticks < 350);
+        ctx.fillStyle = isNight ? '#050510' : (isRaining ? '#576574' : '#87ceeb');
+        ctx.fillRect(0,0,cvs.width,cvs.height);
+        
+        var cx=p.x-cvs.width/2, cy=p.y-cvs.height/2;
+        for(var x=Math.floor(cx/T);x<=Math.ceil((cx+cvs.width)/T);x++){
+            for(var y=Math.floor(cy/T);y<=Math.ceil((cy+cvs.height)/T);y++){
+                var b=getB(x,y); 
+                if(b>0){ ctx.fillStyle=B_COLORS[b]; ctx.fillRect(x*T-cx,y*T-cy,T+0.5,T+0.5); }
             }
         }
-        ctx.fillStyle = "#e67e22"; ctx.fillRect(p.x-cx, p.y-cy, p.w, p.h);
-        ents.forEach(e => { ctx.fillStyle = "#3498db"; ctx.fillRect(e.x-cx, e.y-cy, e.w, e.h); });
 
-        requestAnimationFrame(loop);
+        if(isRaining) {
+            ctx.strokeStyle = 'rgba(120,120,255,0.4)'; ctx.lineWidth = 1;
+            for(var i=0; i<30; i++) {
+                var rx = Math.random()*cvs.width, ry = Math.random()*cvs.height;
+                ctx.beginPath(); ctx.moveTo(rx, ry); ctx.lineTo(rx-5, ry+15); ctx.stroke();
+            }
+        }
+
+        ents.concat([p]).forEach(function(e) {
+            // 生物繪製
+            ctx.fillStyle=e===p?'#e67e22':(e.type==='zombie'?'#27ae60':(e.type==='villager'?'#9b59b6':(e.type==='animal'?'#ff9ff3':'#3498db')));
+            ctx.fillRect(e.x-cx,e.y-cy,e.w,e.h);
+
+            // --- 頭頂血量條 ---
+            var barW = 30, barH = 5;
+            var bx = e.x - cx + (e.w/2) - (barW/2);
+            var by = e.y - cy - 12;
+            ctx.fillStyle = '#333'; ctx.fillRect(bx, by, barW, barH); // 背景
+            ctx.fillStyle = '#2ecc71'; ctx.fillRect(bx, by, barW * (e.hp/e.max), barH); // 血量
+            
+            if(e.dmgCd > 0) { ctx.fillStyle='rgba(255,0,0,0.3)'; ctx.fillRect(e.x-cx,e.y-cy,e.w,e.h); }
+        });
     }
 </script>
 </body>
