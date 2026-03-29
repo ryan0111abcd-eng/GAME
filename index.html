@@ -2,11 +2,13 @@
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
-    <title>SUPER HUMAN 2026 - CLIFF EDITION</title>
+    <title>SUPER HUMAN 2026 - BIOMES & CLIFFS</title>
     <style>
         body, html { margin: 0; padding: 0; width: 100%; height: 100%; background: #000; overflow: hidden; font-family: sans-serif; user-select: none; }
         .page { position: fixed; inset: 0; z-index: 9999; display: flex; flex-direction: column; align-items: center; justify-content: center; background: #050505; color: #f1c40f; text-align: center; }
-        .btn { padding: 18px 45px; font-size: 26px; cursor: pointer; margin: 10px; background: #f1c40f; border: 4px solid #fff; border-radius: 15px; font-weight: bold; color: #000; box-shadow: 0 6px 0 #b8860b; }
+        .btn { padding: 18px 45px; font-size: 26px; cursor: pointer; margin: 10px; background: #f1c40f; border: 4px solid #fff; border-radius: 15px; font-weight: bold; color: #000; box-shadow: 0 6px 0 #b8860b; transition: 0.1s; }
+        .btn:active { transform: translateY(4px); box-shadow: 0 3px 0 #b8860b; }
+        .in-box { padding: 15px; font-size: 24px; border: 3px solid #f1c40f; border-radius: 10px; background: #000; color: #f1c40f; text-align: center; margin-bottom: 20px; width: 380px; outline: none; }
         #hud { position: fixed; top: 15px; left: 15px; z-index: 1000; color: white; background: rgba(0,0,0,0.85); padding: 15px; border-radius: 12px; border: 2px solid #f1c40f; display: none; pointer-events: none; line-height: 1.6; }
         #mini-map { position: fixed; top: 15px; right: 15px; width: 160px; height: 160px; border: 3px solid #fff; border-radius: 50%; z-index: 1000; display: none; background: rgba(0,0,0,0.5); overflow: hidden; }
         #esc-menu { position: fixed; inset: 0; z-index: 20000; display: none; flex-direction: column; align-items: center; justify-content: center; background: rgba(0,0,0,0.95); }
@@ -15,7 +17,7 @@
     </style>
 </head>
 <body oncontextmenu="return false;"> <div id="p-auth" class="page">
-        <h1>SUPER HUMAN SYSTEM</h1>
+        <h1 style="font-size: 40px; letter-spacing: 5px;">SUPER HUMAN SYSTEM</h1>
         <input type="password" id="pw" class="in-box" style="padding:15px; font-size:24px; margin-bottom:20px; width:300px; text-align:center;" placeholder="ACCESS KEY">
         <button class="btn" onclick="auth()">VERIFY</button>
     </div>
@@ -23,7 +25,7 @@
     <div id="p-mode" class="page" style="display:none;">
         <h1>ACCESS GRANTED</h1>
         <button class="btn" onclick="setM(1)">👤 單人冒險</button>
-        <button class="btn" onclick="document.getElementById('p-mode').style.display='none';document.getElementById('p-set').style.display='flex';">👥 多人小隊</button>
+        <button class="btn" onclick="document.getElementById('p-mode').style.display='none';document.getElementById('p-set').style.display='flex';">👥 多人連線</button>
     </div>
 
     <div id="p-set" class="page" style="display:none;">
@@ -49,8 +51,8 @@
 
 <script>
     var live = false, esc = false, world = {}, keys = {}, ents = [], ticks = 600, sSize = 1;
-    var p = { x: 0, y: -320, w: 22, h: 42, vx: 0, vy: 0, hp: 100, max: 100, gr: false };
-    var T = 32, selB = 2;
+    var p = { x: 0, y: -800, w: 22, h: 42, vx: 0, vy: 0, hp: 100, max: 100, gr: false };
+    var T = 32, selB = 2; // 方塊大小
 
     const B_NAMES = { 1:'石頭', 2:'草地', 3:'泥土', 4:'沙子', 5:'木頭', 6:'葉子', 7:'雪地', 8:'水' };
     const B_COLORS = { 1:'#7f8c8d', 2:'#2ecc71', 3:'#795548', 4:'#f1c40f', 5:'#5d4037', 6:'#27ae60', 7:'#ecf0f1', 8:'#3498db' };
@@ -64,36 +66,70 @@
         document.getElementById('mini-map').style.display='block';
         var cvs=document.getElementById('g'); cvs.style.display='block';
         cvs.width=window.innerWidth; cvs.height=window.innerHeight;
-        for(var i=0; i<sSize-1; i++) spawn('ally', p.x + (Math.random()-0.5)*500, -320);
+        // spawn allies near player
+        for(var i=0; i<sSize-1; i++) spawn('ally', p.x + (Math.random()-0.5)*1000);
         live=true; loop();
     }
 
-    function spawn(t, x, y) { ents.push({ type: t, x: x, y: y, w: 22, h: 42, vx: 0, vy: 0, hp: 100, max: 100, dir: 1 }); }
+    function spawn(t, x) { ents.push({ type: t, x: x, y: -800, w: 22, h: 42, vx: 0, vy: 0, hp: 100, max: 100, dir: 1, actionCd: 0 }); }
 
-    // --- 地形引擎：垂直懸崖邏輯 ---
+    // ==========================================
+    // --- 複合地形生成引擎 (生物群落與指定大山) ---
+    // ==========================================
     function getB(gx, gy) {
         if(world[gx+'_'+gy]!==undefined) return world[gx+'_'+gy];
         
-        var xVal = Math.abs(gx * 0.02); 
-        var f = Math.floor(8 + (Math.pow(xVal, 2.5) * 0.5)); // 平緩上升
+        var absX = Math.abs(gx);
+        
+        // --- 1. 指定大山 (這座山是特殊的) ---
+        // 我們把大山設在 X=-300 到 X=300 的區域
+        if(gx > -300 && gx < 300) {
+            // 慢慢疊上去 (gx*T 高度感)
+            var mountainShape = Math.abs(gx) * 0.005; // 慢慢疊
+            var fM = Math.floor(10 + (mountainShape * 120)); // 高度感
 
-        // 垂直懸崖觸發 (海拔超過約 500m 開始出現階梯狀垂直)
-        if (f > 15) {
-            // 讓 f 每 5 個單位跳躍一次，形成垂直牆
-            f = Math.floor(f / 5) * 5; 
-            // 海拔超過 2500m (f=78) 時變成完全垂直的頂峰
-            if (f > 78) f = 78 + (Math.abs(Math.sin(Math.floor(gx/3))) * 100);
+            // 垂直突變觸發：在 gx 在 200 到 300 之間時突然變直 (如手繪圖)
+            if(gx > 200) {
+                // f 會突然疊加上一個巨大的垂直分量，並伴隨階梯狀 (使用 Math.floor(gx/5) * 5 做出階梯)
+                fM = 10 + (200 * 0.005 * 120) + (Math.floor((gx-200)/10)*150); 
+            }
+            if(gx < -200) {
+                 fM = 10 + (200 * 0.005 * 120) + (Math.floor((Math.abs(gx)-200)/10)*150);
+            }
+
+            if (gy < fM) return 0; // 空氣
+            if (gy === fM) return 7; // 雪地頂部 (高山都是雪)
+            if (gy > fM && gy < fM + 5) return 1; // 石頭主體
+            return 1;
         }
 
+        // --- 2. 其他地方的地形系統 ---
+        var noise = Math.sin(gx * 0.05) * 10 + Math.sin(gx * 0.15) * 5;
+        var h = 8;
+        
+        // 根據X軸分佈生物群落
+        var biome = "平原";
+        if (gx > 1000 || gx < -1000) { biome = "沙漠"; h = 4; }
+        else if (gx > 500 && gx < 1000) { biome = "丘陵"; h = 12; }
+        else if (gx > 300 && gx < 500) { biome = "台地"; h = 18; } // 30%出現? 這裡設定一個區塊
+        else if (gx < -500 && gx > -1000) { biome = "山地(1000m)"; h = 31; } // 31*32=992m
+
+        // 特別區域：雪地
+        if (gx > 1500) { biome = "雪地"; h = 6; }
+
+        var f = Math.floor(h + noise);
+
         if (gy < f) return 0;
-        if (gy === f && gy >= 78) return 7; // 雪地頂部
-        if (gy === f) return 2; // 草地
-        if (gy > f && gy < f + 4) return 3; // 泥土
-        return 1;
+        if (gy === f) {
+            if(biome === "沙漠") return 4; // 沙
+            if(biome === "雪地") return 7; // 雪
+            if(biome === "山地(1000m)") return 7; // 高山頂部也是雪
+            return 2; // 草地
+        }
+        return (gy > f + 5) ? 1 : 3;
     }
 
     function check(x,y) { for(var i=Math.floor(x/T);i<=Math.floor((x+22)/T);i++)for(var j=Math.floor(y/T);j<=Math.floor((y+42)/T);j++)if(getB(i,j)>0)return true; return false; }
-
     function toggleEsc() { if(!live) return; esc = !esc; document.getElementById('esc-menu').style.display = esc ? 'flex' : 'none'; }
 
     // 禁用右鍵預設選單的 JS 處理
@@ -122,18 +158,18 @@
         var cvs=document.getElementById('g'), ctx=cvs.getContext('2d');
         ticks=(ticks+0.05)%1440; 
 
-        if(ents.filter(e=>e.type==='pig').length < 8) spawn('pig', p.x + (Math.random()>0.5?1200:-1200), p.y);
+        if(ents.filter(e=>e.type==='pig').length < 8) spawn('pig', p.x + (Math.random()>0.5?1200:-1200), -800);
 
         [p].concat(ents).forEach(function(e) {
             e.vy+=0.8; e.y+=e.vy;
             if(check(e.x,e.y)){if(e.vy>0){while(check(e.x,e.y))e.y-=0.5;e.gr=true;}e.vy=0;}else e.gr=false;
             if(e===p){
-                var dx=(keys['KeyD']?7:0)-(keys['KeyA']?7:0);
+                var dx=(keys['KeyD']?6:0)-(keys['KeyA']?6:0);
                 if(dx!==0){p.x+=dx; if(check(p.x,p.y))p.x-=dx;}
                 if(keys['Space']&&p.gr)p.vy=-14;
             } else {
                 if(e.type==='ally'){
-                    if(Math.abs(p.x-e.x)>150) e.x+=(p.x>e.x?2.5:-2.5);
+                    if(Math.abs(p.x-e.x)>200) e.x+=(p.x>e.x?2:-2);
                     if(check(e.x+(p.x>e.x?5:-5),e.y) && e.gr) e.vy=-10;
                 } else if(e.type==='pig'){
                     e.x+=e.dir*1.5; if(check(e.x+e.dir*5,e.y)) e.dir*=-1;
@@ -141,6 +177,8 @@
             }
         });
 
+        ents = ents.filter(e=>Math.abs(e.x-p.x)<3000);
+        
         document.getElementById('tm-u').innerText=Math.floor(ticks/60).toString().padStart(2,'0')+":"+Math.floor(ticks%60).toString().padStart(2,'0');
         document.getElementById('alt-u').innerText=Math.floor(Math.abs(p.y/T));
         
@@ -156,26 +194,4 @@
         for(var x=Math.floor(cx/T);x<=Math.ceil((cx+cvs.width)/T);x++){
             for(var y=Math.floor(cy/T);y<=Math.ceil((cy+cvs.height)/T);y++){
                 var b=getB(x,y); 
-                if(b>0){ ctx.fillStyle=B_COLORS[b]; ctx.fillRect(x*T-cx,y*T-cy,T+0.5,T+0.5); }
-            }
-        }
-        [p].concat(ents).forEach(function(e) {
-            ctx.fillStyle=e===p?'#e67e22':(e.type==='ally'?'#3498db':'#ff9ff3');
-            ctx.fillRect(e.x-cx,e.y-cy,e.w,e.h);
-            ctx.fillStyle='#ff0000'; ctx.fillRect(e.x-cx,e.y-cy-12,e.w,6);
-            ctx.fillStyle='#00ff00'; ctx.fillRect(e.x-cx,e.y-cy-12,e.w*(e.hp/e.max),6);
-        });
-
-        var mctx=document.getElementById('mC').getContext('2d');
-        mctx.fillStyle='#000'; mctx.fillRect(0,0,160,160);
-        mctx.save(); mctx.translate(80,80);
-        [p].concat(ents).forEach(e=>{
-            mctx.fillStyle=e===p?'#fff':'#3498db';
-            var dx=(e.x-p.x)*0.06, dy=(e.y-p.y)*0.06;
-            if(dx*dx+dy*dy<75*75){mctx.beginPath(); mctx.arc(dx,dy,3.5,0,7); mctx.fill();}
-        });
-        mctx.restore();
-    }
-</script>
-</body>
-</html>
+                if(b>0){ ctx.fillStyle=B_COLORS[b]; ctx.fillRect(x*T-cx
