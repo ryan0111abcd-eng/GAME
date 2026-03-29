@@ -3,135 +3,127 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SUPER HUMAN 2026 - FIX</title>
+    <title>SUPER HUMAN 2026 - FINAL STABLE</title>
     <style>
-        body, html { margin: 0; padding: 0; width: 100%; height: 100%; background: #000; overflow: hidden; font-family: sans-serif; color: #f1c40f; }
-        .page { position: fixed; inset: 0; z-index: 999; display: flex; flex-direction: column; align-items: center; justify-content: center; background: #0a0a0a; text-align: center; }
-        .btn { padding: 20px 50px; font-size: 24px; cursor: pointer; margin: 15px; background: #f1c40f; border: none; border-radius: 8px; font-weight: bold; color: #000; transition: 0.2s; }
-        .btn:hover { background: #fff; }
-        .in-box { padding: 15px; font-size: 22px; border: 2px solid #f1c40f; border-radius: 8px; background: #222; color: #fff; margin-bottom: 20px; outline: none; }
-        #hud { position: fixed; top: 10px; left: 10px; z-index: 100; background: rgba(0,0,0,0.8); padding: 10px; border: 1px solid #f1c40f; display: none; pointer-events: none; }
-        canvas#g { display: none; background: #87ceeb; }
+        body, html { margin: 0; padding: 0; width: 100%; height: 100%; background: #000; overflow: hidden; font-family: sans-serif; }
+        .page { position: fixed; inset: 0; z-index: 9999; display: flex; flex-direction: column; align-items: center; justify-content: center; background: #050505; color: #f1c40f; }
+        .btn { padding: 18px 45px; font-size: 26px; cursor: pointer; margin: 10px; background: #f1c40f; border: 4px solid #fff; border-radius: 15px; font-weight: bold; color: #000; box-shadow: 0 6px 0 #b8860b; }
+        .btn:active { transform: translateY(4px); box-shadow: 0 2px 0 #b8860b; }
+        .in-box { padding: 15px; font-size: 24px; border: 4px solid #f1c40f; border-radius: 12px; background: #fff; color: #000; text-align: center; margin-bottom: 25px; width: 320px; outline: none; }
+        #hud { position: fixed; top: 15px; left: 15px; z-index: 1000; color: white; background: rgba(0,0,0,0.85); padding: 15px; border-radius: 12px; border: 2px solid #f1c40f; display: none; pointer-events: none; }
+        canvas#g { display: none; position: absolute; top: 0; left: 0; }
     </style>
 </head>
 <body>
 
     <div id="p-auth" class="page">
-        <h1>SYSTEM ACCESS</h1>
-        <input type="password" id="pw" class="in-box" placeholder="Access Key">
-        <button class="btn" onclick="auth()">VERIFY</button>
+        <h1>SUPER HUMAN SYSTEM</h1>
+        <input type="password" id="pw_input" class="in-box" placeholder="Access Key">
+        <button class="btn" onclick="handleAuth()">VERIFY</button>
     </div>
 
     <div id="p-mode" class="page" style="display:none;">
-        <h1>SELECT MODE</h1>
-        <button class="btn" onclick="setM(1)">SINGLE PLAYER</button>
-        <button class="btn" onclick="setM(5)">SQUAD (5 PEOP)</button>
+        <h1>ACCESS GRANTED</h1>
+        <button class="btn" onclick="start(1)">👤 單人冒險</button>
+        <button class="btn" onclick="start(5)">👥 5人小隊</button>
     </div>
 
     <div id="hud">
-        HP: <span id="hp">100</span> | TIME: <span id="tm">12:00</span> | ALT: <span id="alt">0</span>m
+        ❤️ HP: <span id="hp_val">100</span> | 🕒 <span id="tm_val">12:00</span><br>
+        📍 海拔：<span id="alt_val">0</span> m
     </div>
     <canvas id="g"></canvas>
 
 <script>
-    // 基礎參數
+    console.log("System Initializing...");
     var live = false, world = {}, keys = {}, ents = [], ticks = 600, sSize = 1;
-    var p = { x: 0, y: -500, w: 22, h: 42, vx: 0, vy: 0, hp: 100, max: 100, gr: false };
+    var p = { x: 0, y: -600, w: 22, h: 42, vx: 0, vy: 0, hp: 100, max: 100, gr: false };
     var T = 32;
 
-    // 1. 認證功能 (確保 ID 正確)
-    function auth() {
-        var val = document.getElementById('pw').value.trim();
-        if(val === 'ryan0111407') {
+    // 認證邏輯
+    function handleAuth() {
+        var input = document.getElementById('pw_input').value;
+        console.log("Attempting auth with key...");
+        if(input.trim() === 'ryan0111407') {
             document.getElementById('p-auth').style.display = 'none';
             document.getElementById('p-mode').style.display = 'flex';
         } else {
-            alert("ACCESS DENIED");
+            alert("KEY ERROR");
         }
     }
 
-    // 2. 模式設定
-    function setM(n) {
+    // 啟動邏輯
+    function start(n) {
         sSize = n;
         document.getElementById('p-mode').style.display = 'none';
-        initGame();
-    }
-
-    // 3. 啟動遊戲
-    function initGame() {
+        document.getElementById('hud').style.display = 'block';
         var cvs = document.getElementById('g');
         cvs.style.display = 'block';
         cvs.width = window.innerWidth;
         cvs.height = window.innerHeight;
-        document.getElementById('hud').style.display = 'block';
         
         // 生成隊友
-        for(var i=0; i<sSize-1; i++) {
-            ents.push({ type:'ally', x: p.x + (i*50)-100, y: -600, w:22, h:42, vx:0, vy:0, hp:100, max:100 });
-        }
+        for(var i=0; i<sSize-1; i++) ents.push({ type:'ally', x: p.x + (i*60)-120, y: -700, w:22, h:42, vx:0, vy:0, hp:100, max:100 });
         
         live = true;
-        requestAnimationFrame(loop);
+        console.log("World Live. Size:", sSize);
+        loop();
     }
 
-    // 4. 地形引擎 (草皮下 5 層土 + 3000M 大山)
+    // 地形生成 (草皮下 5 層泥土 + 3000M 山)
     function getB(gx, gy) {
         if(world[gx+'_'+gy] !== undefined) return world[gx+'_'+gy];
         var absGx = Math.abs(gx);
-        
-        // 3000M 大山階梯 (gx > 100 開始)
-        var f = Math.floor(20 + Math.sin(gx*0.2)*5);
-        if(absGx > 100) f += Math.floor((absGx-100)/5) * 15;
+        var f = Math.floor(22 + Math.sin(gx * 0.3) * 6);
+        if(absGx > 80) f += Math.floor((absGx-80)/4) * 12; // 3000M 大山
         if(f > 110) f = 110;
 
-        if(gy < f) return 0; // 空氣
-        if(gy === f) return (gy > 80) ? 7 : 2; // 雪或草
-        if(gy > f && gy <= f+5) return 3; // 5層泥土
+        if (gy < f) return 0;
+        if (gy === f) return (gy > 80) ? 7 : 2; // 雪地或草皮
+        if (gy > f && gy <= f + 5) return 3; // 泥土
         return 1; // 石頭
     }
 
-    // 5. 物理碰撞
     function check(x, y) {
         var gx = Math.floor(x/T), gy = Math.floor(y/T);
         return getB(gx, gy) > 0 || getB(Math.floor((x+21)/T), Math.floor((y+41)/T)) > 0;
     }
 
-    // 6. 遊戲主迴圈
     function loop() {
         if(!live) return;
         var cvs = document.getElementById('g'), ctx = cvs.getContext('2d');
         ticks = (ticks + 0.05) % 1440; // 時間 0.05x
 
-        // 玩家與 AI 物理
         [p].concat(ents).forEach(e => {
             e.vy += 0.8; e.y += e.vy;
             if(check(e.x, e.y)) { while(check(e.x, e.y)) e.y -= 0.5; e.vy = 0; e.gr = true; } else e.gr = false;
-            
             if(e === p) {
-                if(keys['KeyD']) { p.x += 6; if(check(p.x, p.y)) p.x -= 6; }
-                if(keys['KeyA']) { p.x -= 6; if(check(p.x, p.y)) p.x -= 6; }
+                var dx = (keys['KeyD']?7:0) - (keys['KeyA']?7:0);
+                if(dx !== 0) { p.x += dx; if(check(p.x, p.y)) p.x -= dx; }
                 if(keys['Space'] && p.gr) p.vy = -14;
             }
         });
 
-        // 更新 HUD
-        document.getElementById('tm').innerText = Math.floor(ticks/60) + ":" + Math.floor(ticks%60);
-        document.getElementById('alt').innerText = Math.floor(Math.abs(p.y/T)*32);
+        // UI 更新
+        document.getElementById('tm_val').innerText = Math.floor(ticks/60).toString().padStart(2,'0')+":"+Math.floor(ticks%60).toString().padStart(2,'0');
+        document.getElementById('alt_val').innerText = Math.floor(Math.abs(p.y/T)*32);
 
-        // 繪圖
-        ctx.clearRect(0, 0, cvs.width, cvs.height);
+        // 渲染
+        ctx.fillStyle = (ticks > 1050 || ticks < 350) ? '#050510' : '#87ceeb';
+        ctx.fillRect(0, 0, cvs.width, cvs.height);
+        
         var cx = p.x - cvs.width/2, cy = p.y - cvs.height/2;
+        var colors = ["", "#7f8c8d", "#2ecc71", "#795548", "#f1c40f", "#5d4037", "#27ae60", "#ecf0f1"];
 
         for(var x=Math.floor(cx/T); x<=Math.ceil((cx+cvs.width)/T); x++) {
             for(var y=Math.floor(cy/T); y<=Math.ceil((cy+cvs.height)/T); y++) {
                 var b = getB(x, y);
                 if(b > 0) {
-                    ctx.fillStyle = ["","#7f8c8d","#2ecc71","#795548","#f1c40f","#5d4037","#27ae60","#ecf0f1"][b];
+                    ctx.fillStyle = colors[b];
                     ctx.fillRect(x*T-cx, y*T-cy, T, T);
                 }
             }
         }
-        
         ctx.fillStyle = "#e67e22"; ctx.fillRect(p.x-cx, p.y-cy, p.w, p.h);
         ents.forEach(e => { ctx.fillStyle = "#3498db"; ctx.fillRect(e.x-cx, e.y-cy, e.w, e.h); });
 
