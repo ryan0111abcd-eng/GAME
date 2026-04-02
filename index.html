@@ -3,12 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>SUPER HUMAN 2026 - SQUAD RESTORED</title>
+    <title>SUPER HUMAN 2026 - RADAR & HP FIXED</title>
     <style>
         body, html { margin: 0; padding: 0; width: 100%; height: 100%; background: #000; overflow: hidden; font-family: sans-serif; user-select: none; }
         .page { position: fixed; inset: 0; z-index: 9999; display: flex; flex-direction: column; align-items: center; justify-content: center; background: #050505; color: #f1c40f; }
         .btn { 
-            display: flex; align-items: center; justify-content: center; width: 320px; height: 65px; margin: 12px;
+            display: flex; align-items: center; justify-content: center; width: 320px; height: 60px; margin: 10px;
             font-size: 20px; font-weight: bold; color: #000; background: #f1c40f; border: 4px solid #fff; border-radius: 15px;
             box-shadow: 0 6px 0 #b8860b; cursor: pointer; transition: 0.1s;
         }
@@ -24,9 +24,10 @@
 <body>
 
     <div id="p-auth" class="page" style="display:none;">
-        <h1>SYSTEM ACCESS</h1>
-        <input type="password" id="pw" class="in-box" placeholder="Access Key">
-        <button class="btn" onclick="checkAuth()">驗證身份</button>
+        <h1 style="letter-spacing: 5px;">SYSTEM ACCESS</h1>
+        <p style="color:#666;">請輸入啟動金鑰</p>
+        <input type="password" id="pw" class="in-box" placeholder="********">
+        <button class="btn" onclick="checkAuth()">進入系統</button>
     </div>
 
     <div id="p-conn" class="page" style="display:none;">
@@ -38,19 +39,19 @@
     <div id="p-count" class="page" style="display:none;">
         <h1>SQUAD SIZE</h1>
         <h2 id="cnt-disp" style="font-size: 40px; color:#fff;">5</h2>
-        <input type="range" id="member-sld" min="2" max="15" value="5" oninput="document.getElementById('cnt-disp').innerText=this.value" style="width:300px;">
+        <input type="range" id="member-sld" min="2" max="15" value="5" oninput="document.getElementById('cnt-disp').innerText=this.value" style="width:300px; accent-color:#f1c40f;">
         <button class="btn" onclick="toModeSel()">下一步</button>
     </div>
 
     <div id="p-mode" class="page" style="display:none;">
-        <h1>MISSION MODE</h1>
+        <h1>MISSION SELECT</h1>
         <button class="btn" onclick="prepareBrief('ARCH')">🏗️ 荒野建築</button>
         <button class="btn" onclick="prepareBrief('SURV')">🏔️ 高山生存</button>
         <button class="btn" onclick="prepareBrief('ZOMB')">🧟 殭屍圍城</button>
     </div>
 
     <div id="p-brief" class="page" style="display:none;">
-        <h1>DEPLOYMENT BRIEF</h1>
+        <h1>MISSION BRIEF</h1>
         <div id="brief-text" style="padding:20px; color:#aaa; line-height:1.6;"></div>
         <button class="btn" onclick="startGame()">開始部署</button>
     </div>
@@ -60,12 +61,15 @@
             <div class="info-panel">
                 <h2 style="color:#f1c40f; margin:0;">模擬暫停</h2>
                 <b>📍 座標：</b> <span id="st-pos">---</span><br>
-                <b>👥 電腦隊友：</b> <span id="st-squad">0</span><br>
+                <b>👥 小隊單位：</b> <span id="st-squad">0 Units</span><br>
                 <hr style="border:1px solid #333; margin:15px 0;">
-                <button class="btn" onclick="togglePause()" style="width:100%">繼續 (ESC)</button>
-                <button class="btn" onclick="location.reload()" style="background:#444; color:#fff; width:100%">回到選單</button>
+                <button class="btn" onclick="togglePause()" style="width:100%; height:55px;">繼續 (ESC)</button>
+                <button class="btn" onclick="location.reload()" style="background:#444; color:#fff; width:100%; height:55px; border:none;">回到選單</button>
             </div>
-            <canvas id="esc-mm-canvas" width="250" height="250" style="border:2px solid #333; border-radius:15px;"></canvas>
+            <div style="text-align:center;">
+                <b style="color:#f1c40f; display:block; margin-bottom:10px;">地形掃描器</b>
+                <canvas id="esc-mm-canvas" width="250" height="250" style="background:#000; border:2px solid #333; border-radius:15px;"></canvas>
+            </div>
         </div>
     </div>
 
@@ -76,11 +80,11 @@
     <canvas id="g"></canvas>
 
 <script>
-    // --- 禁止右鍵選單的終極手段 ---
+    // 右鍵攔截
     document.addEventListener('contextmenu', e => e.preventDefault());
 
     var live = false, paused = false, world = {}, keys = {}, ents = [], ticks = 600, sSize = 1;
-    var p = { x: 0, y: 0, w: 22, h: 42, vx: 0, vy: 0, hp: 100, gr: false };
+    var p = { x: 0, y: 0, w: 22, h: 42, vx: 0, vy: 0, hp: 100, max: 100, gr: false };
     var T = 32, selB = 1, villagerTimer = 0;
     const AUTH_KEY = 'ryan0111407';
 
@@ -94,7 +98,7 @@
         if(document.getElementById('pw').value.trim() === AUTH_KEY) {
             localStorage.setItem('super_human_auth', AUTH_KEY);
             document.getElementById('p-auth').style.display='none'; document.getElementById('p-conn').style.display='flex';
-        } else alert("Key Error");
+        } else alert("啟動碼錯誤");
     }
 
     function setConn(n) { document.getElementById('p-conn').style.display='none'; if(n===1){sSize=1;document.getElementById('p-mode').style.display='flex';}else{document.getElementById('p-count').style.display='flex';} }
@@ -102,9 +106,10 @@
 
     function prepareBrief(type) {
         document.getElementById('p-mode').style.display='none'; document.getElementById('p-brief').style.display='flex';
-        document.getElementById('brief-text').innerHTML = `● <b>右鍵鎖定</b>：已禁用圖片存檔選單。<br>● <b>隊友召喚</b>：將部署 ${sSize-1} 位電腦隊友協助。<br>● <b>地貌</b>：V10.5 碎裂雜湊 (無平原)。`;
+        document.getElementById('brief-text').innerHTML = `● <b>系統驗證</b>：啟動碼已核可。<br>● <b>部隊狀態</b>：包括你在內共 ${sSize} 名成員，所有人均配備生命感測器。<br>● <b>地貌鎖定</b>：崎嶇地形 100%，已禁用平原生成。`;
     }
 
+    // --- 崎嶇地形核心 ---
     function getB(gx, gy) {
         if(world[gx+'_'+gy] !== undefined) return world[gx+'_'+gy];
         var f = Math.floor(52 + Math.sin(gx*0.45)*10 + Math.cos(gx*0.22)*8 + (gx*13%7)-3.5);
@@ -120,10 +125,10 @@
         let sy = 0; while(getB(0, Math.floor(sy/T)) === 0) sy += T;
         p.x = 0; p.y = sy - 160;
 
-        // --- 生成電腦隊友邏輯 ---
+        // 生成電腦隊友 (Ally)
         ents = [];
         for(var i=0; i < sSize-1; i++) {
-            ents.push({ type: 'ally', x: (i+1)*40, y: p.y, w: 22, h: 42, vx: 0, vy: 0, hp: 100, gr: false });
+            ents.push({ type: 'ally', x: (i+1)*45, y: p.y, w: 22, h: 42, vx: 0, vy: 0, hp: 100, max: 100, gr: false });
         }
 
         document.getElementById('p-brief').style.display='none';
@@ -137,8 +142,28 @@
         document.getElementById('esc-menu').style.display = paused ? 'flex' : 'none';
         if(paused) {
             document.getElementById('st-pos').innerText = `${Math.floor(p.x/T)}, ${Math.floor(p.y/T)}`;
-            document.getElementById('st-squad').innerText = sSize-1 + " Units";
+            document.getElementById('st-squad').innerText = (ents.filter(e=>e.type==='ally').length+1) + " Units";
+            drawEscMap(); // 即時重繪地圖
         }
+    }
+
+    // --- 修復地圖顯示 ---
+    function drawEscMap() {
+        var mCvs = document.getElementById('esc-mm-canvas');
+        var mCtx = mCvs.getContext('2d');
+        mCtx.fillStyle = "#000"; mCtx.fillRect(0,0,250,250);
+        var pgx = Math.floor(p.x/T), pgy = Math.floor(p.y/T);
+        var scale = 4;
+        for(var x=-30; x<30; x++) {
+            for(var y=-30; y<30; y++) {
+                var b = getB(pgx+x, pgy+y);
+                if(b>0) {
+                    mCtx.fillStyle = (b===7)?"#fff":(b===2)?"#2ecc71":"#555";
+                    mCtx.fillRect(125 + x*scale, 125 + y*scale, scale, scale);
+                }
+            }
+        }
+        mCtx.fillStyle = "#f1c40f"; mCtx.fillRect(123, 123, 5, 5); // 中心點(玩家)
     }
 
     window.onkeydown = e => {
@@ -154,7 +179,7 @@
         var cvs = document.getElementById('g'), cx = p.x - cvs.width/2, cy = p.y - cvs.height/2;
         var gx = Math.floor((e.clientX + cx) / T), gy = Math.floor((e.clientY + cy) / T);
         if(e.button === 0) world[gx+'_'+gy] = 0; 
-        if(e.button === 2) world[gx+'_'+gy] = selB; // 右鍵蓋房子，且選單已被 preventDefault 攔截
+        if(e.button === 2) world[gx+'_'+gy] = selB; 
         localStorage.setItem('sh_save_v10', JSON.stringify(world));
     };
 
@@ -166,15 +191,13 @@
             var cvs = document.getElementById('g'), ctx = cvs.getContext('2d');
             ticks = (ticks + 0.05) % 1440;
 
-            // 村民生成
             villagerTimer++;
             if(villagerTimer > 600) {
                 var sx = p.x + (Math.random()>0.5?800:-800);
-                ents.push({ type:'villager', x: sx, y: p.y-400, w:22, h:42, vx:0, vy:0, hp:100 });
+                ents.push({ type:'villager', x: sx, y: p.y-400, w:22, h:42, vx:0, vy:0, hp:100, max:100 });
                 villagerTimer = 0;
             }
 
-            // 所有實體物理邏輯
             [p].concat(ents).forEach(e => {
                 e.vy += 0.8; e.y += e.vy;
                 if(check(e.x, e.y)) { while(check(e.x, e.y)) e.y -= 0.5; e.vy = 0; e.gr = true; } else e.gr = false;
@@ -182,20 +205,14 @@
                     var dx = (keys['KeyD']?7:0) - (keys['KeyA']?7:0);
                     if(dx !== 0) { p.x += dx; if(check(p.x, p.y)) p.x -= dx; }
                     if(keys['Space'] && p.gr) p.vy = -14;
-                } else {
-                    // 電腦隊友跟隨邏輯
-                    if(e.type === 'ally') {
-                        var targetX = p.x - 40;
-                        if(Math.abs(e.x - targetX) > 60) {
-                            e.x += (p.x > e.x ? 3 : -3);
-                            if(check(e.x, e.y)) e.x -= (p.x > e.x ? 3 : -3);
-                        }
-                        if(check(e.x + (p.x > e.x ? 10 : -10), e.y) && e.gr) e.vy = -10;
-                    }
+                } else if(e.type === 'ally') {
+                    var targetX = p.x - 40;
+                    if(Math.abs(e.x - targetX) > 60) { e.x += (p.x > e.x ? 3 : -3); if(check(e.x, e.y)) e.x -= (p.x > e.x ? 3 : -3); }
+                    if(check(e.x + (p.x > e.x ? 10 : -10), e.y) && e.gr) e.vy = -10;
                 }
             });
 
-            // 渲染畫面
+            // --- 繪製世界 ---
             ctx.fillStyle = (ticks > 1050 || ticks < 350) ? '#050510' : '#87ceeb';
             ctx.fillRect(0, 0, cvs.width, cvs.height);
             var cx = p.x - cvs.width/2, cy = p.y - cvs.height/2;
@@ -205,13 +222,19 @@
                     var b = getB(x, y); if(b > 0) { ctx.fillStyle = clrs[b]; ctx.fillRect(x*T-cx, y*T-cy, T-0.5, T-0.5); }
                 }
             }
-            ents.concat([p]).forEach(e => {
+
+            // --- 繪製實體 & 血條 (修正重點) ---
+            [p].concat(ents).forEach(e => {
                 ctx.fillStyle = (e===p?'#e67e22':(e.type==='ally'?'#3498db':'#9b59b6'));
                 ctx.fillRect(e.x-cx, e.y-cy, e.w, e.h);
+                // 所有人頭上的綠色血條
+                var barW = 30;
+                ctx.fillStyle = "#333"; ctx.fillRect(e.x-cx - 4, e.y-cy - 12, barW, 5);
+                ctx.fillStyle = "#2ecc71"; ctx.fillRect(e.x-cx - 4, e.y-cy - 12, barW * (e.hp/e.max), 5);
             });
 
             document.getElementById('alt-v').innerText = Math.floor(Math.abs(p.y/T)*32);
-            document.getElementById('tm-v').innerText = Math.floor(ticks/60).toString().padStart(2,'0') + ":" + Math.floor(ticks%60).toString().padStart(2,'0');
+            document.getElementById('p-hp-hud').innerText = Math.floor(p.hp);
         }
         requestAnimationFrame(loop);
     }
