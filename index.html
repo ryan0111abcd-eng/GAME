@@ -2,7 +2,7 @@
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
-    <title>SUPER HUMAN 2026 - AUTO SAVE</title>
+    <title>SUPER HUMAN 2026 - SHARED WORLD</title>
     <style>
         body, html { margin: 0; padding: 0; width: 100%; height: 100%; background: #000; overflow: hidden; font-family: sans-serif; user-select: none; }
         .page { position: fixed; inset: 0; z-index: 9999; display: flex; flex-direction: column; align-items: center; justify-content: center; background: #050505; color: #f1c40f; text-align: center; }
@@ -20,19 +20,20 @@
 <body oncontextmenu="return false;">
 
     <div id="p-auth" class="page" style="display:none;">
-        <h1>SYSTEM ACCESS</h1>
+        <h1 style="letter-spacing: 5px;">SYSTEM ACCESS</h1>
+        <p style="color: #888;">請輸入啟動碼以解鎖模擬器</p>
         <input type="password" id="pw" class="in-box" placeholder="Access Key">
-        <button class="btn" onclick="checkAuth()">VERIFY</button>
+        <button class="btn" onclick="checkAuth()">VERIFY & START</button>
     </div>
 
     <div id="p-conn" class="page" style="display:none;">
         <h1>CONNECTION TYPE</h1>
-        <button class="btn" onclick="setConnSingle()">👤 單人連線</button>
-        <button class="btn" onclick="setConnMulti()">👥 多人連線</button>
+        <button class="btn" onclick="setConnSingle()">👤 單人獨行</button>
+        <button class="btn" onclick="setConnMulti()">👥 多人合作</button>
     </div>
 
     <div id="p-count" class="page" style="display:none;">
-        <h1>SQUAD SIZE (MULTI)</h1>
+        <h1>SQUAD SIZE</h1>
         <h2 id="cnt-disp" style="font-size: 40px;">2 人</h2>
         <input type="range" id="member-sld" min="2" max="15" value="5" oninput="document.getElementById('cnt-disp').innerText=this.value+' 人'">
         <button class="btn" onclick="toModeSel()">NEXT</button>
@@ -48,15 +49,15 @@
     <div id="p-brief" class="page" style="display:none;">
         <h1 id="brief-title">MISSION BRIEFING</h1>
         <div id="brief-text" style="font-size: 18px; line-height: 1.6; margin: 20px 0;"></div>
-        <button class="btn" onclick="startGame()">START SIMULATION</button>
+        <button class="btn" onclick="startGame()">INITIALIZE WORLD</button>
     </div>
 
     <div id="esc-menu">
         <h1 style="color:#f1c40f; font-size: 48px; margin-bottom: 20px;">PAUSED</h1>
         <button class="btn" onclick="togglePause()">RESUME (ESC)</button>
-        <button class="btn btn-clear" onclick="resetWorld()" style="background:#d35400 !important; box-shadow: 0 5px 0 #a04000 !important;">重置世界建築 (慎點)</button>
-        <button class="btn btn-clear" onclick="forgetKey()">清除密碼並登出</button>
-        <button class="btn" onclick="location.reload()" style="background:#555; color:white;">EXIT TO MENU</button>
+        <button class="btn btn-clear" onclick="resetWorld()">重置本地存檔 (全新開始)</button>
+        <button class="btn btn-clear" onclick="forgetKey()" style="background:#555 !important; box-shadow: 0 5px 0 #333 !important;">登出此裝置</button>
+        <button class="btn" onclick="location.reload()" style="background:#444; color:white;">EXIT TO MENU</button>
     </div>
 
     <div id="hud">
@@ -71,26 +72,14 @@
     var T = 32, selB = 1, spawnTimer = 0, villagerTimer = 0;
     const AUTH_KEY = 'ryan0111407';
 
-    // --- 存檔機制 ---
-    function saveWorld() {
-        localStorage.setItem('super_human_save', JSON.stringify(world));
-    }
-    function loadWorld() {
-        var saved = localStorage.getItem('super_human_save');
-        if(saved) world = JSON.parse(saved);
-    }
-    function resetWorld() {
-        if(confirm("確定要拆掉所有蓋好的方塊嗎？")) {
-            world = {};
-            saveWorld();
-            location.reload();
-        }
-    }
-
+    // 啟動檢測
     window.onload = function() {
-        loadWorld(); // 載入存檔
-        if (localStorage.getItem('super_human_auth') === AUTH_KEY) document.getElementById('p-conn').style.display = 'flex';
-        else document.getElementById('p-auth').style.display = 'flex';
+        loadWorld(); 
+        if (localStorage.getItem('super_human_auth') === AUTH_KEY) {
+            document.getElementById('p-conn').style.display = 'flex';
+        } else {
+            document.getElementById('p-auth').style.display = 'flex';
+        }
     };
 
     function checkAuth() {
@@ -98,10 +87,24 @@
             localStorage.setItem('super_human_auth', AUTH_KEY);
             document.getElementById('p-auth').style.display='none';
             document.getElementById('p-conn').style.display='flex';
-        } else alert("ACCESS DENIED");
+        } else { alert("啟動碼錯誤，請詢問開發者。"); }
     }
 
     function forgetKey() { localStorage.removeItem('super_human_auth'); location.reload(); }
+
+    // 存檔邏輯 (基於瀏覽器 localStorage)
+    function saveWorld() { localStorage.setItem('sh_save_data', JSON.stringify(world)); }
+    function loadWorld() {
+        var saved = localStorage.getItem('sh_save_data');
+        if(saved) world = JSON.parse(saved);
+    }
+    function resetWorld() {
+        if(confirm("這將清除你在這個裝置上蓋的所有建築，確定嗎？")) {
+            world = {}; saveWorld(); location.reload();
+        }
+    }
+
+    // 流程控制
     function setConnSingle() { sSize = 1; document.getElementById('p-conn').style.display='none'; document.getElementById('p-mode').style.display='flex'; }
     function setConnMulti() { document.getElementById('p-conn').style.display='none'; document.getElementById('p-count').style.display='flex'; }
     function toModeSel() { sSize = parseInt(document.getElementById('member-sld').value); document.getElementById('p-count').style.display='none'; document.getElementById('p-mode').style.display='flex'; }
@@ -110,17 +113,16 @@
         mType = type;
         document.getElementById('p-mode').style.display='none';
         document.getElementById('p-brief').style.display='flex';
-        document.getElementById('brief-title').innerText = (type==='ARCH'?"荒野建築模式":(type==='SURV'?"高山生存模式":"殭屍圍城模式"));
-        document.getElementById('brief-text').innerHTML = `● <b>地貌</b>：崎嶇丘陵鎖定。<br>● <b>自動存檔</b>：你的建築將永久儲存在此瀏覽器中。<br>● <b>規則</b>：10 秒生成一村民，草皮下 5 層土。<br>● <b>操作</b>：K攻擊，左挖右蓋，ESC暫停。`;
+        let h = document.getElementById('brief-title'), t = document.getElementById('brief-text');
+        h.innerText = (type==='ARCH'?"荒野建築模式":(type==='SURV'?"高山生存模式":"殭屍圍城模式"));
+        t.innerHTML = "● <b>獨立世界</b>：你的建築將儲存在此裝置，其他人不會看到。<br>● <b>地形</b>：崎嶇丘陵鎖定，草皮下 5 層泥土。<br>● <b>規則</b>：10 秒生成一位村民，K鍵攻擊。";
     }
 
     function getB(gx, gy) {
         if(world[gx+'_'+gy] !== undefined) return world[gx+'_'+gy];
         var absGx = Math.abs(gx);
-        var h1 = Math.sin(gx * 0.42) * 11;
-        var h2 = Math.cos(gx * 0.23) * 9;
-        var h3 = Math.sin(gx * 0.11) * 15;
-        var f = Math.floor(45 + h1 + h2 + h3);
+        var h = Math.sin(gx * 0.42) * 11 + Math.cos(gx * 0.23) * 9 + Math.sin(gx * 0.1) * 15;
+        var f = Math.floor(45 + h);
         if(absGx > 120) f += Math.floor((absGx-120)/3) * 18;
         if (f > 120) f = 120; 
         if (gy < f) return 0;
@@ -151,7 +153,7 @@
         var gx = Math.floor((e.clientX + cx) / T), gy = Math.floor((e.clientY + cy) / T);
         if(e.button === 0) world[gx+'_'+gy] = 0; 
         if(e.button === 2) world[gx+'_'+gy] = selB; 
-        saveWorld(); // 每次更動方塊後存檔
+        saveWorld();
     };
 
     window.onkeydown = function(e) {
