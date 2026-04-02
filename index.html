@@ -2,7 +2,7 @@
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
-    <title>SUPER HUMAN 2026 - NO FLAT ZONE</title>
+    <title>SUPER HUMAN 2026 - JUDGMENT RUGGED</title>
     <style>
         body, html { margin: 0; padding: 0; width: 100%; height: 100%; background: #000; overflow: hidden; font-family: sans-serif; user-select: none; }
         .page { position: fixed; inset: 0; z-index: 9999; display: flex; flex-direction: column; align-items: center; justify-content: center; background: #050505; color: #f1c40f; text-align: center; }
@@ -11,7 +11,7 @@
         .in-box { padding: 15px; font-size: 24px; border: 4px solid #f1c40f; border-radius: 12px; background: #222; color: #fff; text-align: center; margin-bottom: 25px; width: 320px; outline: none; }
         #hud { position: fixed; top: 15px; left: 15px; z-index: 1000; color: white; background: rgba(0,0,0,0.85); padding: 10px; border-radius: 10px; border: 2px solid #f1c40f; display: none; pointer-events: none; }
         canvas#g { display: none; position: absolute; top: 0; left: 0; }
-        #esc-menu { position: fixed; inset: 0; z-index: 10000; display: none; flex-direction: column; align-items: center; justify-content: center; background: rgba(0,0,0,0.9); backdrop-filter: blur(10px); }
+        #esc-menu { position: fixed; inset: 0; z-index: 10000; display: none; flex-direction: column; align-items: center; justify-content: center; background: rgba(0,0,0,0.95); backdrop-filter: blur(15px); }
     </style>
 </head>
 <body oncontextmenu="return false;">
@@ -51,9 +51,9 @@
     <div id="esc-menu">
         <h1 style="color:#f1c40f; font-size: 48px;">PAUSED</h1>
         <button class="btn" onclick="togglePause()">RESUME (ESC)</button>
-        <button class="btn" onclick="resetWorld()" style="background:#e67e22!important;">重置建築存檔</button>
-        <button class="btn" onclick="forgetKey()" style="background:#555!important;">登出帳號</button>
-        <button class="btn" onclick="location.reload()" style="background:#444;">返回主選單</button>
+        <button class="btn" onclick="resetWorld()" style="background:#e67e22!important;">重置建築</button>
+        <button class="btn" onclick="forgetKey()" style="background:#555!important;">登出</button>
+        <button class="btn" onclick="location.reload()" style="background:#444;">主選單</button>
     </div>
 
     <div id="hud">
@@ -91,29 +91,30 @@
         mType = type;
         document.getElementById('p-mode').style.display='none';
         document.getElementById('p-brief').style.display='flex';
-        document.getElementById('brief-text').innerHTML = "● <b>地形禁令</b>：已鎖定碎裂式雜湊地形。每一公尺均為崎嶇，絕對無平原。<br>● <b>地底結構</b>：草皮下必有5層泥土。每10秒隨機投放村民。<br>● <b>警告</b>：地勢兇險，建議隨時利用方塊建立階梯。";
+        document.getElementById('brief-text').innerHTML = "● <b>地形修正</b>：地形引擎 V9.4 啟動。引入高頻鋸齒雜訊，強制地表崎嶇。<br>● <b>地層結構</b>：5層泥土物理層。10秒空投一名村民。<br>● <b>操作</b>：K鍵攻擊，1-8切換材料。";
     }
 
-    // --- 碎裂式雜湊地形引擎 (永久鎖定崎嶇) ---
+    // --- 地形引擎 V9.4 (鋸齒強化版) ---
     function getB(gx, gy) {
         if(world[gx+'_'+gy] !== undefined) return world[gx+'_'+gy];
         var absGx = Math.abs(gx);
         
-        // 利用多個質數頻率與絕對值函數，確保地表永遠在跳動，不會連成直線
-        var waveA = Math.sin(gx * 0.51) * 11;
-        var waveB = Math.cos(gx * 0.37 + 1.2) * 9;
-        var waveC = Math.abs(Math.sin(gx * 0.17)) * 13;
-        var fracture = Math.cos(gx * 1.6) * Math.sin(gx * 2.1) * 7; // 微小劇烈跳動
+        // 基本起伏
+        var n1 = Math.sin(gx * 0.43) * 10;
+        var n2 = Math.cos(gx * 0.21) * 8;
+        // 高頻鋸齒因子：這會讓地表在每一格都發生劇烈跳動，絕對無法連成直線
+        var jitter = Math.cos(gx * 7.7) * 5; 
+        var noise = Math.abs(Math.sin(gx * 0.11)) * 14;
         
-        var f = Math.floor(45 + waveA + waveB + waveC + fracture);
+        var f = Math.floor(45 + n1 + n2 + jitter + noise);
         
-        // 巨脈海拔邏輯
-        if(absGx > 100) f += Math.floor((absGx-100)/3.5) * (18 + Math.cos(gx * 0.85) * 5);
+        // 巨脈海拔
+        if(absGx > 100) f += Math.floor((absGx-100)/3.5) * (18 + Math.cos(gx * 0.85) * 6);
         if (f > 120) f = 120; 
 
         if (gy < f) return 0;
         if (gy === f) return (gy > 85) ? 7 : 2; 
-        if (gy > f && gy <= f + 5) return 3; // 5層土
+        if (gy > f && gy <= f + 5) return 3; 
         return 1;
     }
 
@@ -195,25 +196,4 @@
 
     function render(ctx, cvs) {
         document.getElementById('p-hp-hud').innerText = Math.floor(p.hp);
-        document.getElementById('tm-v').innerText = Math.floor(ticks/60).toString().padStart(2,'0')+":"+Math.floor(ticks%60).toString().padStart(2,'0');
-        document.getElementById('alt-v').innerText = Math.floor(Math.abs(p.y/T)*32);
-        ctx.fillStyle = (ticks > 1050 || ticks < 350) ? '#050510' : '#87ceeb';
-        ctx.fillRect(0, 0, cvs.width, cvs.height);
-        var cx = p.x - cvs.width/2, cy = p.y - cvs.height/2;
-        var clrs = ["","#7f8c8d","#2ecc71","#795548","#f1c40f","#5d4037","#27ae60","#ecf0f1","#3498db"];
-        for(var x=Math.floor(cx/T); x<=Math.ceil((cx+cvs.width)/T); x++) {
-            for(var y=Math.floor(cy/T); y<=Math.ceil((cy+cvs.height)/T); y++) {
-                var b = getB(x, y);
-                if(b > 0) { ctx.fillStyle = clrs[b]; ctx.fillRect(x*T-cx, y*T-cy, T-0.5, T-0.5); }
-            }
-        }
-        ents.concat([p]).forEach(e => {
-            ctx.fillStyle = (e.dmgCd > 0) ? '#fff' : (e===p?'#e67e22':(e.type==='zombie'?'#27ae60':(e.type==='villager'?'#9b59b6':(e.type==='animal'?'#ff9ff3':'#3498db'))));
-            ctx.fillRect(e.x-cx, e.y-cy, e.w, e.h);
-            var bw = 30; ctx.fillStyle="#333"; ctx.fillRect(e.x-cx+(e.w/2-bw/2), e.y-cy-12, bw, 5);
-            ctx.fillStyle="#2ecc71"; ctx.fillRect(e.x-cx+(e.w/2-bw/2), e.y-cy-12, bw*(e.hp/e.max), 5);
-        });
-    }
-</script>
-</body>
-</html>
+        document.getElementById('tm-v
