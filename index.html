@@ -2,7 +2,7 @@
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
-    <title>SUPER HUMAN 2026 - RUGGED HILLS</title>
+    <title>SUPER HUMAN 2026 - MODES COMPLIANT</title>
     <style>
         body, html { margin: 0; padding: 0; width: 100%; height: 100%; background: #000; overflow: hidden; font-family: sans-serif; user-select: none; }
         .page { position: fixed; inset: 0; z-index: 9999; display: flex; flex-direction: column; align-items: center; justify-content: center; background: #050505; color: #f1c40f; text-align: center; }
@@ -12,7 +12,7 @@
         #p-brief { background: #111; color: #eee; padding: 40px; text-align: left; align-items: flex-start; border: 6px solid #f1c40f; overflow-y: auto; }
         .brief-content { font-size: 18px; line-height: 1.6; border-left: 4px solid #f1c40f; padding-left: 20px; margin: 20px 0; }
         #esc-menu { position: fixed; inset: 0; z-index: 10000; display: none; flex-direction: column; align-items: center; justify-content: center; background: rgba(0,0,0,0.85); backdrop-filter: blur(5px); }
-        #hud { position: fixed; top: 15px; left: 15px; z-index: 1000; color: white; background: rgba(0,0,0,0.85); padding: 15px; border-radius: 12px; border: 2px solid #f1c40f; display: none; pointer-events: none; line-height: 1.6; }
+        #hud { position: fixed; top: 15px; left: 15px; z-index: 1000; color: white; background: rgba(0,0,0,0.85); padding: 15px; border-radius: 12px; border: 2px solid #f1c40f; display: none; pointer-events: none; }
         canvas#g { display: none; position: absolute; top: 0; left: 0; }
         .sel-box { color: #f1c40f; font-weight: bold; border-bottom: 2px solid #f1c40f; }
         input[type=range] { width: 350px; cursor: pointer; }
@@ -20,7 +20,7 @@
 </head>
 <body oncontextmenu="return false;">
 
-    <div id="p-auth" class="page">
+    <div id="p-auth" class="page" style="display:none;">
         <h1 style="letter-spacing: 5px;">SYSTEM ACCESS</h1>
         <input type="password" id="pw" class="in-box" placeholder="Access Key">
         <button class="btn" onclick="checkAuth()">VERIFY</button>
@@ -41,7 +41,7 @@
 
     <div id="p-mode" class="page" style="display:none;">
         <h1>SELECT MISSION MODE</h1>
-        <button class="btn" onclick="prepareBrief('ARCH')">🏗️ 平原建築</button>
+        <button class="btn" onclick="prepareBrief('ARCH')">🏗️ 荒野建築</button>
         <button class="btn" onclick="prepareBrief('SURV')">🏔️ 高山生存</button>
         <button class="btn" onclick="prepareBrief('ZOMB')">🧟 殭屍圍城</button>
     </div>
@@ -55,6 +55,7 @@
     <div id="esc-menu">
         <h1 style="color:#f1c40f; font-size: 48px;">PAUSED</h1>
         <button class="btn" onclick="togglePause()">RESUME (ESC)</button>
+        <button class="btn" onclick="forgetKey()" style="background:#800; color:white; font-size: 14px; width: 120px; height: 35px;">清除記憶密碼</button>
         <button class="btn" onclick="location.reload()" style="background:#555; color:white;">EXIT TO MENU</button>
     </div>
 
@@ -65,43 +66,35 @@
     <canvas id="g"></canvas>
 
 <script>
-    var live = false, paused = false, world = {}, keys = {}, ents = [], ticks = 600, sSize = 1, mType = '', connType = '';
+    var live = false, paused = false, world = {}, keys = {}, ents = [], ticks = 600, sSize = 1, mType = '';
     var p = { x: 0, y: -800, w: 22, h: 42, vx: 0, vy: 0, hp: 100, max: 100, gr: false, dmgCd: 0, atkCd: 0, face: 1 };
-    var T = 32, selB = 1, spawnTimer = 0;
+    var T = 32, selB = 1, spawnTimer = 0, villagerTimer = 0;
+    const AUTH_KEY = 'ryan0111407';
 
-    const B_NAMES = { 1:'石頭', 2:'草地', 3:'泥土', 4:'沙子', 5:'木頭', 6:'葉子', 7:'雪地', 8:'水' };
-    const B_COLORS = ["", "#7f8c8d", "#2ecc71", "#795548", "#f1c40f", "#5d4037", "#27ae60", "#ecf0f1", "#3498db"];
+    window.onload = function() {
+        if (localStorage.getItem('super_human_auth') === AUTH_KEY) { document.getElementById('p-conn').style.display = 'flex'; }
+        else { document.getElementById('p-auth').style.display = 'flex'; }
+    };
 
     function checkAuth() {
-        if(document.getElementById('pw').value.trim()==='ryan0111407') {
-            document.getElementById('p-auth').style.display='none';
-            document.getElementById('p-conn').style.display='flex';
-        } else { alert("ACCESS DENIED"); }
+        var val = document.getElementById('pw').value.trim();
+        if(val === AUTH_KEY) { localStorage.setItem('super_human_auth', AUTH_KEY); document.getElementById('p-auth').style.display='none'; document.getElementById('p-conn').style.display='flex'; }
+        else { alert("ACCESS DENIED"); }
     }
 
-    function setConn(type) {
-        connType = type;
-        document.getElementById('p-conn').style.display='none';
-        document.getElementById('p-count').style.display='flex';
-        if(type==='SINGLE') { document.getElementById('member-sld').value=1; document.getElementById('cnt-disp').innerText="1 人"; }
-    }
-
-    function toModeSel() {
-        sSize = parseInt(document.getElementById('member-sld').value);
-        document.getElementById('p-count').style.display='none';
-        document.getElementById('p-mode').style.display='flex';
-    }
+    function forgetKey() { localStorage.removeItem('super_human_auth'); location.reload(); }
+    function setConn(t) { document.getElementById('p-conn').style.display='none'; document.getElementById('p-count').style.display='flex'; }
+    function toModeSel() { sSize = parseInt(document.getElementById('member-sld').value); document.getElementById('p-count').style.display='none'; document.getElementById('p-mode').style.display='flex'; }
 
     function prepareBrief(type) {
         mType = type;
         document.getElementById('p-mode').style.display='none';
         document.getElementById('p-brief').style.display='flex';
-        let title = "", text = "";
-        if(type === 'ARCH') { title = "平原建築模式"; text = "● 全區域覆蓋連續丘陵地貌，無平原。<br>● 資源獲取穩定，適合沿坡度建立梯田式城市。"; }
-        else if(type === 'SURV') { title = "高山生存模式"; text = "● 丘陵起伏更加劇烈。<br>● 目標：征服遠方海拔 3000m 的垂直巨脈。"; }
-        else { title = "殭屍圍城模式"; text = "● 時間流速 0.1x (加速)。<br>● 夜晚殭屍生成率加倍，利用丘陵高點進行防禦。"; }
-        document.getElementById('brief-title').innerText = title;
-        document.getElementById('brief-text').innerHTML = text + `<br><br><b>小隊規模：${sSize} 人</b><br>操作：A/D移動, Space跳躍, K攻擊, 左挖右蓋, ESC暫停`;
+        let t = document.getElementById('brief-text'), h = document.getElementById('brief-title');
+        if(type==='ARCH') { h.innerText="荒野建築模式"; t.innerHTML="● 地形：全區域連續丘陵。<br>● 規則：草皮下必有 5 層泥土。每 10 秒生成一位村民。<br>● 目標：自由建設，防禦等級低。"; }
+        else if(type==='SURV') { h.innerText="高山生存模式"; t.innerHTML="● 地形：劇烈起伏丘陵。往右探索海拔 3000m 巨脈。<br>● 規則：草皮下必有 5 層泥土。每 10 秒生成一位村民。<br>● 目標：征服高峰並建立生存據點。"; }
+        else { h.innerText="殭屍圍城模式"; t.innerHTML="● 環境：日夜交替加快 (0.15x)。<br>● 規則：夜晚殭屍生成率 200%。每 10 秒生成一位村民。<br>● 目標：在丘陵間建立牆壁，抵禦圍攻。"; }
+        t.innerHTML += `<br><br><b>隊伍：${sSize} 人</b><br>K鍵：攻擊 | 左鍵：挖塊 | 右鍵：放塊 | 1-8：材料`;
     }
 
     function startGame() {
@@ -118,18 +111,13 @@
     function getB(gx, gy) {
         if(world[gx+'_'+gy] !== undefined) return world[gx+'_'+gy];
         var absGx = Math.abs(gx);
-        // 持續延伸的丘陵引擎 (不設平原段)
-        var hills = Math.sin(gx * 0.3) * 7 + Math.cos(gx * 0.15) * 5;
-        var mountains = Math.sin(gx * 0.05) * 15;
-        var f = Math.floor(25 + hills + mountains);
-        
-        // 3000M 巨脈延展 (gx > 150)
+        var amp = (mType==='SURV')?10:7;
+        var f = Math.floor(25 + Math.sin(gx*0.35)*amp + Math.cos(gx*0.18)*6);
         if(absGx > 150) f += Math.floor((absGx-150)/4) * 16;
         if (f > 115) f = 115; 
-
         if (gy < f) return 0;
-        if (gy === f) return (gy > 80) ? 7 : 2; // 雪或草
-        if (gy > f && gy <= f + 5) return 3; // 5層泥土
+        if (gy === f) return (gy > 80) ? 7 : 2; 
+        if (gy > f && gy <= f + 5) return 3; 
         return 1;
     }
 
@@ -138,16 +126,12 @@
         return getB(gx, gy)>0 || getB(Math.floor((x+21)/T), Math.floor((y+41)/T))>0;
     }
 
-    function togglePause() {
-        paused = !paused;
-        document.getElementById('esc-menu').style.display = paused ? 'flex' : 'none';
-    }
+    function togglePause() { paused = !paused; document.getElementById('esc-menu').style.display = paused ? 'flex' : 'none'; }
 
     window.onmousedown = function(e) {
         if(!live || paused) return;
-        var cvs = document.getElementById('g');
-        var gx = Math.floor((e.clientX + p.x - cvs.width/2) / T);
-        var gy = Math.floor((e.clientY + p.y - cvs.height/2) / T);
+        var cvs = document.getElementById('g'), cx = p.x - cvs.width/2, cy = p.y - cvs.height/2;
+        var gx = Math.floor((e.clientX + cx) / T), gy = Math.floor((e.clientY + cy) / T);
         if(e.button === 0) world[gx+'_'+gy] = 0; 
         if(e.button === 2) world[gx+'_'+gy] = selB; 
     };
@@ -155,14 +139,12 @@
     window.onkeydown = function(e) {
         if(e.code === 'Escape' && live) togglePause();
         if(!live || paused) return;
-        if(e.keyCode >= 49 && e.keyCode <= 56) { selB = e.keyCode - 48; document.getElementById('cur-b').innerText = B_NAMES[selB]; }
+        if(e.keyCode >= 49 && e.keyCode <= 56) { selB = e.keyCode - 48; document.getElementById('cur-b').innerText = ["","石頭","草地","泥土","沙子","木頭","葉子","雪地","水"][selB]; }
         if(e.code === 'KeyK' && p.atkCd <= 0) {
             p.atkCd = 15;
             ents.forEach(e => {
                 var dx = e.x - p.x, dy = Math.abs(e.y - p.y);
-                if(dy < 40 && ((p.face === 1 && dx > 0 && dx < 60) || (p.face === -1 && dx < 0 && dx > -60))) {
-                    e.hp -= 34; e.dmgCd = 10; e.vx = p.face * 8; e.vy = -3;
-                }
+                if(dy < 40 && ((p.face === 1 && dx > 0 && dx < 60) || (p.face === -1 && dx < 0 && dx > -60))) { e.hp -= 34; e.dmgCd = 10; e.vx = p.face * 8; e.vy = -3; }
             });
         }
         keys[e.code] = true;
@@ -173,15 +155,26 @@
         if(!live) return;
         if(!paused) {
             var cvs = document.getElementById('g'), ctx = cvs.getContext('2d');
-            ticks = (ticks + (mType==='ZOMB'?0.1:0.05)) % 1440; 
+            ticks = (ticks + (mType==='ZOMB'?0.15:0.05)) % 1440; 
+            
+            // 每 10 秒 (約 600 幀) 生成村民規則
+            villagerTimer++;
+            if(villagerTimer > 600) {
+                var sx = p.x + (Math.random() > 0.5 ? 850 : -850);
+                spawn('villager', sx, -800);
+                villagerTimer = 0;
+            }
+
             spawnTimer++;
-            let spwnSpeed = (mType === 'ZOMB') ? 500 : 1200;
-            if(spawnTimer > spwnSpeed) {
+            let limit = (mType==='ZOMB')?300:1000;
+            if(spawnTimer > limit) {
                 var sx = p.x + (Math.random() > 0.5 ? 850 : -850);
                 var isNight = (ticks > 1050 || ticks < 350);
-                spawn(isNight?'zombie':(Math.random()<0.4?'animal':'villager'), sx, -800);
+                if(isNight) spawn('zombie', sx, -800);
+                else spawn('animal', sx, -800);
                 spawnTimer = 0;
             }
+
             [p].concat(ents).forEach(e => {
                 e.vy += 0.8; e.y += e.vy;
                 if(check(e.x, e.y)) { while(check(e.x, e.y)) e.y -= 0.5; e.vy = 0; e.gr = true; } else e.gr = false;
@@ -192,11 +185,9 @@
                     if(dx !== 0) { p.x += dx; if(check(p.x, p.y)) p.x -= dx; p.face = dx > 0 ? 1 : -1; }
                     if(keys['Space'] && p.gr) p.vy = -14;
                 } else {
-                    if(e.type === 'zombie') {
-                        e.dir = (p.x > e.x ? 1 : -1); e.x += e.dir * 1.8 + (e.vx||0);
-                        if(Math.abs(p.x - e.x) < 25 && Math.abs(p.y - e.y) < 25 && p.dmgCd <= 0) { p.hp -= 5; p.dmgCd = 40; }
-                    } else { e.x += e.dir * 1.2 + (e.vx||0); if(Math.random()<0.01) e.dir*=-1; }
-                    if(e.vx) e.vx *= 0.85;
+                    if(e.type === 'zombie') { e.dir = (p.x > e.x ? 1 : -1); e.x += e.dir * 2 + (e.vx||0); if(Math.abs(p.x-e.x)<25 && Math.abs(p.y-e.y)<25 && p.dmgCd<=0) { p.hp -= 5; p.dmgCd = 40; } }
+                    else { e.x += e.dir * 1.2 + (e.vx||0); if(Math.random()<0.01) e.dir*=-1; }
+                    if(e.vx) e.vx *= 0.8;
                     if(check(e.x + e.dir*10, e.y) && e.gr) e.vy = -10;
                 }
             });
@@ -216,7 +207,7 @@
         for(var x=Math.floor(cx/T); x<=Math.ceil((cx+cvs.width)/T); x++) {
             for(var y=Math.floor(cy/T); y<=Math.ceil((cy+cvs.height)/T); y++) {
                 var b = getB(x, y);
-                if(b > 0) { ctx.fillStyle = B_COLORS[b]; ctx.fillRect(x*T-cx, y*T-cy, T-0.5, T-0.5); }
+                if(b > 0) { ctx.fillStyle = ["","#7f8c8d","#2ecc71","#795548","#f1c40f","#5d4037","#27ae60","#ecf0f1","#3498db"][b]; ctx.fillRect(x*T-cx, y*T-cy, T-0.5, T-0.5); }
             }
         }
         ents.concat([p]).forEach(e => {
