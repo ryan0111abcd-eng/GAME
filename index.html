@@ -2,85 +2,107 @@
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
-    <title>SUPER HUMAN 2026 - ENGINE OVERHAUL</title>
+    <title>SUPER HUMAN 2026 - REBORN</title>
     <style>
-        body, html { margin: 0; padding: 0; width: 100%; height: 100%; background: #000; overflow: hidden; font-family: 'Consolas', monospace; user-select: none; }
+        body, html { margin: 0; padding: 0; width: 100%; height: 100%; background: #000; overflow: hidden; font-family: 'Segoe UI', '微軟正黑體', sans-serif; user-select: none; }
         .page { position: fixed; inset: 0; z-index: 9999; display: flex; flex-direction: column; align-items: center; justify-content: center; background: #050505; color: #f1c40f; text-align: center; }
-        .btn { padding: 12px 25px; font-size: 18px; cursor: pointer; margin: 8px; background: #f1c40f; border: 3px solid #fff; border-radius: 8px; font-weight: bold; color: #000; box-shadow: 0 4px 0 #b8860b; transition: 0.1s; width: 260px; }
-        .btn:active { transform: translateY(3px); box-shadow: 0 1px 0 #b8860b; }
-        .in-box { padding: 12px; font-size: 20px; border: 3px solid #f1c40f; border-radius: 8px; background: #111; color: #fff; text-align: center; margin-bottom: 20px; width: 260px; outline: none; }
         
-        #esc-menu { position: fixed; inset: 0; z-index: 10000; display: none; flex-direction: column; align-items: center; justify-content: center; background: rgba(0,0,0,0.92); backdrop-filter: blur(25px); }
-        .menu-card { background: #111; padding: 25px; border: 2px solid #f1c40f; border-radius: 15px; display: flex; gap: 30px; align-items: flex-start; box-shadow: 0 0 50px rgba(241,196,15,0.2); }
-        .info-panel { text-align: left; color: #888; font-size: 13px; line-height: 1.6; width: 280px; }
+        /* 修正按鈕布局：確保文字永不偏移 */
+        .btn { 
+            padding: 15px; 
+            font-size: 18px; 
+            cursor: pointer; 
+            margin: 10px; 
+            background: #f1c40f; 
+            border: 3px solid #fff; 
+            border-radius: 12px; 
+            font-weight: bold; 
+            color: #000; 
+            box-shadow: 0 5px 0 #b8860b; 
+            transition: 0.1s; 
+            width: 320px; 
+            display: flex; 
+            align-items: center; 
+            justify-content: center;
+            text-align: center;
+            line-height: 1.2;
+        }
+        .btn:active { transform: translateY(4px); box-shadow: 0 1px 0 #b8860b; }
+        .in-box { padding: 15px; font-size: 24px; border: 4px solid #f1c40f; border-radius: 12px; background: #111; color: #fff; text-align: center; margin-bottom: 25px; width: 300px; outline: none; }
+        
+        /* ESC 選單強化 */
+        #esc-menu { position: fixed; inset: 0; z-index: 10000; display: none; flex-direction: column; align-items: center; justify-content: center; background: rgba(0,0,0,0.95); backdrop-filter: blur(15px); }
+        .menu-card { background: #1a1a1a; padding: 30px; border: 2px solid #f1c40f; border-radius: 20px; display: flex; flex-wrap: wrap; justify-content: center; gap: 30px; max-width: 800px; }
+        .info-panel { text-align: left; color: #ccc; font-size: 14px; min-width: 250px; }
         .info-panel b { color: #f1c40f; }
+
+        #hud { position: fixed; top: 15px; left: 15px; z-index: 1000; color: white; background: rgba(0,0,0,0.85); padding: 12px; border-radius: 10px; border: 2px solid #f1c40f; display: none; pointer-events: none; }
+        #minimap-ui { position: fixed; bottom: 20px; right: 20px; width: 180px; height: 130px; background: rgba(0,0,0,0.9); border: 2px solid #f1c40f; border-radius: 8px; z-index: 1000; display: none; overflow: hidden; }
         
-        #hud { position: fixed; top: 15px; left: 15px; z-index: 1000; color: white; background: rgba(0,0,0,0.85); padding: 10px; border-radius: 8px; border: 2px solid #f1c40f; display: none; pointer-events: none; }
-        #minimap-ui { position: fixed; bottom: 20px; right: 20px; width: 160px; height: 120px; background: rgba(0,0,0,0.9); border: 2px solid #f1c40f; border-radius: 8px; z-index: 1000; display: none; overflow: hidden; box-shadow: 0 0 20px #000; }
+        /* Canvas 渲染層 */
         canvas#g { display: none; position: absolute; top: 0; left: 0; z-index: 1; image-rendering: pixelated; }
     </style>
 </head>
 <body oncontextmenu="return false;">
 
     <div id="p-auth" class="page" style="display:none;">
-        <h1 style="letter-spacing: 5px;">SYSTEM LOGIN</h1>
-        <input type="password" id="pw" class="in-box" placeholder="Access Key">
-        <button class="btn" onclick="checkAuth()">INITIATE</button>
+        <h1 style="letter-spacing: 5px;">SYSTEM ACCESS</h1>
+        <input type="password" id="pw" class="in-box" placeholder="啟動碼">
+        <button class="btn" onclick="checkAuth()">進入系統</button>
     </div>
 
     <div id="p-conn" class="page" style="display:none;">
-        <h1>SELECT CONNECTION</h1>
-        <button class="btn" onclick="setConn(1)">👤 LOCAL USER</button>
-        <button class="btn" onclick="setConn(0)">👥 SQUAD UNIT</button>
+        <h1>連線模式</h1>
+        <button class="btn" onclick="setConn(1)">👤 單人本機連線</button>
+        <button class="btn" onclick="setConn(0)">👥 多人小隊連線</button>
     </div>
 
     <div id="p-count" class="page" style="display:none;">
-        <h1>UNIT COUNT</h1>
-        <h2 id="cnt-disp" style="font-size: 32px;">5 UNIT</h2>
-        <input type="range" id="member-sld" min="2" max="15" value="5" oninput="document.getElementById('cnt-disp').innerText=this.value+' UNIT'" style="width:260px; accent-color:#f1c40f;">
-        <button class="btn" onclick="toModeSel()">CONFIRM</button>
+        <h1>小隊規模</h1>
+        <h2 id="cnt-disp" style="font-size: 40px; color:#fff;">5 人</h2>
+        <input type="range" id="member-sld" min="2" max="15" value="5" oninput="document.getElementById('cnt-disp').innerText=this.value+' 人'" style="width:320px; accent-color:#f1c40f;">
+        <button class="btn" onclick="toModeSel()">下一步</button>
     </div>
 
     <div id="p-mode" class="page" style="display:none;">
-        <h1>MISSION MODE</h1>
-        <button class="btn" onclick="prepareBrief('ARCH')">🏗️ CONSTRUCTION</button>
-        <button class="btn" onclick="prepareBrief('SURV')">🏔️ EXPEDITION</button>
-        <button class="btn" onclick="prepareBrief('ZOMB')">🧟 SIEGE DEFENSE</button>
+        <h1>選擇任務模式</h1>
+        <button class="btn" onclick="prepareBrief('ARCH')">🏗️ 荒野建築模式</button>
+        <button class="btn" onclick="prepareBrief('SURV')">🏔️ 高山生存模式</button>
+        <button class="btn" onclick="prepareBrief('ZOMB')">🧟 殭屍圍城模式</button>
     </div>
 
     <div id="p-brief" class="page" style="display:none;">
-        <h1>MISSION DATA</h1>
-        <div id="brief-text" style="font-size: 15px; color: #666; margin: 15px; border-left: 3px solid #f1c40f; padding-left: 15px; text-align: left; line-height: 1.8;"></div>
-        <button class="btn" onclick="startGame()">DEPLOY</button>
+        <h1>任務簡報</h1>
+        <div id="brief-text" style="font-size: 16px; color: #aaa; margin: 20px; border-left: 4px solid #f1c40f; padding-left: 20px; text-align: left; line-height: 1.8;"></div>
+        <button class="btn" onclick="startGame()">部署並開始</button>
     </div>
 
     <div id="esc-menu">
         <div class="menu-card">
             <div class="info-panel">
-                <h2 style="color:#f1c40f; margin-top:0;">PAUSED</h2>
-                <b>📍 COORDINATES:</b> <span id="st-pos" style="color:#fff;">---</span><br>
-                <b>👥 ACTIVE UNITS:</b> <span id="st-squad" style="color:#fff;">0</span><br>
-                <b>🏗️ BLOCKS COUNT:</b> <span id="st-build" style="color:#fff;">0</span><br>
-                <b>💾 CACHE SIZE:</b> <span id="st-size" style="color:#fff;">0 KB</span><br>
-                <b>⚙️ SYSTEM TEMP:</b> <span style="color:#2ecc71;">38°C (STABLE)</span><br>
-                <b>🛰️ SEED:</b> <span style="color:#fff;">RYAN-2026-X1</span><br>
-                <hr style="border:0; border-top:1px solid #333; margin:15px 0;">
-                <button class="btn" onclick="togglePause()" style="width:100%">RESUME (ESC)</button>
-                <button class="btn" onclick="resetWorld()" style="width:100%; background:#8e44ad; color:#fff; border:none;">WIPE CACHE</button>
-                <button class="btn" onclick="location.reload()" style="width:100%; background:#333; color:#fff; border:none;">TERMINATE</button>
+                <h2 style="color:#f1c40f; margin-top:0;">系統暫停</h2>
+                <b>📍 座標：</b> <span id="st-pos">---</span><br>
+                <b>👥 小隊單位：</b> <span id="st-squad">0</span><br>
+                <b>🏗️ 建築數據：</b> <span id="st-build">0 blocks</span><br>
+                <b>💾 緩存：</b> <span id="st-size">0 KB</span><br>
+                <b>⚙️ 核心溫度：</b> <span style="color:#2ecc71;">正常</span><br>
+                <hr style="border:0; border-top:1px solid #444; margin:15px 0;">
+                <button class="btn" onclick="togglePause()" style="width:100%">恢復模擬 (ESC)</button>
+                <button class="btn" onclick="resetWorld()" style="background:#c0392b !important; color:#fff; width:100%">重置存檔</button>
+                <button class="btn" onclick="location.reload()" style="background:#444 !important; color:#fff; width:100%">退出至主頁</button>
             </div>
             <div style="text-align: center;">
-                <b style="font-size: 11px; color: #f1c40f; margin-bottom: 5px; display: block;">SATELLITE SCANNER</b>
-                <canvas id="esc-mm-canvas" width="280" height="280" style="background:#000; border: 2px solid #222;"></canvas>
+                <b style="color: #f1c40f; display: block; margin-bottom: 10px;">地形雷達掃描</b>
+                <canvas id="esc-mm-canvas" width="280" height="280" style="background:#000; border: 2px solid #333;"></canvas>
             </div>
         </div>
     </div>
 
-    <div id="minimap-ui"><canvas id="mm-canvas" width="160" height="120"></canvas></div>
+    <div id="minimap-ui"><canvas id="mm-canvas" width="180" height="130"></canvas></div>
 
     <div id="hud">
-        🕒 <span id="tm-v">12:00</span> | ❤️ <span id="p-hp-hud">100</span><br>
-        🏗️ SLOT: <span id="cur-b" style="color:#f1c40f;">STONE</span> | 📍 ALT: <span id="alt-v">0</span>m
+        🕒 時間: <span id="tm-v">12:00</span> | ❤️ 血量: <span id="p-hp-hud">100</span><br>
+        🏗️ 材料: <span id="cur-b" style="color:#f1c40f;">石頭</span> | 📍 海拔: <span id="alt-v">0</span> m
     </div>
     <canvas id="g"></canvas>
 
@@ -101,29 +123,27 @@
         if(document.getElementById('pw').value.trim() === AUTH_KEY) {
             localStorage.setItem('super_human_auth', AUTH_KEY);
             document.getElementById('p-auth').style.display='none'; document.getElementById('p-conn').style.display='flex';
-        } else { alert("ACCESS DENIED"); document.getElementById('pw').value = ""; }
+        } else { alert("權限拒絕"); }
     }
 
     function setConn(n) { document.getElementById('p-conn').style.display='none'; if(n===1){sSize=1;document.getElementById('p-mode').style.display='flex';}else{document.getElementById('p-count').style.display='flex';} }
     function toModeSel() { sSize=parseInt(document.getElementById('member-sld').value); document.getElementById('p-count').style.display='none'; document.getElementById('p-mode').style.display='flex'; }
-    function resetWorld() { if(confirm("ERASE ALL BUILDING DATA?")){world={};localStorage.setItem('sh_save_v10', "{}");location.reload();} }
+    function resetWorld() { if(confirm("確定要刪除所有建築存檔嗎？")){world={};localStorage.setItem('sh_save_v10', "{}");location.reload();} }
 
     function prepareBrief(type) {
         mType = type;
         document.getElementById('p-mode').style.display='none'; document.getElementById('p-brief').style.display='flex';
-        var d = document.getElementById('brief-text');
-        d.innerHTML = "● <b>LANDSCAPE:</b> FRACTURED HILLS (PLAINS REMOVED).<br>● <b>GEOLOGY:</b> 5-LAYER SOIL DEPTH LOCKED.<br>● <b>MINIMAP:</b> TOGGLE WITH [ M ].<br>● <b>SYSTEM:</b> AUTO-SAVE ACTIVE. COORDINATES TRACKED.";
+        document.getElementById('brief-text').innerHTML = "● <b>地形禁令</b>：絕對破碎丘陵（100% 崎嶇）。<br>● <b>地表物理</b>：草皮下必有 5 層泥土。<br>● <b>村民規則</b>：每 10 秒空降一位村民。<br>● <b>存檔提示</b>：本機自動存檔，ESC 可重置世界。";
     }
 
-    // --- 零平原碎裂算法 V10.1 ---
+    // --- 地形引擎 V10.2：絕對崎嶇鎖定 ---
     function getB(gx, gy) {
         if(world[gx+'_'+gy] !== undefined) return world[gx+'_'+gy];
         var absGx = Math.abs(gx);
-        // 疊加三組不同步波形 + 雜湊碎形
         var base = Math.sin(gx * 0.45) * 10 + Math.cos(gx * 0.22) * 8;
-        var noise = Math.sin(gx * gx * 0.007) * 4; // 隨位置變動的非線性擾動
-        var sharp = (gx * 17 % 11) / 2; // 強制產生每一格的垂直位移
-        var f = Math.floor(48 + base + noise + sharp);
+        var sharp = Math.sin(gx * gx * 0.007) * 4;
+        var jitter = (gx * 17 % 11) / 2; // 碎形雜湊位移
+        var f = Math.floor(48 + base + sharp + jitter);
         
         if(absGx > 110) f += Math.floor((absGx-110)/3.2) * (18 + Math.cos(gx * 0.8)*5);
         if (f > 120) f = 120; 
@@ -156,65 +176,4 @@
         for(var x=-rx; x<rx; x++){
             for(var y=-ry; y<ry; y++){
                 var b = getB(pgx+x, pgy+y);
-                if(b>0){ 
-                    ctx.fillStyle = (b===7)?"#fff":(b===2)?"#2ecc71":(b===3)?"#795548":"#444";
-                    ctx.fillRect((x+rx)*scale, (y+ry)*scale, scale, scale); 
-                }
-            }
-        }
-        ctx.fillStyle = "#f1c40f"; ctx.fillRect(rx*scale, ry*scale, 4, 4);
-    }
-
-    function startGame() {
-        document.getElementById('p-brief').style.display='none';
-        document.getElementById('hud').style.display='block';
-        document.getElementById('minimap-ui').style.display='block';
-        var cvs=document.getElementById('g'); cvs.style.display='block';
-        cvs.width=window.innerWidth; cvs.height=window.innerHeight;
-        
-        let sy = 0; while(getB(0, Math.floor(sy/T)) === 0) sy += T;
-        p.y = sy - 160;
-        
-        live = true;
-        // 確保在下一個 Tick 之前畫布已經準備好
-        setTimeout(() => { requestAnimationFrame(loop); }, 50);
-    }
-
-    window.onkeydown = function(e) {
-        if(e.code==='Escape' && live) togglePause();
-        if(e.code==='KeyM' && live && !paused) { mapEnabled = !mapEnabled; document.getElementById('minimap-ui').style.display = mapEnabled ? 'block' : 'none'; }
-        if(!live || paused) return;
-        if(e.keyCode>=49 && e.keyCode<=56) {
-            selB = e.keyCode-48;
-            document.getElementById('cur-b').innerText = ["","STONE","GRASS","DIRT","SAND","WOOD","LEAF","SNOW","WATER"][selB];
-        }
-        keys[e.code] = true;
-    };
-    window.onkeyup = function(e) { keys[e.code] = false; };
-    window.onmousedown = function(e) {
-        if(!live || paused) return;
-        var cvs = document.getElementById('g'), cx = p.x - cvs.width/2, cy = p.y - cvs.height/2;
-        var gx = Math.floor((e.clientX + cx) / T), gy = Math.floor((e.clientY + cy) / T);
-        if(e.button === 0) world[gx+'_'+gy] = 0; if(e.button === 2) world[gx+'_'+gy] = selB;
-        localStorage.setItem('sh_save_v10', JSON.stringify(world));
-    };
-
-    function check(x,y) { var gx=Math.floor(x/T), gy=Math.floor(y/T); return getB(gx, gy)>0 || getB(Math.floor((x+21)/T), Math.floor((y+41)/T))>0; }
-
-    function loop() {
-        if(!live) return;
-        if(!paused) {
-            var cvs = document.getElementById('g'), ctx = cvs.getContext('2d');
-            if(!ctx) { requestAnimationFrame(loop); return; } // 安全檢查
-            
-            ticks = (ticks + 0.05) % 1440;
-            p.vy += 0.8; p.y += p.vy;
-            if(check(p.x, p.y)) { while(check(p.x, p.y)) p.y -= 0.5; p.vy = 0; p.gr = true; } else p.gr = false;
-            var dx = (keys['KeyD']?7:0) - (keys['KeyA']?7:0);
-            if(dx !== 0) { p.x += dx; if(check(p.x, p.y)) p.x -= dx; }
-            if(keys['Space'] && p.gr) p.vy = -14;
-
-            ctx.fillStyle = (ticks > 1050 || ticks < 350) ? '#050510' : '#87ceeb';
-            ctx.fillRect(0, 0, cvs.width, cvs.height);
-            var cx = p.x - cvs.width/2, cy = p.y - cvs.height/2;
-            var clrs = ["","#7f
+                if
