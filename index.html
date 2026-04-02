@@ -2,74 +2,91 @@
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
-    <title>SUPER HUMAN 2026 - ZERO PLAIN LOCKdown</title>
+    <title>SUPER HUMAN 2026 - MINIMAP SYSTEM</title>
     <style>
-        body, html { margin: 0; padding: 0; width: 100%; height: 100%; background: #000; overflow: hidden; font-family: sans-serif; user-select: none; }
+        body, html { margin: 0; padding: 0; width: 100%; height: 100%; background: #000; overflow: hidden; font-family: 'Segoe UI', sans-serif; user-select: none; }
         .page { position: fixed; inset: 0; z-index: 9999; display: flex; flex-direction: column; align-items: center; justify-content: center; background: #050505; color: #f1c40f; text-align: center; }
-        .btn { padding: 15px 40px; font-size: 22px; cursor: pointer; margin: 10px; background: #f1c40f; border: 4px solid #fff; border-radius: 12px; font-weight: bold; color: #000; box-shadow: 0 5px 0 #b8860b; transition: 0.1s; outline: none; width: 300px; display: flex; align-items: center; justify-content: center; }
+        .btn { padding: 15px 40px; font-size: 20px; cursor: pointer; margin: 8px; background: #f1c40f; border: 3px solid #fff; border-radius: 12px; font-weight: bold; color: #000; box-shadow: 0 5px 0 #b8860b; transition: 0.1s; outline: none; width: 320px; display: flex; align-items: center; justify-content: center; }
         .btn:active { transform: translateY(4px); box-shadow: 0 2px 0 #b8860b; }
         .in-box { padding: 15px; font-size: 24px; border: 4px solid #f1c40f; border-radius: 12px; background: #222; color: #fff; text-align: center; margin-bottom: 25px; width: 320px; outline: none; }
-        #hud { position: fixed; top: 15px; left: 15px; z-index: 1000; color: white; background: rgba(0,0,0,0.85); padding: 10px; border-radius: 10px; border: 2px solid #f1c40f; display: none; pointer-events: none; }
+        
+        /* ESC 選單 */
+        #esc-menu { position: fixed; inset: 0; z-index: 10000; display: none; flex-direction: column; align-items: center; justify-content: center; background: rgba(0,0,0,0.8); backdrop-filter: blur(12px); }
+        .menu-card { background: rgba(30, 30, 30, 0.9); padding: 30px; border-radius: 20px; border: 2px solid #f1c40f; box-shadow: 0 0 30px rgba(241, 196, 15, 0.3); display: flex; gap: 20px; }
+        .stat-line { color: #aaa; font-size: 16px; margin: 5px 0; font-family: monospace; }
+        
+        /* 小地圖樣式 */
+        #minimap-container { position: fixed; bottom: 20px; right: 20px; width: 200px; height: 150px; background: rgba(0,0,0,0.7); border: 2px solid #f1c40f; border-radius: 10px; z-index: 1000; overflow: hidden; display: none; }
+        #mm-canvas { width: 100%; height: 100%; }
+
+        #hud { position: fixed; top: 15px; left: 15px; z-index: 1000; color: white; background: rgba(0,0,0,0.85); padding: 12px; border-radius: 10px; border: 2px solid #f1c40f; display: none; pointer-events: none; }
         canvas#g { display: none; position: absolute; top: 0; left: 0; z-index: 1; }
-        #esc-menu { position: fixed; inset: 0; z-index: 10000; display: none; flex-direction: column; align-items: center; justify-content: center; background: rgba(0,0,0,0.95); backdrop-filter: blur(15px); }
     </style>
 </head>
 <body oncontextmenu="return false;">
 
     <div id="p-auth" class="page" style="display:none;">
-        <h1>SYSTEM ACCESS</h1>
+        <h1 style="letter-spacing: 8px;">SYSTEM ACCESS</h1>
         <input type="password" id="pw" class="in-box" placeholder="Access Key">
-        <button class="btn" onclick="checkAuth()">VERIFY</button>
+        <button class="btn" onclick="checkAuth()">VERIFY IDENTITY</button>
     </div>
 
     <div id="p-conn" class="page" style="display:none;">
         <h1>CONNECTION</h1>
-        <button class="btn" onclick="setConn(1)">👤 單人連線</button>
-        <button class="btn" onclick="setConn(0)">👥 多人連線</button>
-    </div>
-
-    <div id="p-count" class="page" style="display:none;">
-        <h1>SQUAD SIZE</h1>
-        <h2 id="cnt-disp" style="font-size: 40px;">5 人</h2>
-        <input type="range" id="member-sld" min="2" max="15" value="5" oninput="document.getElementById('cnt-disp').innerText=this.value+' 人'" style="width:350px;">
-        <button class="btn" onclick="toModeSel()">NEXT</button>
+        <button class="btn" onclick="setConn(1)">👤 SINGLE PLAYER</button>
+        <button class="btn" onclick="setConn(0)">👥 MULTIPLAYER (CO-OP)</button>
     </div>
 
     <div id="p-mode" class="page" style="display:none;">
-        <h1>MISSION MODE</h1>
+        <h1>SELECT MISSION</h1>
         <button class="btn" onclick="prepareBrief('ARCH')">🏗️ 荒野建築</button>
         <button class="btn" onclick="prepareBrief('SURV')">🏔️ 高山生存</button>
         <button class="btn" onclick="prepareBrief('ZOMB')">🧟 殭屍圍城</button>
     </div>
 
     <div id="p-brief" class="page" style="display:none;">
-        <h1 id="brief-title">BRIEFING</h1>
-        <div id="brief-text" style="font-size: 18px; line-height: 1.6; margin: 20px 0; color: #ccc; border-left: 4px solid #f1c40f; padding-left: 20px; text-align: left;"></div>
-        <button class="btn" onclick="startGame()">START</button>
+        <h1>MISSION BRIEFING</h1>
+        <div id="brief-text" style="font-size: 18px; color: #ccc; margin: 20px; text-align: left; max-width: 500px;"></div>
+        <button class="btn" onclick="startGame()">START SIMULATION</button>
     </div>
 
     <div id="esc-menu">
-        <h1 style="color:#f1c40f; font-size: 48px;">PAUSED</h1>
-        <button class="btn" onclick="togglePause()">RESUME (ESC)</button>
-        <button class="btn" onclick="resetWorld()" style="background:#e67e22!important;">重置建築存檔</button>
-        <button class="btn" onclick="forgetKey()" style="background:#555!important;">登出啟動碼</button>
-        <button class="btn" onclick="location.reload()" style="background:#444;">返回主選單</button>
+        <div class="menu-card">
+            <div style="width: 320px;">
+                <h1 style="color:#f1c40f; margin-top:0;">PAUSED</h1>
+                <div id="menu-stats">
+                    <div class="stat-line">📍 POS: <span id="st-pos">0, 0</span></div>
+                    <div class="stat-line">👥 SQUAD: <span id="st-squad">0</span></div>
+                    <div class="stat-line">🏠 BUILD: <span id="st-build">0</span></div>
+                </div>
+                <button class="btn" onclick="togglePause()" style="width:100%">RESUME (ESC)</button>
+                <button class="btn" onclick="location.reload()" style="width:100%; background:#b33939; color:#fff;">EXIT</button>
+            </div>
+            <div id="esc-map-box" style="width: 300px; height: 300px; background:#000; border: 2px solid #f1c40f; border-radius: 10px; overflow: hidden;">
+                <canvas id="esc-mm-canvas" width="300" height="300"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <div id="minimap-container">
+        <canvas id="mm-canvas" width="200" height="150"></canvas>
+        <div style="position:absolute; top:5px; left:5px; color:#f1c40f; font-size:10px; font-weight:bold; text-shadow:1px 1px #000;">RADAR V2</div>
     </div>
 
     <div id="hud">
         🕒 <span id="tm-v">12:00</span> | ❤️ <span id="p-hp-hud">100</span><br>
-        🏗️ <span id="cur-b" style="color:#f1c40f;font-weight:bold;">石頭 (1)</span> | 📍 海拔：<span id="alt-v">0</span> m
+        🏗️ <span id="cur-b" style="color:#f1c40f;">石頭 (1)</span> | 📍 ALT：<span id="alt-v">0</span> m
     </div>
     <canvas id="g"></canvas>
 
 <script>
-    var live = false, paused = false, world = {}, keys = {}, ents = [], ticks = 600, sSize = 1, mType = '';
+    var live = false, paused = false, showMap = true, world = {}, keys = {}, ents = [], ticks = 600, sSize = 1, mType = '';
     var p = { x: 0, y: 0, w: 22, h: 42, vx: 0, vy: 0, hp: 100, max: 100, gr: false, dmgCd: 0, atkCd: 0, face: 1 };
     var T = 32, selB = 1, spawnTimer = 0, villagerTimer = 0;
     const AUTH_KEY = 'ryan0111407';
 
     window.onload = function() {
-        if(localStorage.getItem('sh_save_data')) world = JSON.parse(localStorage.getItem('sh_save_data'));
+        if(localStorage.getItem('sh_save_v2')) world = JSON.parse(localStorage.getItem('sh_save_v2'));
         if (localStorage.getItem('super_human_auth') === AUTH_KEY) document.getElementById('p-conn').style.display='flex';
         else document.getElementById('p-auth').style.display='flex';
     };
@@ -79,144 +96,89 @@
             localStorage.setItem('super_human_auth', AUTH_KEY);
             document.getElementById('p-auth').style.display='none';
             document.getElementById('p-conn').style.display='flex';
-        } else alert("啟動碼錯誤");
+        } else alert("ACCESS DENIED");
     }
 
-    function forgetKey() { localStorage.removeItem('super_human_auth'); location.reload(); }
-    function setConn(n) { document.getElementById('p-conn').style.display='none'; if(n===1){sSize=1;document.getElementById('p-mode').style.display='flex';}else{document.getElementById('p-count').style.display='flex';} }
-    function toModeSel() { sSize=parseInt(document.getElementById('member-sld').value); document.getElementById('p-count').style.display='none'; document.getElementById('p-mode').style.display='flex'; }
-    function resetWorld() { if(confirm("確定重置？")){world={};localStorage.setItem('sh_save_data', "{}");location.reload();} }
+    function setConn(n) { 
+        document.getElementById('p-conn').style.display='none'; 
+        if(n===1){sSize=1;document.getElementById('p-mode').style.display='flex';}
+    }
 
     function prepareBrief(type) {
         mType = type;
         document.getElementById('p-mode').style.display='none';
         document.getElementById('p-brief').style.display='flex';
-        document.getElementById('brief-text').innerHTML = "● <b>地形協議</b>：V9.6 碎裂雜湊引擎。嚴格執行崎嶇化，平原區域已物理移除。<br>● <b>地層物理</b>：地表下恆定 5 層泥土防禦。<br>● <b>村民規則</b>：10 秒空投一名村民。";
+        document.getElementById('brief-text').innerHTML = "● <b>地形系統</b>：V9.8 碎裂式雜湊。<br>● <b>地圖雷達</b>：新增實時小地圖，按 <b>[ M ]</b> 開啟/關閉。<br>● <b>顏色說明</b>：橙(你)、藍(隊友)、紫(村民)、綠(敵)。";
     }
 
-    // --- 究極崎嶇地形引擎 V9.6 (NO PLAINS EVER) ---
     function getB(gx, gy) {
         if(world[gx+'_'+gy] !== undefined) return world[gx+'_'+gy];
         var absGx = Math.abs(gx);
-        
-        // 1. 基礎大起伏
-        var base = Math.sin(gx * 0.47) * 10 + Math.cos(gx * 0.23) * 8;
-        // 2. 高頻鋸齒 (確保鄰近每一格高度都不同)
-        var jitter = Math.sin(gx * 1.57) * 5 + Math.cos(gx * 3.14) * 3;
-        // 3. 碎石雜湊位移 (利用質數破壞平滑感)
-        var hash = (Math.abs(gx * 12345.678) % 10);
-        
-        var f = Math.floor(50 + base + jitter + hash);
-        
-        // 4. 海拔倍增器
-        if(absGx > 100) {
-            f += Math.floor((absGx-100)/3.5) * (18 + Math.sin(gx * 0.8)*4);
-        }
+        var f = Math.floor(45 + Math.sin(gx*0.47)*10 + Math.cos(gx*0.23)*8 + Math.cos(gx*7.7)*5 + Math.abs(Math.sin(gx*0.13))*14);
+        if(absGx > 100) f += Math.floor((absGx-100)/3.2) * (18 + Math.cos(gx * 0.8)*5);
         if (f > 120) f = 120; 
-
         if (gy < f) return 0;
         if (gy === f) return (gy > 85) ? 7 : 2; 
-        if (gy > f && gy <= f + 5) return 3; // 5層土
+        if (gy > f && gy <= f + 5) return 3; 
         return 1;
     }
 
     function startGame() {
         document.getElementById('p-brief').style.display='none';
         document.getElementById('hud').style.display='block';
+        document.getElementById('minimap-container').style.display='block';
         var cvs=document.getElementById('g'); cvs.style.display='block';
         cvs.width=window.innerWidth; cvs.height=window.innerHeight;
-        let startY = 0;
-        while(getB(0, Math.floor(startY/T)) === 0 && startY < 4000) startY += T;
+        let startY = 0; while(getB(0, Math.floor(startY/T)) === 0) startY += T;
         p.y = startY - 160;
-        for(var i=0; i<sSize-1; i++) spawn('ally', p.x + (i*60)-120, p.y);
         live = true; loop();
     }
 
-    function spawn(t, x, y) { ents.push({ type: t, x: x, y: y, w: 22, h: 42, vx: 0, vy: 0, hp: 100, max: 100, dir: 1, dmgCd: 0 }); }
-    function check(x,y) { var gx=Math.floor(x/T), gy=Math.floor(y/T); return getB(gx, gy)>0 || getB(Math.floor((x+21)/T), Math.floor((y+41)/T))>0; }
-    function togglePause() { paused = !paused; document.getElementById('esc-menu').style.display = paused ? 'flex' : 'none'; }
+    function togglePause() {
+        paused = !paused;
+        document.getElementById('esc-menu').style.display = paused ? 'flex' : 'none';
+        if(paused) {
+            document.getElementById('st-pos').innerText = `${Math.floor(p.x)}, ${Math.floor(p.y)}`;
+            document.getElementById('st-squad').innerText = ents.filter(e=>e.type==='ally').length + 1;
+            document.getElementById('st-build').innerText = Object.keys(world).length;
+            drawMinimap("esc-mm-canvas", 3); // 暫停時畫大圖
+        }
+    }
 
-    window.onmousedown = function(e) {
-        if(!live || paused) return;
-        var cvs = document.getElementById('g'), cx = p.x - cvs.width/2, cy = p.y - cvs.height/2;
-        var gx = Math.floor((e.clientX + cx) / T), gy = Math.floor((e.clientY + cy) / T);
-        if(e.button === 0) world[gx+'_'+gy] = 0; 
-        if(e.button === 2) world[gx+'_'+gy] = selB; 
-        localStorage.setItem('sh_save_data', JSON.stringify(world));
-    };
+    function drawMinimap(canvasId, scale) {
+        var mCvs = document.getElementById(canvasId);
+        var mCtx = mCvs.getContext('2d');
+        mCtx.fillStyle = "#000"; mCtx.fillRect(0,0,mCvs.width,mCvs.height);
+        
+        var pgx = Math.floor(p.x/T), pgy = Math.floor(p.y/T);
+        var rangeX = Math.floor(mCvs.width / (scale*2));
+        var rangeY = Math.floor(mCvs.height / (scale*2));
+
+        for(var x = -rangeX; x < rangeX; x++) {
+            for(var y = -rangeY; y < rangeY; y++) {
+                var b = getB(pgx + x, pgy + y);
+                if(b > 0) {
+                    mCtx.fillStyle = (b===7)?"#fff":(b===2)?"#2ecc71":"#555";
+                    mCtx.fillRect((x+rangeX)*scale, (y+rangeY)*scale, scale, scale);
+                }
+            }
+        }
+        // 標記實體
+        var centerX = rangeX*scale, centerY = rangeY*scale;
+        mCtx.fillStyle = "#e67e22"; mCtx.fillRect(centerX, centerY, 4, 4); // Player
+        
+        ents.forEach(e => {
+            var ex = (Math.floor(e.x/T) - pgx + rangeX) * scale;
+            var ey = (Math.floor(e.y/T) - pgy + rangeY) * scale;
+            if(ex >= 0 && ex < mCvs.width && ey >= 0 && ey < mCvs.height) {
+                mCtx.fillStyle = (e.type==='zombie')?"#27ae60":(e.type==='villager')?"#9b59b6":"#3498db";
+                mCtx.fillRect(ex, ey, 3, 3);
+            }
+        });
+    }
 
     window.onkeydown = function(e) {
         if(e.code === 'Escape' && live) togglePause();
+        if(e.code === 'KeyM' && live && !paused) { showMap = !showMap; document.getElementById('minimap-container').style.display = showMap ? 'block' : 'none'; }
         if(!live || paused) return;
-        if(e.keyCode >= 49 && e.keyCode <= 56) { selB = e.keyCode - 48; document.getElementById('cur-b').innerText = ["","石頭","草地","泥土","沙子","木頭","葉子","雪地","水"][selB] + " ("+selB+")"; }
-        if(e.code === 'KeyK' && p.atkCd <= 0) {
-            p.atkCd = 15;
-            ents.forEach(e => {
-                var dx = e.x - p.x, dy = Math.abs(e.y - p.y);
-                if(dy < 40 && ((p.face === 1 && dx > 0 && dx < 60) || (p.face === -1 && dx < 0 && dx > -60))) { e.hp -= 34; e.dmgCd = 10; e.vx = p.face * 8; e.vy = -3; }
-            });
-        }
-        keys[e.code] = true;
-    };
-    window.onkeyup = function(e) { keys[e.code] = false; };
-
-    function loop() {
-        if(!live) return;
-        if(!paused) {
-            var cvs = document.getElementById('g'), ctx = cvs.getContext('2d');
-            ticks = (ticks + (mType==='ZOMB'?0.15:0.05)) % 1440; 
-            villagerTimer++;
-            if(villagerTimer > 600) { var sx = p.x + (Math.random() > 0.5 ? 850 : -850); spawn('villager', sx, p.y-500); villagerTimer = 0; }
-            spawnTimer++;
-            let limit = (mType==='ZOMB')?300:1000;
-            if(spawnTimer > limit) {
-                var sx = p.x + (Math.random() > 0.5 ? 850 : -850);
-                var isNight = (ticks > 1050 || ticks < 350);
-                if(isNight) spawn('zombie', sx, p.y-500); else spawn('animal', sx, p.y-500);
-                spawnTimer = 0;
-            }
-            [p].concat(ents).forEach(e => {
-                e.vy += 0.8; e.y += e.vy;
-                if(check(e.x, e.y)) { while(check(e.x, e.y)) e.y -= 0.5; e.vy = 0; e.gr = true; } else e.gr = false;
-                if(e.dmgCd > 0) e.dmgCd--;
-                if(e === p) {
-                    if(p.atkCd > 0) p.atkCd--;
-                    var dx = (keys['KeyD']?7:0) - (keys['KeyA']?7:0);
-                    if(dx !== 0) { p.x += dx; if(check(p.x, p.y)) p.x -= dx; p.face = dx > 0 ? 1 : -1; }
-                    if(keys['Space'] && p.gr) p.vy = -14;
-                } else {
-                    if(e.type === 'zombie') { e.dir = (p.x > e.x ? 1 : -1); e.x += e.dir * 2 + (e.vx||0); if(Math.abs(p.x-e.x)<25 && Math.abs(p.y-e.y)<25 && p.dmgCd<=0) { p.hp -= 5; p.dmgCd = 40; } }
-                    else { e.x += e.dir * 1.2 + (e.vx||0); if(Math.random()<0.01) e.dir*=-1; }
-                    if(e.vx) e.vx *= 0.8; if(check(e.x + e.dir*10, e.y) && e.gr) e.vy = -10;
-                }
-            });
-            ents = ents.filter(e => e.hp > 0);
-            render(ctx, cvs);
-        }
-        requestAnimationFrame(loop);
-    }
-
-    function render(ctx, cvs) {
-        document.getElementById('p-hp-hud').innerText = Math.floor(p.hp);
-        document.getElementById('tm-v').innerText = Math.floor(ticks/60).toString().padStart(2,'0')+":"+Math.floor(ticks%60).toString().padStart(2,'0');
-        document.getElementById('alt-v').innerText = Math.floor(Math.abs(p.y/T)*32);
-        ctx.fillStyle = (ticks > 1050 || ticks < 350) ? '#050510' : '#87ceeb';
-        ctx.fillRect(0, 0, cvs.width, cvs.height);
-        var cx = p.x - cvs.width/2, cy = p.y - cvs.height/2;
-        var clrs = ["","#7f8c8d","#2ecc71","#795548","#f1c40f","#5d4037","#27ae60","#ecf0f1","#3498db"];
-        for(var x=Math.floor(cx/T); x<=Math.ceil((cx+cvs.width)/T); x++) {
-            for(var y=Math.floor(cy/T); y<=Math.ceil((cy+cvs.height)/T); y++) {
-                var b = getB(x, y);
-                if(b > 0) { ctx.fillStyle = clrs[b]; ctx.fillRect(x*T-cx, y*T-cy, T-0.5, T-0.5); }
-            }
-        }
-        ents.concat([p]).forEach(e => {
-            ctx.fillStyle = (e.dmgCd > 0) ? '#fff' : (e===p?'#e67e22':(e.type==='zombie'?'#27ae60':(e.type==='villager'?'#9b59b6':(e.type==='animal'?'#ff9ff3':'#3498db'))));
-            ctx.fillRect(e.x-cx, e.y-cy, e.w, e.h);
-            var bw = 30; ctx.fillStyle="#333"; ctx.fillRect(e.x-cx+(e.w/2-bw/2), e.y-cy-12, bw, 5);
-            ctx.fillStyle="#2ecc71"; ctx.fillRect(e.x-cx+(e.w/2-bw/2), e.y-cy-12, bw*(e.hp/e.max), 5);
-        });
-    }
-</script>
-</body>
-</html>
+        if(e.keyCode >= 49 && e.keyCode
