@@ -2,7 +2,7 @@
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
-    <title>SUPER HUMAN 2026 - FINAL FIX</title>
+    <title>SUPER HUMAN 2026 - AUTO SAVE</title>
     <style>
         body, html { margin: 0; padding: 0; width: 100%; height: 100%; background: #000; overflow: hidden; font-family: sans-serif; user-select: none; }
         .page { position: fixed; inset: 0; z-index: 9999; display: flex; flex-direction: column; align-items: center; justify-content: center; background: #050505; color: #f1c40f; text-align: center; }
@@ -11,11 +11,9 @@
         .in-box { padding: 15px; font-size: 24px; border: 4px solid #f1c40f; border-radius: 12px; background: #222; color: #fff; text-align: center; margin-bottom: 25px; width: 320px; outline: none; }
         .btn-clear { background: #a00 !important; color: white !important; font-size: 16px !important; box-shadow: 0 5px 0 #600 !important; width: 280px !important; }
         #p-brief { background: #111; color: #eee; padding: 40px; text-align: left; align-items: flex-start; border: 6px solid #f1c40f; overflow-y: auto; }
-        .brief-content { font-size: 18px; line-height: 1.6; border-left: 4px solid #f1c40f; padding-left: 20px; margin: 20px 0; }
         #esc-menu { position: fixed; inset: 0; z-index: 10000; display: none; flex-direction: column; align-items: center; justify-content: center; background: rgba(0,0,0,0.85); backdrop-filter: blur(5px); }
         #hud { position: fixed; top: 15px; left: 15px; z-index: 1000; color: white; background: rgba(0,0,0,0.85); padding: 10px; border-radius: 10px; border: 2px solid #f1c40f; display: none; pointer-events: none; }
         canvas#g { display: none; position: absolute; top: 0; left: 0; }
-        .sel-box { color: #f1c40f; font-weight: bold; border-bottom: 2px solid #f1c40f; }
         input[type=range] { width: 350px; cursor: pointer; }
     </style>
 </head>
@@ -29,15 +27,15 @@
 
     <div id="p-conn" class="page" style="display:none;">
         <h1>CONNECTION TYPE</h1>
-        <button class="btn" onclick="goToCountSel()">👤 單人連線</button>
-        <button class="btn" onclick="goToCountSel()">👥 多人連線</button>
+        <button class="btn" onclick="setConnSingle()">👤 單人連線</button>
+        <button class="btn" onclick="setConnMulti()">👥 多人連線</button>
     </div>
 
     <div id="p-count" class="page" style="display:none;">
-        <h1>SQUAD SIZE</h1>
-        <h2 id="cnt-disp" style="font-size: 40px;">1 人</h2>
-        <input type="range" id="member-sld" min="1" max="15" value="1" oninput="document.getElementById('cnt-disp').innerText=this.value+' 人'">
-        <button class="btn" onclick="toModeSel()">NEXT: SELECT MODE</button>
+        <h1>SQUAD SIZE (MULTI)</h1>
+        <h2 id="cnt-disp" style="font-size: 40px;">2 人</h2>
+        <input type="range" id="member-sld" min="2" max="15" value="5" oninput="document.getElementById('cnt-disp').innerText=this.value+' 人'">
+        <button class="btn" onclick="toModeSel()">NEXT</button>
     </div>
 
     <div id="p-mode" class="page" style="display:none;">
@@ -49,20 +47,21 @@
 
     <div id="p-brief" class="page" style="display:none;">
         <h1 id="brief-title">MISSION BRIEFING</h1>
-        <div class="brief-content" id="brief-text">加載中...</div>
+        <div id="brief-text" style="font-size: 18px; line-height: 1.6; margin: 20px 0;"></div>
         <button class="btn" onclick="startGame()">START SIMULATION</button>
     </div>
 
     <div id="esc-menu">
         <h1 style="color:#f1c40f; font-size: 48px; margin-bottom: 20px;">PAUSED</h1>
         <button class="btn" onclick="togglePause()">RESUME (ESC)</button>
-        <button class="btn btn-clear" onclick="forgetKey()">清除記憶密碼並登出</button>
+        <button class="btn btn-clear" onclick="resetWorld()" style="background:#d35400 !important; box-shadow: 0 5px 0 #a04000 !important;">重置世界建築 (慎點)</button>
+        <button class="btn btn-clear" onclick="forgetKey()">清除密碼並登出</button>
         <button class="btn" onclick="location.reload()" style="background:#555; color:white;">EXIT TO MENU</button>
     </div>
 
     <div id="hud">
         🕒 <span id="tm-v">12:00</span> | ❤️ HP: <span id="p-hp-hud">100</span><br>
-        🏗️ <span id="cur-b" class="sel-box">石頭 (1)</span> | 📍 海拔：<span id="alt-v">0</span> m
+        🏗️ <span id="cur-b" style="color:#f1c40f;font-weight:bold;">石頭 (1)</span> | 📍 海拔：<span id="alt-v">0</span> m
     </div>
     <canvas id="g"></canvas>
 
@@ -72,52 +71,58 @@
     var T = 32, selB = 1, spawnTimer = 0, villagerTimer = 0;
     const AUTH_KEY = 'ryan0111407';
 
+    // --- 存檔機制 ---
+    function saveWorld() {
+        localStorage.setItem('super_human_save', JSON.stringify(world));
+    }
+    function loadWorld() {
+        var saved = localStorage.getItem('super_human_save');
+        if(saved) world = JSON.parse(saved);
+    }
+    function resetWorld() {
+        if(confirm("確定要拆掉所有蓋好的方塊嗎？")) {
+            world = {};
+            saveWorld();
+            location.reload();
+        }
+    }
+
     window.onload = function() {
-        if (localStorage.getItem('super_human_auth') === AUTH_KEY) { document.getElementById('p-conn').style.display = 'flex'; }
-        else { document.getElementById('p-auth').style.display = 'flex'; }
+        loadWorld(); // 載入存檔
+        if (localStorage.getItem('super_human_auth') === AUTH_KEY) document.getElementById('p-conn').style.display = 'flex';
+        else document.getElementById('p-auth').style.display = 'flex';
     };
 
     function checkAuth() {
-        var val = document.getElementById('pw').value.trim();
-        if(val === AUTH_KEY) { localStorage.setItem('super_human_auth', AUTH_KEY); document.getElementById('p-auth').style.display='none'; document.getElementById('p-conn').style.display='flex'; }
-        else { alert("ACCESS DENIED"); }
+        if(document.getElementById('pw').value.trim() === AUTH_KEY) {
+            localStorage.setItem('super_human_auth', AUTH_KEY);
+            document.getElementById('p-auth').style.display='none';
+            document.getElementById('p-conn').style.display='flex';
+        } else alert("ACCESS DENIED");
     }
 
     function forgetKey() { localStorage.removeItem('super_human_auth'); location.reload(); }
-    
-    function goToCountSel() {
-        document.getElementById('p-conn').style.display='none';
-        document.getElementById('p-count').style.display='flex';
-    }
-
-    function toModeSel() {
-        sSize = parseInt(document.getElementById('member-sld').value);
-        document.getElementById('p-count').style.display='none';
-        document.getElementById('p-mode').style.display='flex';
-    }
+    function setConnSingle() { sSize = 1; document.getElementById('p-conn').style.display='none'; document.getElementById('p-mode').style.display='flex'; }
+    function setConnMulti() { document.getElementById('p-conn').style.display='none'; document.getElementById('p-count').style.display='flex'; }
+    function toModeSel() { sSize = parseInt(document.getElementById('member-sld').value); document.getElementById('p-count').style.display='none'; document.getElementById('p-mode').style.display='flex'; }
 
     function prepareBrief(type) {
         mType = type;
         document.getElementById('p-mode').style.display='none';
         document.getElementById('p-brief').style.display='flex';
-        let t = document.getElementById('brief-text'), h = document.getElementById('brief-title');
-        h.innerText = (type==='ARCH'?"荒野建築模式":(type==='SURV'?"高山生存模式":"殭屍圍城模式"));
-        t.innerHTML = `● <b>地形</b>：無平原，強制崎嶇丘陵。<br>● <b>結構</b>：草皮下 5 層泥土。<br>● <b>村民</b>：每 10 秒生成一位。<br>● <b>規模</b>：${sSize} 人隊伍。`;
+        document.getElementById('brief-title').innerText = (type==='ARCH'?"荒野建築模式":(type==='SURV'?"高山生存模式":"殭屍圍城模式"));
+        document.getElementById('brief-text').innerHTML = `● <b>地貌</b>：崎嶇丘陵鎖定。<br>● <b>自動存檔</b>：你的建築將永久儲存在此瀏覽器中。<br>● <b>規則</b>：10 秒生成一村民，草皮下 5 層土。<br>● <b>操作</b>：K攻擊，左挖右蓋，ESC暫停。`;
     }
 
-    // --- 強化丘陵引擎：增加複合波浪頻率 ---
     function getB(gx, gy) {
         if(world[gx+'_'+gy] !== undefined) return world[gx+'_'+gy];
         var absGx = Math.abs(gx);
-        
-        // 疊加多種起伏，防止平坦化
-        var noise = Math.sin(gx * 0.45) * 10 + Math.cos(gx * 0.22) * 8 + Math.sin(gx * 0.1) * 15;
-        var f = Math.floor(40 + noise);
-        
-        // 巨脈海拔
-        if(absGx > 100) f += Math.floor((absGx-100)/3) * 18;
+        var h1 = Math.sin(gx * 0.42) * 11;
+        var h2 = Math.cos(gx * 0.23) * 9;
+        var h3 = Math.sin(gx * 0.11) * 15;
+        var f = Math.floor(45 + h1 + h2 + h3);
+        if(absGx > 120) f += Math.floor((absGx-120)/3) * 18;
         if (f > 120) f = 120; 
-
         if (gy < f) return 0;
         if (gy === f) return (gy > 85) ? 7 : 2; 
         if (gy > f && gy <= f + 5) return 3; 
@@ -129,11 +134,9 @@
         document.getElementById('hud').style.display='block';
         var cvs=document.getElementById('g'); cvs.style.display='block';
         cvs.width=window.innerWidth; cvs.height=window.innerHeight;
-        
         let startY = 0;
-        while(getB(0, Math.floor(startY/T)) === 0 && startY < 4000) { startY += T; }
+        while(getB(0, Math.floor(startY/T)) === 0 && startY < 4000) startY += T;
         p.y = startY - 128;
-
         for(var i=0; i<sSize-1; i++) spawn('ally', p.x + (i*60)-120, p.y);
         live = true; loop();
     }
@@ -148,12 +151,13 @@
         var gx = Math.floor((e.clientX + cx) / T), gy = Math.floor((e.clientY + cy) / T);
         if(e.button === 0) world[gx+'_'+gy] = 0; 
         if(e.button === 2) world[gx+'_'+gy] = selB; 
+        saveWorld(); // 每次更動方塊後存檔
     };
 
     window.onkeydown = function(e) {
         if(e.code === 'Escape' && live) togglePause();
         if(!live || paused) return;
-        if(e.keyCode >= 49 && e.keyCode <= 56) { selB = e.keyCode - 48; document.getElementById('cur-b').innerText = ["","石頭","草地","泥土","沙子","木頭","葉子","雪地","水"][selB]; }
+        if(e.keyCode >= 49 && e.keyCode <= 56) { selB = e.keyCode - 48; document.getElementById('cur-b').innerText = ["","石頭","草地","泥土","沙子","木頭","葉子","雪地","水"][selB] + " ("+selB+")"; }
         if(e.code === 'KeyK' && p.atkCd <= 0) {
             p.atkCd = 15;
             ents.forEach(e => {
@@ -218,6 +222,7 @@
         ents.concat([p]).forEach(e => {
             ctx.fillStyle = (e.dmgCd > 0) ? '#fff' : (e===p?'#e67e22':(e.type==='zombie'?'#27ae60':(e.type==='villager'?'#9b59b6':(e.type==='animal'?'#ff9ff3':'#3498db'))));
             ctx.fillRect(e.x-cx, e.y-cy, e.w, e.h);
+            if(e === p && p.atkCd > 8) { ctx.fillStyle = "white"; ctx.fillRect(e.x-cx+(p.face===1?25:-15), e.y-cy+15, 15, 5); }
             var bw = 30; ctx.fillStyle="#333"; ctx.fillRect(e.x-cx+(e.w/2-bw/2), e.y-cy-12, bw, 5);
             ctx.fillStyle="#2ecc71"; ctx.fillRect(e.x-cx+(e.w/2-bw/2), e.y-cy-12, bw*(e.hp/e.max), 5);
         });
