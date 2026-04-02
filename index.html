@@ -2,7 +2,7 @@
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
-    <title>SUPER HUMAN 2026 - NO BLACK SCREEN</title>
+    <title>SUPER HUMAN 2026 - ZERO PLAIN LOCKdown</title>
     <style>
         body, html { margin: 0; padding: 0; width: 100%; height: 100%; background: #000; overflow: hidden; font-family: sans-serif; user-select: none; }
         .page { position: fixed; inset: 0; z-index: 9999; display: flex; flex-direction: column; align-items: center; justify-content: center; background: #050505; color: #f1c40f; text-align: center; }
@@ -24,8 +24,8 @@
 
     <div id="p-conn" class="page" style="display:none;">
         <h1>CONNECTION</h1>
-        <button class="btn" onclick="setConn(1)">👤 單人模式</button>
-        <button class="btn" onclick="setConn(0)">👥 多人模式</button>
+        <button class="btn" onclick="setConn(1)">👤 單人連線</button>
+        <button class="btn" onclick="setConn(0)">👥 多人連線</button>
     </div>
 
     <div id="p-count" class="page" style="display:none;">
@@ -36,7 +36,7 @@
     </div>
 
     <div id="p-mode" class="page" style="display:none;">
-        <h1>MODE SELECT</h1>
+        <h1>MISSION MODE</h1>
         <button class="btn" onclick="prepareBrief('ARCH')">🏗️ 荒野建築</button>
         <button class="btn" onclick="prepareBrief('SURV')">🏔️ 高山生存</button>
         <button class="btn" onclick="prepareBrief('ZOMB')">🧟 殭屍圍城</button>
@@ -45,15 +45,15 @@
     <div id="p-brief" class="page" style="display:none;">
         <h1 id="brief-title">BRIEFING</h1>
         <div id="brief-text" style="font-size: 18px; line-height: 1.6; margin: 20px 0; color: #ccc; border-left: 4px solid #f1c40f; padding-left: 20px; text-align: left;"></div>
-        <button class="btn" onclick="startGame()">INITIALIZE</button>
+        <button class="btn" onclick="startGame()">START</button>
     </div>
 
     <div id="esc-menu">
         <h1 style="color:#f1c40f; font-size: 48px;">PAUSED</h1>
         <button class="btn" onclick="togglePause()">RESUME (ESC)</button>
-        <button class="btn" onclick="resetWorld()" style="background:#e67e22!important;">重置建築</button>
-        <button class="btn" onclick="forgetKey()" style="background:#555!important;">登出</button>
-        <button class="btn" onclick="location.reload()" style="background:#444;">主選單</button>
+        <button class="btn" onclick="resetWorld()" style="background:#e67e22!important;">重置建築存檔</button>
+        <button class="btn" onclick="forgetKey()" style="background:#555!important;">登出啟動碼</button>
+        <button class="btn" onclick="location.reload()" style="background:#444;">返回主選單</button>
     </div>
 
     <div id="hud">
@@ -69,7 +69,7 @@
     const AUTH_KEY = 'ryan0111407';
 
     window.onload = function() {
-        if(localStorage.getItem('sh_save_v2')) world = JSON.parse(localStorage.getItem('sh_save_v2'));
+        if(localStorage.getItem('sh_save_data')) world = JSON.parse(localStorage.getItem('sh_save_data'));
         if (localStorage.getItem('super_human_auth') === AUTH_KEY) document.getElementById('p-conn').style.display='flex';
         else document.getElementById('p-auth').style.display='flex';
     };
@@ -79,40 +79,44 @@
             localStorage.setItem('super_human_auth', AUTH_KEY);
             document.getElementById('p-auth').style.display='none';
             document.getElementById('p-conn').style.display='flex';
-        } else alert("ACCESS DENIED");
+        } else alert("啟動碼錯誤");
     }
 
     function forgetKey() { localStorage.removeItem('super_human_auth'); location.reload(); }
     function setConn(n) { document.getElementById('p-conn').style.display='none'; if(n===1){sSize=1;document.getElementById('p-mode').style.display='flex';}else{document.getElementById('p-count').style.display='flex';} }
     function toModeSel() { sSize=parseInt(document.getElementById('member-sld').value); document.getElementById('p-count').style.display='none'; document.getElementById('p-mode').style.display='flex'; }
-    function resetWorld() { if(confirm("重置存檔？")){world={};localStorage.setItem('sh_save_v2', "{}");location.reload();} }
+    function resetWorld() { if(confirm("確定重置？")){world={};localStorage.setItem('sh_save_data', "{}");location.reload();} }
 
     function prepareBrief(type) {
         mType = type;
         document.getElementById('p-mode').style.display='none';
         document.getElementById('p-brief').style.display='flex';
-        document.getElementById('brief-text').innerHTML = "● <b>地形：完全不規則丘陵</b>。嚴禁平坦表面。<br>● <b>結構</b>：地表覆蓋 5 層泥土。<br>● <b>規則</b>：10秒一名村民空投。<br>● <b>功能</b>：K鍵攻擊，1-8換磚，ESC暫停，自動存檔。";
+        document.getElementById('brief-text').innerHTML = "● <b>地形協議</b>：V9.6 碎裂雜湊引擎。嚴格執行崎嶇化，平原區域已物理移除。<br>● <b>地層物理</b>：地表下恆定 5 層泥土防禦。<br>● <b>村民規則</b>：10 秒空投一名村民。";
     }
 
-    // --- 地形引擎 V9.5：雜湊鋸齒強化 ---
+    // --- 究極崎嶇地形引擎 V9.6 (NO PLAINS EVER) ---
     function getB(gx, gy) {
         if(world[gx+'_'+gy] !== undefined) return world[gx+'_'+gy];
         var absGx = Math.abs(gx);
         
-        // 使用三組不規則波形 + 一組雜湊偏移，杜絕平原
-        var base = Math.sin(gx * 0.43) * 9 + Math.cos(gx * 0.19) * 7;
-        var jitter = Math.sin(gx * gx * 0.001) * 5; // 隨位置變化的頻率雜訊
-        var crack = (gx % 5 === 0) ? 3 : 0; // 每 5 格強制產生微小斷層
+        // 1. 基礎大起伏
+        var base = Math.sin(gx * 0.47) * 10 + Math.cos(gx * 0.23) * 8;
+        // 2. 高頻鋸齒 (確保鄰近每一格高度都不同)
+        var jitter = Math.sin(gx * 1.57) * 5 + Math.cos(gx * 3.14) * 3;
+        // 3. 碎石雜湊位移 (利用質數破壞平滑感)
+        var hash = (Math.abs(gx * 12345.678) % 10);
         
-        var f = Math.floor(45 + base + jitter + crack);
+        var f = Math.floor(50 + base + jitter + hash);
         
-        // 巨脈海拔
-        if(absGx > 110) f += Math.floor((absGx-110)/3.2) * (18 + Math.cos(gx * 0.8)*5);
+        // 4. 海拔倍增器
+        if(absGx > 100) {
+            f += Math.floor((absGx-100)/3.5) * (18 + Math.sin(gx * 0.8)*4);
+        }
         if (f > 120) f = 120; 
 
         if (gy < f) return 0;
         if (gy === f) return (gy > 85) ? 7 : 2; 
-        if (gy > f && gy <= f + 5) return 3; 
+        if (gy > f && gy <= f + 5) return 3; // 5層土
         return 1;
     }
 
@@ -121,15 +125,11 @@
         document.getElementById('hud').style.display='block';
         var cvs=document.getElementById('g'); cvs.style.display='block';
         cvs.width=window.innerWidth; cvs.height=window.innerHeight;
-        
-        // 出生點地表檢測
         let startY = 0;
         while(getB(0, Math.floor(startY/T)) === 0 && startY < 4000) startY += T;
         p.y = startY - 160;
-
         for(var i=0; i<sSize-1; i++) spawn('ally', p.x + (i*60)-120, p.y);
-        live = true;
-        requestAnimationFrame(loop);
+        live = true; loop();
     }
 
     function spawn(t, x, y) { ents.push({ type: t, x: x, y: y, w: 22, h: 42, vx: 0, vy: 0, hp: 100, max: 100, dir: 1, dmgCd: 0 }); }
@@ -142,7 +142,7 @@
         var gx = Math.floor((e.clientX + cx) / T), gy = Math.floor((e.clientY + cy) / T);
         if(e.button === 0) world[gx+'_'+gy] = 0; 
         if(e.button === 2) world[gx+'_'+gy] = selB; 
-        localStorage.setItem('sh_save_v2', JSON.stringify(world));
+        localStorage.setItem('sh_save_data', JSON.stringify(world));
     };
 
     window.onkeydown = function(e) {
@@ -164,7 +164,6 @@
         if(!live) return;
         if(!paused) {
             var cvs = document.getElementById('g'), ctx = cvs.getContext('2d');
-            if(!ctx) return;
             ticks = (ticks + (mType==='ZOMB'?0.15:0.05)) % 1440; 
             villagerTimer++;
             if(villagerTimer > 600) { var sx = p.x + (Math.random() > 0.5 ? 850 : -850); spawn('villager', sx, p.y-500); villagerTimer = 0; }
