@@ -2,17 +2,16 @@
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
-    <title>SUPER HUMAN 2026 - TOTAL CHAOS HILLS</title>
+    <title>SUPER HUMAN 2026 - ETERNAL RUGGED</title>
     <style>
         body, html { margin: 0; padding: 0; width: 100%; height: 100%; background: #000; overflow: hidden; font-family: sans-serif; user-select: none; }
         .page { position: fixed; inset: 0; z-index: 9999; display: flex; flex-direction: column; align-items: center; justify-content: center; background: #050505; color: #f1c40f; text-align: center; }
         .btn { padding: 15px 40px; font-size: 22px; cursor: pointer; margin: 10px; background: #f1c40f; border: 4px solid #fff; border-radius: 12px; font-weight: bold; color: #000; box-shadow: 0 5px 0 #b8860b; transition: 0.1s; outline: none; width: 300px; display: flex; align-items: center; justify-content: center; }
         .btn:active { transform: translateY(4px); box-shadow: 0 2px 0 #b8860b; }
         .in-box { padding: 15px; font-size: 24px; border: 4px solid #f1c40f; border-radius: 12px; background: #222; color: #fff; text-align: center; margin-bottom: 25px; width: 320px; outline: none; }
-        #esc-menu { position: fixed; inset: 0; z-index: 10000; display: none; flex-direction: column; align-items: center; justify-content: center; background: rgba(0,0,0,0.9); backdrop-filter: blur(8px); }
         #hud { position: fixed; top: 15px; left: 15px; z-index: 1000; color: white; background: rgba(0,0,0,0.85); padding: 10px; border-radius: 10px; border: 2px solid #f1c40f; display: none; pointer-events: none; }
         canvas#g { display: none; position: absolute; top: 0; left: 0; }
-        input[type=range] { width: 350px; cursor: pointer; }
+        #esc-menu { position: fixed; inset: 0; z-index: 10000; display: none; flex-direction: column; align-items: center; justify-content: center; background: rgba(0,0,0,0.9); backdrop-filter: blur(10px); }
     </style>
 </head>
 <body oncontextmenu="return false;">
@@ -24,20 +23,20 @@
     </div>
 
     <div id="p-conn" class="page" style="display:none;">
-        <h1>CONNECTION TYPE</h1>
-        <button class="btn" onclick="setConn(1)">👤 單人獨行</button>
-        <button class="btn" onclick="setConn(0)">👥 多人合作</button>
+        <h1>CONNECTION</h1>
+        <button class="btn" onclick="setConn(1)">👤 單人模式</button>
+        <button class="btn" onclick="setConn(0)">👥 多人模式</button>
     </div>
 
     <div id="p-count" class="page" style="display:none;">
         <h1>SQUAD SIZE</h1>
-        <h2 id="cnt-disp" style="font-size: 40px;">2 人</h2>
-        <input type="range" id="member-sld" min="2" max="15" value="5" oninput="document.getElementById('cnt-disp').innerText=this.value+' 人'">
+        <h2 id="cnt-disp" style="font-size: 40px;">5 人</h2>
+        <input type="range" id="member-sld" min="2" max="15" value="5" oninput="document.getElementById('cnt-disp').innerText=this.value+' 人'" style="width:350px;">
         <button class="btn" onclick="toModeSel()">NEXT</button>
     </div>
 
     <div id="p-mode" class="page" style="display:none;">
-        <h1>MISSION MODE</h1>
+        <h1>MODE SELECT</h1>
         <button class="btn" onclick="prepareBrief('ARCH')">🏗️ 荒野建築</button>
         <button class="btn" onclick="prepareBrief('SURV')">🏔️ 高山生存</button>
         <button class="btn" onclick="prepareBrief('ZOMB')">🧟 殭屍圍城</button>
@@ -45,16 +44,16 @@
 
     <div id="p-brief" class="page" style="display:none;">
         <h1 id="brief-title">BRIEFING</h1>
-        <div id="brief-text" style="font-size: 18px; line-height: 1.6; margin: 20px 0; color: #ccc; border-left: 4px solid #f1c40f; padding-left: 20px;"></div>
-        <button class="btn" onclick="startGame()">START</button>
+        <div id="brief-text" style="font-size: 18px; line-height: 1.6; margin: 20px 0; color: #ccc; border-left: 4px solid #f1c40f; padding-left: 20px; text-align: left;"></div>
+        <button class="btn" onclick="startGame()">INITIALIZE</button>
     </div>
 
     <div id="esc-menu">
         <h1 style="color:#f1c40f; font-size: 48px;">PAUSED</h1>
         <button class="btn" onclick="togglePause()">RESUME (ESC)</button>
-        <button class="btn" onclick="resetWorld()" style="background:#d35400 !important; color:white !important;">重置存檔 (全拆)</button>
-        <button class="btn" onclick="forgetKey()" style="background:#555 !important; color:white !important;">登出</button>
-        <button class="btn" onclick="location.reload()" style="background:#444; color:white;">EXIT</button>
+        <button class="btn" onclick="resetWorld()" style="background:#e67e22!important;">重置建築存檔</button>
+        <button class="btn" onclick="forgetKey()" style="background:#555!important;">登出帳號</button>
+        <button class="btn" onclick="location.reload()" style="background:#444;">返回主選單</button>
     </div>
 
     <div id="hud">
@@ -70,7 +69,7 @@
     const AUTH_KEY = 'ryan0111407';
 
     window.onload = function() {
-        if(localStorage.getItem('sh_save_data')) world = JSON.parse(localStorage.getItem('sh_save_data'));
+        if(localStorage.getItem('sh_save_v2')) world = JSON.parse(localStorage.getItem('sh_save_v2'));
         if (localStorage.getItem('super_human_auth') === AUTH_KEY) document.getElementById('p-conn').style.display='flex';
         else document.getElementById('p-auth').style.display='flex';
     };
@@ -80,42 +79,42 @@
             localStorage.setItem('super_human_auth', AUTH_KEY);
             document.getElementById('p-auth').style.display='none';
             document.getElementById('p-conn').style.display='flex';
-        } else alert("DENIED");
+        } else alert("ACCESS DENIED");
     }
 
     function forgetKey() { localStorage.removeItem('super_human_auth'); location.reload(); }
     function setConn(n) { document.getElementById('p-conn').style.display='none'; if(n===1){sSize=1;document.getElementById('p-mode').style.display='flex';}else{document.getElementById('p-count').style.display='flex';} }
     function toModeSel() { sSize=parseInt(document.getElementById('member-sld').value); document.getElementById('p-count').style.display='none'; document.getElementById('p-mode').style.display='flex'; }
-    function resetWorld() { if(confirm("RESET?")){world={};localStorage.setItem('sh_save_data', "{}");location.reload();} }
+    function resetWorld() { if(confirm("確定清除建築？")){world={};localStorage.setItem('sh_save_v2', "{}");location.reload();} }
 
     function prepareBrief(type) {
         mType = type;
         document.getElementById('p-mode').style.display='none';
         document.getElementById('p-brief').style.display='flex';
-        document.getElementById('brief-title').innerText = (type==='ARCH'?"建築模式":(type==='SURV'?"生存模式":"殭屍模式"));
-        document.getElementById('brief-text').innerHTML = "● <b>地形告警</b>：偵測到連續不規則丘陵地貌，無平原區域。<br>● <b>規則</b>：草皮下必有 5 層泥土。每 10 秒生成一村民。<br>● <b>目標</b>：在崎嶇世界中利用 K鍵攻擊與方塊建設存活。";
+        document.getElementById('brief-title').innerText = (type==='ARCH'?"建築任務":(type==='SURV'?"攀登任務":"生存任務"));
+        document.getElementById('brief-text').innerHTML = "● <b>核心地貌</b>：崎嶇丘陵複合體，杜絕所有平原路徑。<br>● <b>地層物理</b>：5層泥土緩衝層。每 10 秒空投一位村民。<br>● <b>操作指南</b>：K鍵近戰，左鍵破碎，右鍵重構。";
     }
 
-    // --- 毀滅平原引擎：多頻率雜訊疊加，杜絕直線 ---
+    // --- 崎嶇永恆引擎 (V9.2) ---
     function getB(gx, gy) {
         if(world[gx+'_'+gy] !== undefined) return world[gx+'_'+gy];
         var absGx = Math.abs(gx);
         
-        // 四層不對稱正弦波，頻率與相位完全錯開
-        var layer1 = Math.sin(gx * 0.53) * 12; // 極高頻起伏
-        var layer2 = Math.cos(gx * 0.29) * 9;  // 中頻大起伏
-        var layer3 = Math.sin(gx * 0.11) * 16; // 低頻巨浪
-        var layer4 = Math.sin(gx * 0.77 + 1.2) * 5; // 雜訊擾動
+        // 核心改動：利用不對稱的相位與絕對值疊加，確保曲線永遠在跳動
+        var n1 = Math.sin(gx * 0.47) * 10;
+        var n2 = Math.cos(gx * 0.31 + 1.5) * 8;
+        var n3 = Math.abs(Math.sin(gx * 0.13)) * 14;
+        var n4 = Math.sin(gx * 0.79) * 4;
         
-        var f = Math.floor(45 + layer1 + layer2 + layer3 + layer4);
+        var f = Math.floor(40 + n1 + n2 + n3 + n4);
         
-        // 巨脈海拔（隨海拔升高，地形隨機偏移增加）
-        if(absGx > 110) f += Math.floor((absGx-110)/3) * (18 + Math.sin(gx*0.8)*3);
-        if (f > 120) f = 120; 
+        // 海拔偏移 (gx 愈大，起伏愈瘋狂)
+        if(absGx > 100) f += Math.floor((absGx-100)/3.2) * (18 + Math.cos(gx * 0.9) * 4);
+        if (f > 122) f = 122; 
 
         if (gy < f) return 0;
         if (gy === f) return (gy > 85) ? 7 : 2; 
-        if (gy > f && gy <= f + 5) return 3; // 5層土
+        if (gy > f && gy <= f + 5) return 3; 
         return 1;
     }
 
@@ -126,7 +125,7 @@
         cvs.width=window.innerWidth; cvs.height=window.innerHeight;
         let startY = 0;
         while(getB(0, Math.floor(startY/T)) === 0 && startY < 4000) startY += T;
-        p.y = startY - 150;
+        p.y = startY - 160;
         for(var i=0; i<sSize-1; i++) spawn('ally', p.x + (i*60)-120, p.y);
         live = true; loop();
     }
@@ -141,7 +140,7 @@
         var gx = Math.floor((e.clientX + cx) / T), gy = Math.floor((e.clientY + cy) / T);
         if(e.button === 0) world[gx+'_'+gy] = 0; 
         if(e.button === 2) world[gx+'_'+gy] = selB; 
-        localStorage.setItem('sh_save_data', JSON.stringify(world));
+        localStorage.setItem('sh_save_v2', JSON.stringify(world));
     };
 
     window.onkeydown = function(e) {
