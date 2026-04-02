@@ -2,17 +2,18 @@
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
-    <title>SUPER HUMAN 2026 - MODES COMPLIANT</title>
+    <title>SUPER HUMAN 2026 - FINAL FIX</title>
     <style>
         body, html { margin: 0; padding: 0; width: 100%; height: 100%; background: #000; overflow: hidden; font-family: sans-serif; user-select: none; }
         .page { position: fixed; inset: 0; z-index: 9999; display: flex; flex-direction: column; align-items: center; justify-content: center; background: #050505; color: #f1c40f; text-align: center; }
-        .btn { padding: 15px 40px; font-size: 22px; cursor: pointer; margin: 10px; background: #f1c40f; border: 4px solid #fff; border-radius: 12px; font-weight: bold; color: #000; box-shadow: 0 5px 0 #b8860b; transition: 0.1s; outline: none; width: 300px; }
+        .btn { padding: 15px 40px; font-size: 22px; cursor: pointer; margin: 10px; background: #f1c40f; border: 4px solid #fff; border-radius: 12px; font-weight: bold; color: #000; box-shadow: 0 5px 0 #b8860b; transition: 0.1s; outline: none; width: 300px; display: flex; align-items: center; justify-content: center; }
         .btn:active { transform: translateY(4px); box-shadow: 0 2px 0 #b8860b; }
         .in-box { padding: 15px; font-size: 24px; border: 4px solid #f1c40f; border-radius: 12px; background: #222; color: #fff; text-align: center; margin-bottom: 25px; width: 320px; outline: none; }
+        .btn-clear { background: #a00 !important; color: white !important; font-size: 16px !important; box-shadow: 0 5px 0 #600 !important; width: 280px !important; }
         #p-brief { background: #111; color: #eee; padding: 40px; text-align: left; align-items: flex-start; border: 6px solid #f1c40f; overflow-y: auto; }
         .brief-content { font-size: 18px; line-height: 1.6; border-left: 4px solid #f1c40f; padding-left: 20px; margin: 20px 0; }
         #esc-menu { position: fixed; inset: 0; z-index: 10000; display: none; flex-direction: column; align-items: center; justify-content: center; background: rgba(0,0,0,0.85); backdrop-filter: blur(5px); }
-        #hud { position: fixed; top: 15px; left: 15px; z-index: 1000; color: white; background: rgba(0,0,0,0.85); padding: 15px; border-radius: 12px; border: 2px solid #f1c40f; display: none; pointer-events: none; }
+        #hud { position: fixed; top: 15px; left: 15px; z-index: 1000; color: white; background: rgba(0,0,0,0.85); padding: 10px; border-radius: 10px; border: 2px solid #f1c40f; display: none; pointer-events: none; }
         canvas#g { display: none; position: absolute; top: 0; left: 0; }
         .sel-box { color: #f1c40f; font-weight: bold; border-bottom: 2px solid #f1c40f; }
         input[type=range] { width: 350px; cursor: pointer; }
@@ -21,15 +22,15 @@
 <body oncontextmenu="return false;">
 
     <div id="p-auth" class="page" style="display:none;">
-        <h1 style="letter-spacing: 5px;">SYSTEM ACCESS</h1>
+        <h1>SYSTEM ACCESS</h1>
         <input type="password" id="pw" class="in-box" placeholder="Access Key">
         <button class="btn" onclick="checkAuth()">VERIFY</button>
     </div>
 
     <div id="p-conn" class="page" style="display:none;">
         <h1>CONNECTION TYPE</h1>
-        <button class="btn" onclick="setConn('SINGLE')">👤 單人連線</button>
-        <button class="btn" onclick="setConn('MULTI')">👥 多人連線</button>
+        <button class="btn" onclick="goToCountSel()">👤 單人連線</button>
+        <button class="btn" onclick="goToCountSel()">👥 多人連線</button>
     </div>
 
     <div id="p-count" class="page" style="display:none;">
@@ -53,9 +54,9 @@
     </div>
 
     <div id="esc-menu">
-        <h1 style="color:#f1c40f; font-size: 48px;">PAUSED</h1>
+        <h1 style="color:#f1c40f; font-size: 48px; margin-bottom: 20px;">PAUSED</h1>
         <button class="btn" onclick="togglePause()">RESUME (ESC)</button>
-        <button class="btn" onclick="forgetKey()" style="background:#800; color:white; font-size: 14px; width: 120px; height: 35px;">清除記憶密碼</button>
+        <button class="btn btn-clear" onclick="forgetKey()">清除記憶密碼並登出</button>
         <button class="btn" onclick="location.reload()" style="background:#555; color:white;">EXIT TO MENU</button>
     </div>
 
@@ -67,7 +68,7 @@
 
 <script>
     var live = false, paused = false, world = {}, keys = {}, ents = [], ticks = 600, sSize = 1, mType = '';
-    var p = { x: 0, y: -800, w: 22, h: 42, vx: 0, vy: 0, hp: 100, max: 100, gr: false, dmgCd: 0, atkCd: 0, face: 1 };
+    var p = { x: 0, y: 0, w: 22, h: 42, vx: 0, vy: 0, hp: 100, max: 100, gr: false, dmgCd: 0, atkCd: 0, face: 1 };
     var T = 32, selB = 1, spawnTimer = 0, villagerTimer = 0;
     const AUTH_KEY = 'ryan0111407';
 
@@ -83,18 +84,44 @@
     }
 
     function forgetKey() { localStorage.removeItem('super_human_auth'); location.reload(); }
-    function setConn(t) { document.getElementById('p-conn').style.display='none'; document.getElementById('p-count').style.display='flex'; }
-    function toModeSel() { sSize = parseInt(document.getElementById('member-sld').value); document.getElementById('p-count').style.display='none'; document.getElementById('p-mode').style.display='flex'; }
+    
+    function goToCountSel() {
+        document.getElementById('p-conn').style.display='none';
+        document.getElementById('p-count').style.display='flex';
+    }
+
+    function toModeSel() {
+        sSize = parseInt(document.getElementById('member-sld').value);
+        document.getElementById('p-count').style.display='none';
+        document.getElementById('p-mode').style.display='flex';
+    }
 
     function prepareBrief(type) {
         mType = type;
         document.getElementById('p-mode').style.display='none';
         document.getElementById('p-brief').style.display='flex';
         let t = document.getElementById('brief-text'), h = document.getElementById('brief-title');
-        if(type==='ARCH') { h.innerText="荒野建築模式"; t.innerHTML="● 地形：全區域連續丘陵。<br>● 規則：草皮下必有 5 層泥土。每 10 秒生成一位村民。<br>● 目標：自由建設，防禦等級低。"; }
-        else if(type==='SURV') { h.innerText="高山生存模式"; t.innerHTML="● 地形：劇烈起伏丘陵。往右探索海拔 3000m 巨脈。<br>● 規則：草皮下必有 5 層泥土。每 10 秒生成一位村民。<br>● 目標：征服高峰並建立生存據點。"; }
-        else { h.innerText="殭屍圍城模式"; t.innerHTML="● 環境：日夜交替加快 (0.15x)。<br>● 規則：夜晚殭屍生成率 200%。每 10 秒生成一位村民。<br>● 目標：在丘陵間建立牆壁，抵禦圍攻。"; }
-        t.innerHTML += `<br><br><b>隊伍：${sSize} 人</b><br>K鍵：攻擊 | 左鍵：挖塊 | 右鍵：放塊 | 1-8：材料`;
+        h.innerText = (type==='ARCH'?"荒野建築模式":(type==='SURV'?"高山生存模式":"殭屍圍城模式"));
+        t.innerHTML = `● <b>地形</b>：無平原，強制崎嶇丘陵。<br>● <b>結構</b>：草皮下 5 層泥土。<br>● <b>村民</b>：每 10 秒生成一位。<br>● <b>規模</b>：${sSize} 人隊伍。`;
+    }
+
+    // --- 強化丘陵引擎：增加複合波浪頻率 ---
+    function getB(gx, gy) {
+        if(world[gx+'_'+gy] !== undefined) return world[gx+'_'+gy];
+        var absGx = Math.abs(gx);
+        
+        // 疊加多種起伏，防止平坦化
+        var noise = Math.sin(gx * 0.45) * 10 + Math.cos(gx * 0.22) * 8 + Math.sin(gx * 0.1) * 15;
+        var f = Math.floor(40 + noise);
+        
+        // 巨脈海拔
+        if(absGx > 100) f += Math.floor((absGx-100)/3) * 18;
+        if (f > 120) f = 120; 
+
+        if (gy < f) return 0;
+        if (gy === f) return (gy > 85) ? 7 : 2; 
+        if (gy > f && gy <= f + 5) return 3; 
+        return 1;
     }
 
     function startGame() {
@@ -102,30 +129,17 @@
         document.getElementById('hud').style.display='block';
         var cvs=document.getElementById('g'); cvs.style.display='block';
         cvs.width=window.innerWidth; cvs.height=window.innerHeight;
-        for(var i=0; i<sSize-1; i++) spawn('ally', p.x + (i*60)-120, -1000);
+        
+        let startY = 0;
+        while(getB(0, Math.floor(startY/T)) === 0 && startY < 4000) { startY += T; }
+        p.y = startY - 128;
+
+        for(var i=0; i<sSize-1; i++) spawn('ally', p.x + (i*60)-120, p.y);
         live = true; loop();
     }
 
     function spawn(t, x, y) { ents.push({ type: t, x: x, y: y, w: 22, h: 42, vx: 0, vy: 0, hp: 100, max: 100, dir: 1, dmgCd: 0 }); }
-
-    function getB(gx, gy) {
-        if(world[gx+'_'+gy] !== undefined) return world[gx+'_'+gy];
-        var absGx = Math.abs(gx);
-        var amp = (mType==='SURV')?10:7;
-        var f = Math.floor(25 + Math.sin(gx*0.35)*amp + Math.cos(gx*0.18)*6);
-        if(absGx > 150) f += Math.floor((absGx-150)/4) * 16;
-        if (f > 115) f = 115; 
-        if (gy < f) return 0;
-        if (gy === f) return (gy > 80) ? 7 : 2; 
-        if (gy > f && gy <= f + 5) return 3; 
-        return 1;
-    }
-
-    function check(x,y) { 
-        var gx=Math.floor(x/T), gy=Math.floor(y/T);
-        return getB(gx, gy)>0 || getB(Math.floor((x+21)/T), Math.floor((y+41)/T))>0;
-    }
-
+    function check(x,y) { var gx=Math.floor(x/T), gy=Math.floor(y/T); return getB(gx, gy)>0 || getB(Math.floor((x+21)/T), Math.floor((y+41)/T))>0; }
     function togglePause() { paused = !paused; document.getElementById('esc-menu').style.display = paused ? 'flex' : 'none'; }
 
     window.onmousedown = function(e) {
@@ -156,25 +170,16 @@
         if(!paused) {
             var cvs = document.getElementById('g'), ctx = cvs.getContext('2d');
             ticks = (ticks + (mType==='ZOMB'?0.15:0.05)) % 1440; 
-            
-            // 每 10 秒 (約 600 幀) 生成村民規則
             villagerTimer++;
-            if(villagerTimer > 600) {
-                var sx = p.x + (Math.random() > 0.5 ? 850 : -850);
-                spawn('villager', sx, -800);
-                villagerTimer = 0;
-            }
-
+            if(villagerTimer > 600) { var sx = p.x + (Math.random() > 0.5 ? 850 : -850); spawn('villager', sx, p.y-400); villagerTimer = 0; }
             spawnTimer++;
             let limit = (mType==='ZOMB')?300:1000;
             if(spawnTimer > limit) {
                 var sx = p.x + (Math.random() > 0.5 ? 850 : -850);
                 var isNight = (ticks > 1050 || ticks < 350);
-                if(isNight) spawn('zombie', sx, -800);
-                else spawn('animal', sx, -800);
+                if(isNight) spawn('zombie', sx, p.y-400); else spawn('animal', sx, p.y-400);
                 spawnTimer = 0;
             }
-
             [p].concat(ents).forEach(e => {
                 e.vy += 0.8; e.y += e.vy;
                 if(check(e.x, e.y)) { while(check(e.x, e.y)) e.y -= 0.5; e.vy = 0; e.gr = true; } else e.gr = false;
@@ -187,8 +192,7 @@
                 } else {
                     if(e.type === 'zombie') { e.dir = (p.x > e.x ? 1 : -1); e.x += e.dir * 2 + (e.vx||0); if(Math.abs(p.x-e.x)<25 && Math.abs(p.y-e.y)<25 && p.dmgCd<=0) { p.hp -= 5; p.dmgCd = 40; } }
                     else { e.x += e.dir * 1.2 + (e.vx||0); if(Math.random()<0.01) e.dir*=-1; }
-                    if(e.vx) e.vx *= 0.8;
-                    if(check(e.x + e.dir*10, e.y) && e.gr) e.vy = -10;
+                    if(e.vx) e.vx *= 0.8; if(check(e.x + e.dir*10, e.y) && e.gr) e.vy = -10;
                 }
             });
             ents = ents.filter(e => e.hp > 0);
@@ -204,16 +208,16 @@
         ctx.fillStyle = (ticks > 1050 || ticks < 350) ? '#050510' : '#87ceeb';
         ctx.fillRect(0, 0, cvs.width, cvs.height);
         var cx = p.x - cvs.width/2, cy = p.y - cvs.height/2;
+        var colors = ["","#7f8c8d","#2ecc71","#795548","#f1c40f","#5d4037","#27ae60","#ecf0f1","#3498db"];
         for(var x=Math.floor(cx/T); x<=Math.ceil((cx+cvs.width)/T); x++) {
             for(var y=Math.floor(cy/T); y<=Math.ceil((cy+cvs.height)/T); y++) {
                 var b = getB(x, y);
-                if(b > 0) { ctx.fillStyle = ["","#7f8c8d","#2ecc71","#795548","#f1c40f","#5d4037","#27ae60","#ecf0f1","#3498db"][b]; ctx.fillRect(x*T-cx, y*T-cy, T-0.5, T-0.5); }
+                if(b > 0) { ctx.fillStyle = colors[b]; ctx.fillRect(x*T-cx, y*T-cy, T-0.5, T-0.5); }
             }
         }
         ents.concat([p]).forEach(e => {
             ctx.fillStyle = (e.dmgCd > 0) ? '#fff' : (e===p?'#e67e22':(e.type==='zombie'?'#27ae60':(e.type==='villager'?'#9b59b6':(e.type==='animal'?'#ff9ff3':'#3498db'))));
             ctx.fillRect(e.x-cx, e.y-cy, e.w, e.h);
-            if(e === p && p.atkCd > 8) { ctx.fillStyle = "white"; ctx.fillRect(e.x-cx+(p.face===1?25:-15), e.y-cy+15, 15, 5); }
             var bw = 30; ctx.fillStyle="#333"; ctx.fillRect(e.x-cx+(e.w/2-bw/2), e.y-cy-12, bw, 5);
             ctx.fillStyle="#2ecc71"; ctx.fillRect(e.x-cx+(e.w/2-bw/2), e.y-cy-12, bw*(e.hp/e.max), 5);
         });
