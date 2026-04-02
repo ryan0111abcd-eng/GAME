@@ -2,7 +2,7 @@
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
-    <title>SUPER HUMAN 2026 - FRACTURED RUGGED</title>
+    <title>SUPER HUMAN 2026 - NO FLAT ZONE</title>
     <style>
         body, html { margin: 0; padding: 0; width: 100%; height: 100%; background: #000; overflow: hidden; font-family: sans-serif; user-select: none; }
         .page { position: fixed; inset: 0; z-index: 9999; display: flex; flex-direction: column; align-items: center; justify-content: center; background: #050505; color: #f1c40f; text-align: center; }
@@ -91,24 +91,25 @@
         mType = type;
         document.getElementById('p-mode').style.display='none';
         document.getElementById('p-brief').style.display='flex';
-        document.getElementById('brief-text').innerHTML = "● <b>地形禁令</b>：已加載斷裂式雜湊地形引擎，嚴格杜絕平原區域。<br>● <b>地表物理</b>：草皮下必備5層泥土。每10秒村民空投。<br>● <b>警告</b>：地形極度崎嶇，請小心墜落。";
+        document.getElementById('brief-text').innerHTML = "● <b>地形禁令</b>：已鎖定碎裂式雜湊地形。每一公尺均為崎嶇，絕對無平原。<br>● <b>地底結構</b>：草皮下必有5層泥土。每10秒隨機投放村民。<br>● <b>警告</b>：地勢兇險，建議隨時利用方塊建立階梯。";
     }
 
-    // --- 斷裂式雜湊地形引擎 (V9.3) ---
+    // --- 碎裂式雜湊地形引擎 (永久鎖定崎嶇) ---
     function getB(gx, gy) {
         if(world[gx+'_'+gy] !== undefined) return world[gx+'_'+gy];
         var absGx = Math.abs(gx);
         
-        // 核心改動：增加一個「斷裂項」，確保鄰近格子高度產生劇烈跳動
-        var wave = Math.sin(gx * 0.47) * 8 + Math.cos(gx * 0.29) * 6;
-        var fracture = Math.cos(gx * 1.5) * Math.sin(gx * 2.3) * 10; // 斷裂鋸齒
-        var noise = Math.abs(Math.sin(gx * 0.11)) * 12;
+        // 利用多個質數頻率與絕對值函數，確保地表永遠在跳動，不會連成直線
+        var waveA = Math.sin(gx * 0.51) * 11;
+        var waveB = Math.cos(gx * 0.37 + 1.2) * 9;
+        var waveC = Math.abs(Math.sin(gx * 0.17)) * 13;
+        var fracture = Math.cos(gx * 1.6) * Math.sin(gx * 2.1) * 7; // 微小劇烈跳動
         
-        var f = Math.floor(42 + wave + fracture + noise);
+        var f = Math.floor(45 + waveA + waveB + waveC + fracture);
         
-        // 隨海拔增加，斷裂感增強
-        if(absGx > 100) f += Math.floor((absGx-100)/3.5) * (18 + Math.sin(gx*2.5)*6);
-        if (f > 122) f = 122; 
+        // 巨脈海拔邏輯
+        if(absGx > 100) f += Math.floor((absGx-100)/3.5) * (18 + Math.cos(gx * 0.85) * 5);
+        if (f > 120) f = 120; 
 
         if (gy < f) return 0;
         if (gy === f) return (gy > 85) ? 7 : 2; 
