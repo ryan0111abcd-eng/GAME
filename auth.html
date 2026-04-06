@@ -2,23 +2,25 @@
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
-    <title>登入遠征隊</title>
+    <title>遠征隊登入系統</title>
     <style>
         body { font-family: sans-serif; background: #0a0a0a; color: white; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; }
-        .login-box { background: #1a1a1a; padding: 40px; border-radius: 20px; text-align: center; width: 320px; border: 1px solid #333; }
+        .card { background: #161616; padding: 40px; border-radius: 20px; text-align: center; width: 320px; border: 1px solid #333; }
         input { width: 100%; padding: 12px; margin: 15px 0; border-radius: 8px; border: 1px solid #444; background: #000; color: white; box-sizing: border-box; }
         button { width: 100%; padding: 12px; background: #2ecc71; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; }
     </style>
 </head>
 <body>
-    <div class="login-box">
+    <div class="card">
         <h2 style="color:#2ecc71">遠征隊系統</h2>
-        <input type="text" id="pName" placeholder="輸入玩家暱稱">
-        <button onclick="login()">開始遠征</button>
+        <p>請輸入暱稱開始冒險</p>
+        <input type="text" id="username" placeholder="冒險者名稱">
+        <button onclick="login()">下一步：選擇方案</button>
     </div>
     <script>
         function login() {
-            const name = document.getElementById('pName').value || "冒險者";
+            const name = document.getElementById('username').value;
+            if(!name) return alert("請輸入暱稱");
             localStorage.setItem('game_user', name);
             window.location.href = 'buy.html';
         }
