@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <title>官方授權中心</title>
+    <style>
+        body { background: #0f0f0f; color: #fff; font-family: sans-serif; text-align: center; padding-top: 50px; }
+        .box { background: #1a1a1a; width: 350px; margin: auto; padding: 40px; border-radius: 20px; border: 1px solid #333; }
+        .price { font-size: 48px; color: #f1c40f; margin: 20px 0; }
+        .btn { width: 100%; padding: 15px; font-size: 18px; font-weight: bold; cursor: pointer; border-radius: 10px; border: none; }
+        .btn-pay { background: #2ecc71; color: #fff; }
+        .modal { position: fixed; inset: 0; background: rgba(0,0,0,0.9); display: none; align-items: center; justify-content: center; }
+        .modal-body { background: #fff; color: #000; padding: 30px; border-radius: 20px; width: 300px; }
+        .key { font-size: 24px; font-weight: bold; background: #eee; padding: 15px; margin: 20px 0; border: 2px dashed #999; }
+    </style>
+</head>
+<body>
+    <div class="box">
+        <h1>SUPER HUMAN 授權</h1>
+        <p>解鎖聖山、多人模式、K鍵攻擊</p>
+        <div class="price">NT$ 299</div>
+        <button class="btn btn-pay" onclick="pay()">立即安全結帳</button>
+    </div>
+
+    <div id="modal" class="modal">
+        <div id="loading" style="color:#fff;">⌛ 加密支付處理中...</div>
+        <div id="success" class="modal-body" style="display:none;">
+            <h2 style="color:#2ecc71;">✓ 付款成功</h2>
+            <p>您的專屬金鑰：</p>
+            <div class="key">ryan0111407</div>
+            <button class="btn" style="background:#000; color:#fff;" onclick="window.close()">複製並回到遊戲</button>
+        </div>
+    </div>
+
+    <script>
+        function pay() {
+            document.getElementById('modal').style.display = 'flex';
+            setTimeout(() => {
+                document.getElementById('loading').style.display = 'none';
+                document.getElementById('success').style.display = 'block';
+                navigator.clipboard.writeText('ryan0111407');
+            }, 2000);
+        }
+    </script>
+</body>
+</html>
