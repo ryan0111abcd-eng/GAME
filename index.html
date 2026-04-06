@@ -2,72 +2,60 @@
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>遊戲開發首頁</title>
+    <title>遊戲控制台</title>
     <style>
-        body { font-family: 'Courier New', Courier, monospace; background: #2c3e50; color: white; margin: 0; }
-        header { background: #1a252f; padding: 15px 30px; display: flex; justify-content: space-between; align-items: center; border-bottom: 3px solid #4CAF50; }
-        .container { max-width: 800px; margin: 40px auto; padding: 0 20px; }
-        .card { background: #34495e; padding: 25px; border-radius: 10px; margin-bottom: 20px; position: relative; }
-        .vip-only { border: 2px dashed #ffd700; opacity: 0.6; }
-        .is-vip .vip-only { opacity: 1; border: 2px solid #ffd700; }
-        .badge { background: gold; color: black; padding: 3px 8px; border-radius: 4px; font-weight: bold; font-size: 12px; vertical-align: middle; }
-        .btn { background: #27ae60; color: white; padding: 10px 20px; border-radius: 5px; text-decoration: none; display: inline-block; margin-top: 10px; }
-        .btn.locked { background: #7f8c8d; cursor: not-allowed; }
-        .status-bar { font-size: 14px; color: #bdc3c7; }
+        body { font-family: sans-serif; background: #2c3e50; color: white; padding: 20px; }
+        .card { background: #34495e; padding: 20px; border-radius: 10px; margin-bottom: 20px; }
+        .btn { background: #27ae60; color: white; padding: 12px 25px; text-decoration: none; display: inline-block; border-radius: 5px; font-weight: bold; }
+        .locked { background: #7f8c8d; cursor: not-allowed; opacity: 0.5; }
+        .badge { background: gold; color: black; padding: 2px 5px; border-radius: 3px; font-size: 12px; }
     </style>
 </head>
-<body id="main-body">
+<body>
 
-<header>
-    <div><strong>VoxelCraft Dev Project</strong></div>
-    <div id="user-display"></div>
-</header>
+    <h2 id="welcome">載入中...</h2>
 
-<div class="container">
-    <h2>開發者控制台</h2>
-    
     <div class="card">
-        <h3>穩定版 v1.0.0</h3>
-        <p>當前最穩定版本，包含基礎的 AABB 碰撞檢測修正。</p>
-        <a href="#" class="btn">下載穩定版</a>
+        <h3>穩定版 v1.0.0 (公開版)</h3>
+        <p>修復了「卡在地圖」問題的基本版本。</p>
+        <a href="game_v100.zip" download class="btn">立即下載 .ZIP</a>
     </div>
 
-    <div class="card vip-only" id="beta-card">
-        <h3>最新測試版 v1.1.0-Beta <span class="badge">PRO</span></h3>
-        <p id="beta-text">鎖定中：此版本包含新的 3D 渲染引擎與 75 折商店功能。</p>
-        <a href="buy.html" id="beta-btn" class="btn locked">前往商店解鎖</a>
+    <div class="card" id="beta-card">
+        <h3>最新測試版 v1.1.0 <span class="badge">PRO</span></h3>
+        <p id="beta-msg">此版本僅限 PRO 會員下載（享 75 折優惠）。</p>
+        <a href="game_beta_v110.zip" id="dl-beta" download class="btn locked">尚未解鎖</a>
     </div>
 
-    <div class="card" style="border-left: 5px solid #e74c3c;">
-        <h3>遇到 Bug 了嗎？</h3>
-        <p>如果你還遇到「卡在地面」的問題，請檢查你的 $y$ 軸碰撞邏輯。</p>
-        <button onclick="alert('教學：確保在 y < groundHeight 時，執行 y = groundHeight 并清空 y 速度！')">查看脫困代碼</button>
-    </div>
-</div>
+    <script>
+        const user = localStorage.getItem('game_user');
+        const isVip = localStorage.getItem('isVip') === 'true';
 
-<script>
-    const user = localStorage.getItem('game_user');
-    const isVip = localStorage.getItem('isVip') === 'true';
+        if (!user) {
+            window.location.href = 'auth.html';
+        } else {
+            document.getElementById('welcome').innerText = `歡迎, ${user} ${isVip ? '(PRO)' : ''}`;
 
-    if (!user) {
-        window.location.href = 'auth.html';
-    } else {
-        // 顯示用戶資訊
-        const display = document.getElementById('user-display');
-        display.innerHTML = `玩家: ${user} ${isVip ? '<span class="badge">PRO 會員</span>' : ''} | <a href="auth.html" style="color:#ecf0f1">登出</a>`;
-
-        // 如果是 VIP，解鎖內容
-        if (isVip) {
-            document.getElementById('main-body').classList.add('is-vip');
-            document.getElementById('beta-text').innerText = "已解鎖：您可以下載最新測試版本並享有商店 75 折福利。";
-            const btn = document.getElementById('beta-btn');
-            btn.innerText = "下載測試版 (已授權)";
-            btn.classList.remove('locked');
-            btn.href = "#download-v110";
+            if (isVip) {
+                const btn = document.getElementById('dl-beta');
+                const msg = document.getElementById('beta-msg');
+                
+                msg.innerText = "您已獲得 PRO 權限，可以下載最新測試版！";
+                btn.classList.remove('locked');
+                btn.innerText = "點此下載 Beta 版";
+                // 確保連結有效
+                btn.onclick = function() { 
+                    console.log("正在啟動會員專屬下載..."); 
+                };
+            } else {
+                const btn = document.getElementById('dl-beta');
+                btn.onclick = function(e) {
+                    e.preventDefault(); // 沒會員不准下載
+                    alert("請先前往商店升級會員！");
+                    window.location.href = 'buy.html';
+                };
+            }
         }
-    }
-</script>
-
+    </script>
 </body>
 </html>
