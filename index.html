@@ -2,67 +2,111 @@
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
-    <title>3000公尺大山遠征</title>
+    <title>Minecraft 遠征 - 3000m 聖山</title>
     <style>
-        body { font-family: sans-serif; background: #0a0a0a; color: white; margin: 0; text-align: center; }
-        nav { background: #1a1a1a; padding: 15px 30px; display: flex; justify-content: space-between; border-bottom: 2px solid #2ecc71; }
-        #game-box { width: 800px; height: 450px; background: linear-gradient(to bottom, #1e3c72, #2a5298); margin: 20px auto; border: 4px solid #333; border-radius: 15px; position: relative; overflow: hidden; }
-        .vip-glow { border-color: gold !important; box-shadow: 0 0 30px gold; }
-        .mountain { position: absolute; bottom: 0; width: 100%; height: 150px; background: #444; clip-path: polygon(0% 100%, 20% 40%, 40% 80%, 60% 20%, 80% 60%, 100% 100%); }
-        .badge { background: gold; color: black; padding: 2px 8px; border-radius: 5px; font-weight: bold; }
+        body { font-family: sans-serif; background: #1a1a2e; color: white; margin: 0; text-align: center; overflow: hidden; }
+        nav { background: #16213e; padding: 10px 20px; display: flex; justify-content: space-between; border-bottom: 2px solid #4ecca3; }
+        canvas { background: #87CEEB; display: block; margin: 20px auto; border: 4px solid #333; cursor: crosshair; }
+        .vip-tag { background: gold; color: black; padding: 2px 5px; border-radius: 3px; font-weight: bold; }
     </style>
 </head>
 <body>
 
 <nav>
-    <div id="user-info"></div>
-    <div id="ver-info">地圖：3000m 聖山 (v1.0)</div>
+    <div id="u-info"></div>
+    <div>海拔：3000m 聖山 | <a href="buy.html" style="color:yellow; text-decoration:none;">方案商店</a></div>
 </nav>
 
-<div id="game-box">
-    <div class="mountain"></div>
-    <canvas id="gameCanvas" style="position:relative; z-index:10;"></canvas>
-</div>
+<div id="price-tag" style="margin-top:10px;">方塊價格：$100 (會員 75 折)</div>
 
-<p id="price-tag" style="font-size:20px;">建築方塊價格：$100</p>
+<canvas id="mcCanvas"></canvas>
+
+<div style="font-size:12px; color:#aaa;">左鍵：挖掘 | 右鍵：放置 | WASD：移動 | 空格：跳躍</div>
 
 <script>
     const user = localStorage.getItem('game_user');
     const isVip = localStorage.getItem('isVip') === 'true';
 
     if (!user) window.location.href = 'auth.html';
+    document.getElementById('u-info').innerHTML = `玩家：${user} ${isVip ? '<span class="vip-tag">PRO</span>' : ''}`;
+    if (isVip) document.getElementById('price-tag').innerHTML = "方塊價格：$100 -> <b style='color:gold'>會員價 $75</b>";
 
-    // 顯示規則
-    document.getElementById('user-info').innerHTML = `玩家：${user} ${isVip ? '<span class="badge">PRO</span>' : ''}`;
-    if (isVip) {
-        document.getElementById('game-box').classList.add('vip-glow');
-        document.getElementById('price-tag').innerHTML = "建築方塊：$100 -> <strong style='color:gold'>會員 75 折：$75</strong>";
-        document.getElementById('ver-info').innerText = "地圖：3000m 聖山 (PRO Beta)";
+    const canvas = document.getElementById('mcCanvas');
+    const ctx = canvas.getContext('2d');
+    canvas.width = 800; canvas.height = 400;
+
+    const blockSize = 40;
+    let world = []; // 存放方塊資料
+    let player = { x: 400, y: 100, w: 30, h: 38, dy: 0, g: false };
+    let keys = {};
+
+    // 初始化 3000m 聖山地形
+    for(let i=0; i<canvas.width/blockSize; i++) {
+        for(let j=7; j<10; j++) {
+            world.push({ x: i * blockSize, y: j * blockSize, type: j===7 ? 'grass' : 'dirt' });
+        }
     }
 
-    // 遊戲物理 (WASD)
-    const canvas = document.getElementById('gameCanvas');
-    const ctx = canvas.getContext('2d');
-    canvas.width = 800; canvas.height = 450;
-    
-    let p = { x: 100, y: 350, dy: 0, g: false };
-    let keys = {};
+    // 鍵盤監聽
     window.onkeydown = e => keys[e.code] = true;
     window.onkeyup = e => keys[e.code] = false;
 
-    function loop() {
-        if(keys['KeyA']) p.x -= 5;
-        if(keys['KeyD']) p.x += 5;
-        if(keys['Space'] && p.g) { p.dy = -12; p.g = false; }
-        
-        p.dy += 0.6; p.y += p.dy;
-        if(p.y > 380) { p.y = 380; p.dy = 0; p.g = true; } // 防止卡地表
+    // 滑鼠監聽 (正版規則：挖掘與放置)
+    canvas.onmousedown = e => {
+        const rect = canvas.getBoundingClientRect();
+        const mouseX = e.clientX - rect.left;
+        const mouseY = e.clientY - rect.top;
+        const gridX = Math.floor(mouseX / blockSize) * blockSize;
+        const gridY = Math.floor(mouseY / blockSize) * blockSize;
 
-        ctx.clearRect(0,0,800,450);
-        // 畫小人
-        if (isVip) { ctx.shadowBlur = 15; ctx.shadowColor = "gold"; }
-        ctx.fillStyle = isVip ? "gold" : "#2ecc71";
-        ctx.fillRect(p.x, p.y, 30, 30);
+        if (e.button === 0) { // 左鍵挖掘
+            world = world.filter(b => !(b.x === gridX && b.y === gridY));
+        } else if (e.button === 2) { // 右鍵放置
+            if (!world.find(b => b.x === gridX && b.y === gridY)) {
+                world.push({ x: gridX, y: gridY, type: 'wood' });
+            }
+        }
+    };
+    canvas.oncontextmenu = e => e.preventDefault(); // 停用右鍵選單
+
+    function loop() {
+        // 物理計算
+        if(keys['KeyA']) player.x -= 4;
+        if(keys['KeyD']) player.x += 4;
+        if(keys['Space'] && player.g) { player.dy = -10; player.g = false; }
+        
+        player.dy += 0.5;
+        player.y += player.dy;
+        player.g = false;
+
+        // 碰撞檢測 (與所有方塊判定)
+        world.forEach(b => {
+            if (player.x < b.x + blockSize && player.x + player.w > b.x &&
+                player.y + player.h > b.y && player.y < b.y + blockSize) {
+                if (player.dy > 0) { // 從上面掉下來
+                    player.y = b.y - player.h;
+                    player.dy = 0;
+                    player.g = true;
+                }
+            }
+        });
+
+        // 渲染
+        ctx.fillStyle = "#87CEEB"; ctx.fillRect(0,0,800,400); // 天空
+        
+        world.forEach(b => {
+            if(b.type === 'grass') ctx.fillStyle = "#5da346";
+            else if(b.type === 'dirt') ctx.fillStyle = "#855c33";
+            else ctx.fillStyle = "#ab7d4f"; // 木頭
+            ctx.fillRect(b.x, b.y, blockSize-1, blockSize-1);
+            ctx.strokeStyle = "rgba(0,0,0,0.1)";
+            ctx.strokeRect(b.x, b.y, blockSize, blockSize);
+        });
+
+        // 畫玩家
+        ctx.fillStyle = isVip ? "gold" : "#fff";
+        if(isVip) { ctx.shadowBlur = 10; ctx.shadowColor = "gold"; }
+        ctx.fillRect(player.x, player.y, player.w, player.h);
         ctx.shadowBlur = 0;
 
         requestAnimationFrame(loop);
