@@ -2,46 +2,40 @@
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
-    <title>SUPER HUMAN 2026 - 帳號中心</title>
+    <title>遊戲開發者 - 登入/註冊</title>
     <style>
-        body { background: #0f0f0f; color: #fff; font-family: sans-serif; display: flex; justify-content: center; padding-top: 100px; }
-        .auth-box { background: #1a1a1a; padding: 40px; border-radius: 20px; width: 320px; border: 1px solid #333; text-align: center; }
-        input { width: 100%; padding: 12px; margin: 10px 0; background: #000; border: 1px solid #444; color: #fff; border-radius: 8px; box-sizing: border-box; }
-        .btn { width: 100%; padding: 15px; background: #f1c40f; color: #000; border: none; border-radius: 10px; font-weight: bold; cursor: pointer; margin-top: 10px; }
-        .link { color: #888; font-size: 13px; cursor: pointer; margin-top: 20px; display: block; }
+        body { font-family: sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; background: #1a1a1a; color: white; }
+        .auth-card { background: #2a2a2a; padding: 2rem; border-radius: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.5); width: 300px; }
+        input { width: 100%; margin: 10px 0; padding: 10px; border-radius: 4px; border: none; box-sizing: border-box; }
+        button { width: 100%; padding: 10px; background: #4CAF50; color: white; border: none; border-radius: 4px; cursor: pointer; }
+        button:hover { background: #45a049; }
+        .toggle { font-size: 0.8rem; text-align: center; margin-top: 10px; cursor: pointer; color: #aaa; }
     </style>
 </head>
 <body>
-    <div class="auth-box">
-        <h1 id="t">帳號登入</h1>
-        <input type="text" id="u" placeholder="使用者名稱">
-        <input type="password" id="p" placeholder="密碼">
-        <button class="btn" onclick="action()" id="b">登入系統</button>
-        <span class="link" onclick="toggle()" id="l">還沒有帳號？點此註冊</span>
+    <div class="auth-card">
+        <h2 id="auth-title">會員登入</h2>
+        <input type="text" id="username" placeholder="使用者名稱">
+        <input type="password" id="password" placeholder="密碼">
+        <button onclick="handleAuth()">進入遊戲世界</button>
+        <p class="toggle" onclick="toggleAuth()">沒有帳號？點此註冊</p>
     </div>
 
     <script>
-        let isReg = false;
-        function toggle() {
-            isReg = !isReg;
-            document.getElementById('t').innerText = isReg ? "註冊新帳號" : "帳號登入";
-            document.getElementById('b').innerText = isReg ? "立即註冊" : "登入系統";
-            document.getElementById('l').innerText = isReg ? "已有帳號？返回登入" : "還沒有帳號？點此註冊";
-        }
-        function action() {
-            let u = document.getElementById('u').value;
-            let p = document.getElementById('p').value;
-            if(!u || !p) return alert("請輸入完整資訊");
-            if(isReg) {
-                localStorage.setItem('user_'+u, p);
-                alert("註冊成功！現在請登入");
-                toggle();
-            } else {
-                if(localStorage.getItem('user_'+u) === p) {
-                    localStorage.setItem('isLoggedIn', 'true');
-                    window.location.href = 'buy.html';
-                } else alert("帳號或密碼錯誤");
+        function handleAuth() {
+            const user = document.getElementById('username').value;
+            if(user) {
+                // 模擬存儲登入狀態
+                localStorage.setItem('game_user', user);
+                // 預設給一個測試狀態（之後由購買頁面改變）
+                if(!localStorage.getItem('isVip')) localStorage.setItem('isVip', 'false');
+                alert('登入成功！');
+                window.location.href = 'index.html';
             }
+        }
+        function toggleAuth() {
+            const title = document.getElementById('auth-title');
+            title.innerText = title.innerText === '會員登入' ? '註冊帳號' : '會員登入';
         }
     </script>
 </body>
