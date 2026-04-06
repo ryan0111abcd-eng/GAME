@@ -6,136 +6,146 @@
     <title>購買授權 - SUPER HUMAN 2026 官方網站</title>
     <style>
         :root { --primary: #f1c40f; --secondary: #2ecc71; --dark: #0f0f0f; --text: #eee; }
-        body { margin: 0; font-family: 'Segoe UI', "Microsoft JhengHei", sans-serif; background: var(--dark); color: var(--text); line-height: 1.6; }
+        body { margin: 0; font-family: 'Segoe UI', "Microsoft JhengHei", sans-serif; background: var(--dark); color: var(--text); line-height: 1.6; overflow-x: hidden; }
         
         /* 導覽列 */
         nav { padding: 20px 50px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #333; }
         .logo { font-size: 24px; font-weight: bold; color: var(--primary); }
+        .exit-link { color: #888; text-decoration: none; font-size: 14px; padding: 8px 15px; border: 1px solid #444; border-radius: 20px; transition: 0.3s; }
+        .exit-link:hover { border-color: #f1c40f; color: #f1c40f; }
         
-        /* 離開按鈕 (右上角) */
-        .exit-btn { 
-            padding: 8px 20px; border: 1px solid #555; border-radius: 20px; 
-            color: #888; text-decoration: none; font-size: 14px; transition: 0.3s;
-        }
-        .exit-btn:hover { border-color: #f1c40f; color: #f1c40f; background: rgba(241,196,15,0.05); }
-
-        /* 主要內容 */
-        .container { max-width: 1000px; margin: 50px auto; padding: 20px; display: flex; gap: 50px; flex-wrap: wrap; justify-content: center; }
+        /* 主要內容區 */
+        .container { max-width: 1000px; margin: 50px auto; padding: 20px; display: flex; gap: 50px; flex-wrap: wrap; justify-content: center; align-items: center; }
         
-        /* 產品展示卡 */
         .product-info { flex: 1; min-width: 300px; }
-        .product-info h1 { font-size: 42px; margin-bottom: 10px; }
+        .product-info h1 { font-size: 42px; margin: 10px 0; color: #fff; }
         .badge { background: var(--primary); color: #000; padding: 5px 12px; border-radius: 5px; font-weight: bold; font-size: 14px; }
         .features { margin-top: 30px; list-style: none; padding: 0; }
-        .features li { margin-bottom: 15px; display: flex; align-items: center; }
-        .features li::before { content: "✓"; color: var(--secondary); font-weight: bold; margin-right: 10px; }
+        .features li { margin-bottom: 15px; display: flex; align-items: center; font-size: 17px; }
+        .features li::before { content: "✓"; color: var(--secondary); font-weight: bold; margin-right: 15px; font-size: 20px; }
 
         /* 購買卡片 */
-        .buy-card { width: 380px; background: #1a1a1a; padding: 40px; border-radius: 20px; border: 1px solid #444; box-shadow: 0 20px 40px rgba(0,0,0,0.5); text-align: center; }
-        .price { font-size: 54px; font-weight: bold; margin: 20px 0; color: #fff; }
-        .price span { font-size: 18px; color: #888; }
+        .buy-card { width: 380px; background: #1a1a1a; padding: 40px; border-radius: 24px; border: 1px solid #333; box-shadow: 0 20px 50px rgba(0,0,0,0.5); text-align: center; }
+        .price { font-size: 60px; font-weight: bold; margin: 15px 0; color: #fff; display: flex; justify-content: center; align-items: baseline; }
+        .price span { font-size: 20px; color: #888; margin-right: 10px; }
         
         .btn-checkout { 
-            width: 100%; padding: 20px; font-size: 20px; font-weight: bold; 
-            background: var(--secondary); color: #fff; border: none; border-radius: 12px; 
+            width: 100%; padding: 20px; font-size: 22px; font-weight: bold; 
+            background: var(--secondary); color: #fff; border: none; border-radius: 15px; 
             cursor: pointer; transition: 0.3s; box-shadow: 0 10px 20px rgba(46, 204, 113, 0.2); 
         }
-        .btn-checkout:hover { transform: translateY(-3px); background: #27ae60; }
+        .btn-checkout:hover { transform: translateY(-3px); background: #27ae60; box-shadow: 0 15px 30px rgba(46, 204, 113, 0.4); }
+        .btn-checkout:active { transform: translateY(0); }
         
-        .payment-methods { margin-top: 20px; opacity: 0.6; display: flex; justify-content: center; gap: 10px; font-size: 12px; }
+        .payment-methods { margin-top: 25px; opacity: 0.5; display: flex; justify-content: center; gap: 15px; font-size: 13px; }
 
-        /* 付款模擬 Modal */
-        .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.95); display: none; align-items: center; justify-content: center; z-index: 9999; }
-        .pay-window { background: #fff; color: #333; width: 400px; padding: 40px; border-radius: 30px; text-align: center; box-shadow: 0 0 100px rgba(241, 196, 15, 0.3); }
-        .loader { width: 50px; height: 50px; border: 5px solid #f3f3f3; border-top: 5px solid var(--primary); border-radius: 50%; animation: spin 1s linear infinite; margin: 20px auto; }
+        /* 全螢幕覆蓋層 (Modal) */
+        .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.95); display: none; align-items: center; justify-content: center; z-index: 9999; backdrop-filter: blur(10px); }
+        .pay-window { background: #fff; color: #333; width: 420px; padding: 45px; border-radius: 35px; text-align: center; box-shadow: 0 0 100px rgba(241, 196, 15, 0.2); }
+        
+        /* 讀取動畫 */
+        .loader { width: 55px; height: 55px; border: 6px solid #f3f3f3; border-top: 6px solid var(--primary); border-radius: 50%; animation: spin 1s linear infinite; margin: 25px auto; }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
 
-        /* 最終成功視窗 */
-        .key-box { font-size: 28px; font-weight: bold; color: #d35400; background: #f8f8f8; padding: 20px; border: 2px dashed #ccc; margin: 20px 0; letter-spacing: 2px; cursor: pointer; }
-        .back-to-game { 
-            display: inline-block; width: 100%; padding: 15px; margin-top: 10px; 
-            background: #000; color: #fff; text-decoration: none; border-radius: 10px; 
-            font-weight: bold; transition: 0.3s;
+        /* 成功視窗 */
+        .key-box { font-size: 30px; font-weight: bold; color: #d35400; background: #f4f4f4; padding: 20px; border: 3px dashed #bbb; margin: 25px 0; letter-spacing: 2px; border-radius: 10px; cursor: pointer; transition: 0.2s; }
+        .key-box:hover { background: #eee; transform: scale(1.02); }
+        
+        .back-btn { 
+            display: block; width: 100%; padding: 18px; background: #000; color: #fff; 
+            text-decoration: none; border-radius: 12px; font-weight: bold; font-size: 18px; 
+            transition: 0.3s; cursor: pointer; border: none;
         }
-        .back-to-game:hover { background: #333; }
+        .back-btn:hover { background: #333; }
+        
+        #copy-hint { color: var(--secondary); font-weight: bold; font-size: 14px; margin-bottom: 10px; height: 20px; }
     </style>
 </head>
 <body>
 
 <nav>
     <div class="logo">SUPER HUMAN 2026</div>
-    <a href="#" onclick="window.close()" class="exit-btn">✕ 離開網頁</a>
+    <a href="#" onclick="window.close()" class="exit-link">✕ 關閉視窗</a>
 </nav>
 
 <div class="container">
     <div class="product-info">
-        <span class="badge">PRO EDITION</span>
+        <span class="badge">OFFICIAL LICENSE</span>
         <h1>無限遠征授權金鑰</h1>
-        <p style="font-size: 18px; color: #aaa;">解鎖 3000m 聖山區域、多人 15 人小隊模式，以及戰鬥系統權限。</p>
+        <p style="font-size: 19px; color: #aaa;">解鎖完整戰鬥系統、多人連線模擬、以及 3000m 聖山區域地圖。</p>
         
         <ul class="features">
-            <li><strong>永久存取：</strong> 一次購買，終生使用。</li>
-            <li><strong>多人聯動：</strong> 同時生成 14 名 AI 電腦隊友。</li>
-            <li><strong>聖山地圖：</strong> 獨家 3000m 階梯式崎嶇地形。</li>
-            <li><strong>戰鬥解鎖：</strong> 獲得 [K] 鍵能量衝擊波攻擊能力。</li>
+            <li><strong>一鍵激活：</strong> 複製代碼即可在遊戲內解鎖。</li>
+            <li><strong>多人聯動：</strong> 同時生成 14 名自主行動 AI 隊友。</li>
+            <li><strong>聖山地圖：</strong> 專屬 3000m 階梯化防卡地形。</li>
+            <li><strong>戰鬥模式：</strong> 開放 [K] 鍵能量衝擊波攻擊功能。</li>
         </ul>
     </div>
 
     <div class="buy-card">
-        <p style="color: #888;">總計金額</p>
+        <p style="color: #888; font-size: 14px; margin-bottom: 0;">單次授權費用</p>
         <div class="price"><span>NTD</span> 299</div>
         <button class="btn-checkout" onclick="startPayment()">立即安全結帳</button>
         
         <div class="payment-methods">
-            <span>💳 信用卡</span> | <span>🏦 網路銀行</span> | <span>📱 街口 / LINE PAY</span>
+            <span>💳 信用卡</span> | <span>🏦 ATM</span> | <span>📱 街口 / LINE PAY</span>
         </div>
+        <p style="font-size: 11px; color: #444; margin-top: 30px;">
+            此頁面為模擬支付環境，點擊結帳將啟動虛擬交易流程。
+        </p>
     </div>
 </div>
 
 <div id="modal" class="modal-overlay">
     <div id="processing-screen" class="pay-window">
         <div class="loader"></div>
-        <h2>加密支付處理中</h2>
-        <p style="color: #666;">正在確認授權節點...</p>
+        <h2 style="margin-top: 20px;">安全加密付款中</h2>
+        <p style="color: #666;">正在連線至銀行安全網關，請稍候...</p>
     </div>
 
     <div id="success-screen" class="pay-window" style="display:none;">
-        <div style="font-size: 60px; color: #2ecc71;">✓</div>
-        <h1 style="margin: 10px 0;">交易完成！</h1>
-        <p style="color: #666; font-size: 14px;">您的專屬授權碼已生成，請複製後回到遊戲：</p>
-        <div class="key-box" onclick="copyKey()" id="key-display">ryan0111407</div>
-        <p id="copy-status" style="font-size: 12px; color: #2ecc71; height: 18px; margin: 0;"></p>
+        <div style="font-size: 70px; color: #2ecc71;">✓</div>
+        <h1 style="margin: 10px 0;">支付完成！</h1>
+        <p style="color: #666; font-size: 15px;">感謝您的支持。請點擊下方方塊複製啟動碼：</p>
         
-        <a href="#" onclick="goBack()" class="back-to-game">回到遊戲主頁 (激活)</a>
-        <p onclick="window.close()" style="margin-top: 15px; font-size: 13px; color: #999; cursor: pointer; text-decoration: underline;">直接關閉視窗</p>
+        <div id="copy-hint"></div>
+        <div class="key-box" onclick="copyKey()" id="key-display">ryan0111407</div>
+        
+        <button onclick="goBack()" class="back-btn">複製完畢，回到遊戲</button>
+        <p onclick="window.close()" style="margin-top: 20px; font-size: 13px; color: #999; cursor: pointer; text-decoration: underline;">直接關閉此網頁</p>
     </div>
 </div>
 
 <script>
     function startPayment() {
         document.getElementById('modal').style.display = 'flex';
+        // 模擬銀行處理時間
         setTimeout(() => {
             document.getElementById('processing-screen').style.display = 'none';
             document.getElementById('success-screen').style.display = 'block';
-        }, 2000);
+        }, 2500);
     }
 
     function copyKey() {
         const key = "ryan0111407";
         navigator.clipboard.writeText(key).then(() => {
-            document.getElementById('copy-status').innerText = "已成功複製金鑰！";
+            document.getElementById('copy-hint').innerText = "✅ 已成功複製到剪貼簿！";
             document.getElementById('key-display').style.borderColor = "#2ecc71";
+            document.getElementById('key-display').style.background = "#f0fff4";
         });
     }
 
     function goBack() {
-        // 嘗試關閉目前分頁並回到前一頁 (通常是遊戲頁)
-        alert("金鑰已備好！請在遊戲登入框中按 Ctrl+V 貼上金鑰。");
-        if (window.opener) {
+        // 先執行一次複製確保萬無一失
+        copyKey();
+        alert("金鑰已幫您複製！\n現在請回到遊戲頁面，在輸入框按下 Ctrl+V 貼上並驗證。");
+        
+        // 嘗試自動關閉視窗回到前一個分頁 (index.html)
+        if (window.opener || window.history.length > 1) {
             window.close();
         } else {
-            // 如果不是彈窗開啟，則導向回根目錄
-            window.location.href = "index.html"; 
+            // 如果不能關閉，就跳轉回主頁
+            window.location.href = "index.html";
         }
     }
 </script>
