@@ -5,10 +5,9 @@
     <title>Minecraft 遠征世界</title>
     <style>
         body { margin: 0; background: #000; overflow: hidden; font-family: sans-serif; color: white; }
-        nav { position: fixed; top: 0; width: 100%; background: rgba(0,0,0,0.7); padding: 10px 20px; display: flex; justify-content: space-between; z-index: 10; box-sizing: border-box; }
+        nav { position: fixed; top: 0; width: 100%; background: rgba(0,0,0,0.8); padding: 10px 20px; display: flex; justify-content: space-between; z-index: 10; box-sizing: border-box; }
         canvas { display: block; background: #87CEEB; }
         .hud { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: rgba(0,0,0,0.6); padding: 10px 20px; border-radius: 12px; font-size: 14px; border: 1px solid #555; }
-        .vip-gold { color: gold; font-weight: bold; }
     </style>
 </head>
 <body>
@@ -29,8 +28,8 @@
     const disc = parseFloat(localStorage.getItem('discount') || 1);
 
     if(!user) window.location.href = 'auth.html';
-    document.getElementById('p-info').innerHTML = `玩家: ${user} <span class="${rank==='VIP'?'vip-gold':''}">[${rank}]</span>`;
-    document.getElementById('m-info').innerText = `方案: ${plan} | 方塊價: $${Math.round(100*disc)}`;
+    document.getElementById('p-info').innerHTML = `玩家: ${user} [${rank}]`;
+    document.getElementById('m-info').innerText = `地圖: ${plan} | 折扣價: $${Math.round(100*disc)}`;
 
     const canvas = document.getElementById('game');
     const ctx = canvas.getContext('2d');
@@ -39,20 +38,27 @@
 
     const blockSize = 40;
     let world = {}; 
-    let player = { x: 200, y: 0, w: 30, h: 38, dy: 0, g: false };
+    let player = { x: 200, y: -200, w: 30, h: 38, vx: 0, vy: 0, g: false };
     let camera = { x: 0, y: 0 };
     let keys = {};
 
-    // --- 關鍵修正：填滿地圖 ---
+    // 地形生成：0-1000px 是大山，之後是丘陵
     function generateColumn(x) {
         if (world[x]) return;
-        const groundY = Math.floor(8 + Math.sin(x * 0.05) * 4); // 隨機地形起伏
+        let groundY;
+        if (x < 1200) {
+            // 大山區 (波動大)
+            groundY = Math.floor(6 + Math.sin(x * 0.01) * 8); 
+        } else {
+            // 丘陵區 (波動小)
+            groundY = Math.floor(10 + Math.sin(x * 0.05) * 3);
+        }
+        
         world[x] = [];
-        // 從 groundY 一路填滿到下方 (25格深)
         for(let y = groundY; y < groundY + 25; y++) {
             let type = 'dirt';
             if (y === groundY) type = 'grass';
-            if (y > groundY + 4) type = 'stone';
+            else if (y > groundY + 5) type = 'stone';
             world[x].push({ y: y * blockSize, type: type });
         }
     }
@@ -74,37 +80,63 @@
     };
     canvas.oncontextmenu = e => e.preventDefault();
 
+    function checkCollision(targetX, targetY) {
+        const gx = Math.floor(targetX / blockSize) * blockSize;
+        const checkCols = [gx - blockSize, gx, gx + blockSize];
+        for (let colX of checkCols) {
+            if (world[colX]) {
+                for (let b of world[colX]) {
+                    if (targetX < colX + blockSize && targetX + player.w > colX &&
+                        targetY < b.y + blockSize && targetY + player.h > b.y) {
+                        return b; // 撞到了
+                    }
+                }
+            }
+        }
+        return null;
+    }
+
     function update() {
-        if(keys['KeyA']) player.x -= 5;
-        if(keys['KeyD']) player.x += 5;
-        if(keys['Space'] && player.g) { player.dy = -12; player.g = false; }
+        // 水平移動處理
+        player.vx = 0;
+        if(keys['KeyA']) player.vx = -5;
+        if(keys['KeyD']) player.vx = 5;
 
-        player.dy += 0.6;
-        player.y += player.dy;
-        player.g = false;
+        // X 軸碰撞檢查
+        player.x += player.vx;
+        let hitX = checkCollision(player.x, player.y);
+        if (hitX) {
+            player.x -= player.vx; // 彈回
+        }
 
-        const startX = Math.floor((player.x - 1200) / blockSize) * blockSize;
-        const endX = Math.floor((player.x + 1200) / blockSize) * blockSize;
+        // 跳躍與重力
+        if(keys['Space'] && player.g) { player.vy = -12; player.g = false; }
+        player.vy += 0.6;
+        
+        // Y 軸碰撞檢查
+        player.y += player.vy;
+        let hitY = checkCollision(player.x, player.y);
+        if (hitY) {
+            if (player.vy > 0) { // 下落撞地
+                player.y = hitY.y - player.h;
+                player.g = true;
+            } else { // 往上撞頭
+                player.y = hitY.y + blockSize;
+            }
+            player.vy = 0;
+        } else {
+            player.g = false;
+        }
+
+        // 無限地圖生成
+        const viewDist = 1200;
+        const startX = Math.floor((player.x - viewDist) / blockSize) * blockSize;
+        const endX = Math.floor((player.x + viewDist) / blockSize) * blockSize;
         for(let x = startX; x <= endX; x += blockSize) { generateColumn(x); }
 
-        // 碰撞檢測
-        const px = Math.floor(player.x / blockSize) * blockSize;
-        [-blockSize, 0, blockSize].forEach(off => {
-            let col = world[px + off];
-            if(col) {
-                col.forEach(b => {
-                    if(player.x < (px + off) + blockSize && player.x + player.w > (px + off) &&
-                       player.y + player.h > b.y && player.y < b.y + blockSize) {
-                        if(player.dy > 0 && player.y + player.h < b.y + 20) { 
-                            player.y = b.y - player.h; player.dy = 0; player.g = true; 
-                        }
-                    }
-                });
-            }
-        });
-
-        camera.x = player.x - canvas.width / 2;
-        camera.y = player.y - canvas.height / 2;
+        // 鏡頭隨動 (平滑)
+        camera.x += (player.x - canvas.width / 2 - camera.x) * 0.1;
+        camera.y += (player.y - canvas.height / 2 - camera.y) * 0.1;
     }
 
     function draw() {
@@ -127,6 +159,7 @@
             }
         }
 
+        // 畫玩家
         ctx.fillStyle = (rank === 'VIP') ? 'gold' : 'white';
         if(rank === 'VIP') { ctx.shadowBlur = 20; ctx.shadowColor = 'gold'; }
         ctx.fillRect(player.x, player.y, player.w, player.h);
