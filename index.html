@@ -3,11 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>SUPER HUMAN 2026 - RUGGED PEAKS V11.1</title>
+    <title>SUPER HUMAN 2026 - THE GREAT PEAK V11.2</title>
     <style>
         body, html { margin: 0; padding: 0; width: 100%; height: 100%; background: #000; overflow: hidden; font-family: sans-serif; user-select: none; }
         .page { position: fixed; inset: 0; z-index: 9999; display: flex; flex-direction: column; align-items: center; justify-content: center; background: #050505; color: #f1c40f; }
-        .btn { display: flex; align-items: center; justify-content: center; width: 300px; height: 50px; margin: 6px; font-size: 18px; font-weight: bold; color: #000; background: #f1c40f; border: 3px solid #fff; border-radius: 12px; box-shadow: 0 5px 0 #b8860b; cursor: pointer; transition: 0.1s; }
+        .btn { display: flex; align-items: center; justify-content: center; width: 300px; height: 55px; margin: 8px; font-size: 18px; font-weight: bold; color: #000; background: #f1c40f; border: 3px solid #fff; border-radius: 12px; box-shadow: 0 5px 0 #b8860b; cursor: pointer; transition: 0.1s; }
         .btn:active { transform: translateY(3px); box-shadow: 0 1px 0 #b8860b; }
         .in-box { width: 280px; padding: 12px; font-size: 22px; border: 4px solid #f1c40f; border-radius: 10px; background: #111; color: #fff; text-align: center; margin-bottom: 20px; outline: none; }
         #esc-menu { position: fixed; inset: 0; z-index: 10000; display: none; flex-direction: column; align-items: center; justify-content: center; background: rgba(0,0,0,0.96); backdrop-filter: blur(15px); }
@@ -21,13 +21,13 @@
     <div id="p-auth" class="page" style="display:none;">
         <h1>SYSTEM ACCESS</h1>
         <input type="password" id="pw" class="in-box" placeholder="啟動碼">
-        <button class="btn" onclick="checkAuth()">進入系統</button>
+        <button class="btn" onclick="checkAuth()">驗證進入</button>
     </div>
 
     <div id="p-conn" class="page" style="display:none;">
         <h1>CONNECTION</h1>
         <button class="btn" onclick="setConn(1)">👤 單人模式</button>
-        <button class="btn" onclick="setConn(0)">👥 多人小隊模式</button>
+        <button class="btn" onclick="setConn(0)">👥 多人模式</button>
     </div>
 
     <div id="p-count" class="page" style="display:none;">
@@ -39,27 +39,25 @@
 
     <div id="p-mode" class="page" style="display:none;">
         <h1>MISSION SELECT</h1>
-        <button class="btn" onclick="prepareBrief('ARCH')">🏗️ 荒野建築</button>
-        <button class="btn" onclick="prepareBrief('SURV')">🏔️ 高山生存</button>
-        <button class="btn" onclick="prepareBrief('ZOMB')">🧟 殭屍圍城</button>
+        <button class="btn" onclick="prepareBrief('SURV')">🏔️ 聖山遠征</button>
+        <button class="btn" onclick="prepareBrief('ARCH')">🏗️ 丘陵建築</button>
     </div>
 
     <div id="p-brief" class="page" style="display:none;">
         <h1>MISSION BRIEFING</h1>
         <div id="brief-text" style="padding:15px; color:#aaa; line-height:1.6;"></div>
-        <button class="btn" onclick="startGame()">開始部署</button>
+        <button class="btn" onclick="startGame()">開始模擬</button>
     </div>
 
     <div id="esc-menu">
         <div class="menu-card">
             <div style="display:flex; flex-direction:column;">
-                <h2 style="color:#f1c40f; margin:0 0 10px 0; text-align: center;">模擬暫停</h2>
-                <button class="btn" onclick="togglePause()">繼續遊戲 (ESC)</button>
-                <button class="btn" onclick="clearBlocks()" style="background:#d35400; color:white; border:none;">清除地圖方塊</button>
+                <h2 style="color:#f1c40f; margin:0 0 10px 0; text-align: center;">暫停選單</h2>
+                <button class="btn" onclick="togglePause()">繼續 (ESC)</button>
+                <button class="btn" onclick="clearBlocks()" style="background:#d35400; color:white; border:none;">清除建築方塊</button>
                 <button class="btn" onclick="resetAllSave()" style="background:#c0392b; color:white; border:none;">移除所有存檔</button>
                 <button class="btn" onclick="logout()" style="background:#7f8c8d; color:white; border:none;">登出帳號</button>
-                <button class="btn" onclick="location.reload()" style="background:#34495e; color:white; border:none;">回到主選單</button>
-                <button class="btn" onclick="exitGame()" style="background:#000; color:#f00; border:2px solid #f00;">⚠️ 離開遊戲</button>
+                <button class="btn" onclick="exitGame()" style="background:#000; color:#f00; border:2px solid #f00;">離開遊戲</button>
             </div>
             <div style="text-align:center;">
                 <b style="color:#f1c40f; display:block; margin-bottom:10px;">地形雷達</b>
@@ -77,7 +75,7 @@
 <script>
     document.addEventListener('contextmenu', e => e.preventDefault());
     var live = false, paused = false, world = {}, keys = {}, ents = [], ticks = 600, sSize = 1;
-    var p = { x: 0, y: 0, w: 22, h: 42, vx: 0, vy: 0, hp: 100, max: 100, gr: false };
+    var p = { x: 0, y: 0, w: 22, h: 42, vx: 0, vy: 0, hp: 100, max: 100, gr: false, atkCd: 0, face: 1 };
     var T = 32, selB = 1, villagerTimer = 0;
     const AUTH_KEY = 'ryan0111407';
 
@@ -95,49 +93,60 @@
     }
 
     function logout() { localStorage.removeItem('super_human_auth'); location.reload(); }
-    function clearBlocks() { if(confirm("清除方塊？")){ world = {}; localStorage.setItem('sh_save_v10', "{}"); } }
-    function resetAllSave() { if(confirm("重置所有數據？")){ localStorage.clear(); location.reload(); } }
-    function exitGame() { if(confirm("離開？")){ window.close(); setTimeout(() => { window.location.href = "about:blank"; }, 100); } }
+    function clearBlocks() { if(confirm("清除？")){ world = {}; localStorage.setItem('sh_save_v10', "{}"); } }
+    function resetAllSave() { if(confirm("移除所有？")){ localStorage.clear(); location.reload(); } }
+    function exitGame() { if(confirm("離開？")){ window.close(); window.location.href="about:blank"; } }
 
     function setConn(n) { document.getElementById('p-conn').style.display='none'; if(n===1){sSize=1;document.getElementById('p-mode').style.display='flex';}else{document.getElementById('p-count').style.display='flex';} }
     function toModeSel() { sSize=parseInt(document.getElementById('member-sld').value); document.getElementById('p-count').style.display='none'; document.getElementById('p-mode').style.display='flex'; }
 
     function prepareBrief(type) {
         document.getElementById('p-mode').style.display='none'; document.getElementById('p-brief').style.display='flex';
-        document.getElementById('brief-text').innerHTML = "● <b>地形</b>：極度崎嶇丘陵，最高峰 3000m，絕無平原。<br>● <b>時間</b>：1.5x 加速運作。<br>● <b>功能</b>：ESC 內含完整存檔與離開管理。";
+        document.getElementById('brief-text').innerHTML = "● <b>世界結構</b>：中心座標存在一座 3000m 聖山，其餘區域為無盡丘陵。<br>● <b>戰鬥功能</b>：按 <b>[ K ]</b> 鍵發動近戰攻擊。<br>● <b>時間</b>：1.5x 加速運轉。電腦隊友將獨立行動。";
     }
 
-    // --- 地形引擎 V11.1 (極致崎嶇丘陵 + 3000m 峰值) ---
+    // --- 地形引擎 V11.2 (聖山 + 無盡丘陵) ---
     function getB(gx, gy) {
         if(world[gx+'_'+gy] !== undefined) return world[gx+'_'+gy];
         
-        // 核心改動：提高雜訊頻率與震幅，確保每一格都有高度落差
-        var wave1 = Math.sin(gx * 0.5) * 12; // 中頻起伏
-        var wave2 = Math.cos(gx * 1.2) * 5;  // 高頻鋸齒，杜絕平原
-        var wave3 = Math.sin(gx * 0.1) * 35; // 巨型丘陵延伸感
-        
-        // 雜湊雜訊：確保點對點之間絕對不平整
-        var noise = (Math.abs(Math.sin(gx * 2137.85)) * 6);
-        
-        var f = Math.floor(65 + wave1 + wave2 + wave3 + noise);
-        
-        // 海拔 3000m 鎖定 (gy=94 左右)
-        if (f < 94) f = 94 + (gx % 3); // 即便是巔峰也要有鋸齒
+        var absGx = Math.abs(gx);
+        var f;
 
-        if(gy < f) return 0; // 空氣
-        if(gy === f) return (gy < 105) ? 7 : 2; // 高海拔雪地，低海拔草地
-        if(gy > f && gy <= f + 5) return 3; // 5層泥土
-        return 1; // 石頭
+        if (absGx < 60) {
+            // 聖山區域 (座標 -60 ~ 60)
+            // 使用鈴鐺曲線，頂點在 gx=0, 高度約在 gy=94 (3000m)
+            var mountainBase = 150; 
+            var mountainHeight = 56; // 150 - 56 = 94
+            var shape = Math.exp(-Math.pow(gx / 25, 2)); 
+            var jitter = (gx * 17 % 7) / 2;
+            f = Math.floor(mountainBase - (mountainHeight * shape) + jitter);
+        } else {
+            // 無盡丘陵區域
+            var hillWave = Math.sin(gx * 0.5) * 12 + Math.cos(gx * 1.2) * 5 + Math.sin(gx * 0.1) * 30;
+            var hillNoise = (Math.abs(Math.sin(gx * 2137.85)) * 6);
+            f = Math.floor(140 + hillWave + hillNoise);
+        }
+
+        if(gy < f) return 0;
+        if(gy === f) return (gy < 105) ? 7 : 2; 
+        if(gy > f && gy <= f + 5) return 3;
+        return 1;
     }
 
     function startGame() {
         var cvs = document.getElementById('g');
         cvs.width = window.innerWidth; cvs.height = window.innerHeight;
         cvs.style.visibility = 'visible'; cvs.style.display = 'block';
-        let sy = 0; while(getB(0, Math.floor(sy/T)) === 0) sy += T;
-        p.x = 0; p.y = sy - 160;
+        
+        // 從聖山腳下開始
+        p.x = -1500; 
+        let sy = 0; while(getB(Math.floor(p.x/T), Math.floor(sy/T)) === 0) sy += T;
+        p.y = sy - 160;
+
         ents = [];
-        for(var i=0; i < sSize-1; i++) ents.push({ type: 'ally', x: (i+1)*45, y: p.y, w: 22, h: 42, vx: 0, vy: 0, hp: 100, max: 100 });
+        for(var i=0; i < sSize-1; i++) {
+            ents.push({ type: 'ally', x: p.x + (i-sSize/2)*60, y: p.y, w: 22, h: 42, vx: 0, vy: 0, hp: 100, max: 100, gr: false, dir: (Math.random()>0.5?1:-1) });
+        }
         document.getElementById('p-brief').style.display='none';
         document.getElementById('hud').style.display='block';
         live = true; loop();
@@ -152,9 +161,9 @@
     function drawEscMap() {
         var mCvs = document.getElementById('esc-mm-canvas'), mCtx = mCvs.getContext('2d');
         mCtx.fillStyle = "#000"; mCtx.fillRect(0,0,250,250);
-        var pgx = Math.floor(p.x/T), pgy = Math.floor(p.y/T), scale = 5;
-        for(var x=-25; x<25; x++) {
-            for(var y=-25; y<25; y++) {
+        var pgx = Math.floor(p.x/T), pgy = Math.floor(p.y/T), scale = 4;
+        for(var x=-30; x<30; x++) {
+            for(var y=-30; y<30; y++) {
                 var b = getB(pgx+x, pgy+y);
                 if(b>0) { mCtx.fillStyle = (b===7)?"#fff":(b===2)?"#2ecc71":"#555"; mCtx.fillRect(125 + x*scale, 125 + y*scale, scale, scale); }
             }
@@ -162,7 +171,19 @@
         mCtx.fillStyle = "#f1c40f"; mCtx.fillRect(122, 122, 6, 6);
     }
 
-    window.onkeydown = e => { if(e.code==='Escape' && live) togglePause(); if(!live || paused) return; if(e.keyCode>=49 && e.keyCode<=56) selB = e.keyCode-48; keys[e.code] = true; };
+    window.onkeydown = e => { 
+        if(e.code==='Escape' && live) togglePause(); 
+        if(!live || paused) return; 
+        if(e.keyCode>=49 && e.keyCode<=56) selB = e.keyCode-48; 
+        if(e.code==='KeyK' && p.atkCd <= 0) {
+            p.atkCd = 15;
+            ents.forEach(e => {
+                var dist = Math.sqrt(Math.pow(e.x-p.x,2)+Math.pow(e.y-p.y,2));
+                if(dist < 80) { e.hp -= 20; e.vx = (e.x > p.x ? 10 : -10); e.vy = -5; }
+            });
+        }
+        keys[e.code] = true; 
+    };
     window.onkeyup = e => { keys[e.code] = false; };
     window.onmousedown = e => {
         if(!live || paused) return;
@@ -181,21 +202,28 @@
             ticks = (ticks + 0.075) % 1440;
             villagerTimer += 1.5;
             if(villagerTimer > 600) { 
-                ents.push({ type:'villager', x: p.x + 800, y: p.y-400, w:22, h:42, vx:0, vy:0, hp:100, max:100 }); 
+                ents.push({ type:'villager', x: p.x + (Math.random()>0.5?800:-800), y: p.y-400, w:22, h:42, vx:0, vy:0, hp:100, max:100, dir:1 }); 
                 villagerTimer = 0; 
             }
+            if(p.atkCd > 0) p.atkCd--;
+
             [p].concat(ents).forEach(e => {
-                e.vy += 0.8; e.y += e.vy;
+                e.vy += 0.8; e.y += e.vy; e.x += (e.vx || 0);
+                if(e.vx) e.vx *= 0.9;
                 if(check(e.x, e.y)) { while(check(e.x, e.y)) e.y -= 0.5; e.vy = 0; e.gr = true; } else e.gr = false;
+                
                 if(e === p) {
                     var dx = (keys['KeyD']?7:0) - (keys['KeyA']?7:0);
-                    if(dx !== 0) { p.x += dx; if(check(p.x, p.y)) p.x -= dx; }
+                    if(dx !== 0) { p.x += dx; if(check(p.x, p.y)) p.x -= dx; p.face = dx>0?1:-1; }
                     if(keys['Space'] && p.gr) p.vy = -14;
-                } else if(e.type === 'ally') {
-                    if(Math.abs(e.x - (p.x-40)) > 60) { e.x += (p.x > e.x ? 3 : -3); if(check(e.x, e.y)) e.x -= (p.x > e.x ? 3 : -3); }
-                    if(check(e.x + (p.x > e.x ? 10 : -10), e.y) && e.gr) e.vy = -10;
+                } else {
+                    // 電腦隊友/村民自主行動 (不再跟隨)
+                    if(Math.random()<0.02) e.dir *= -1;
+                    e.x += e.dir * 2.5;
+                    if(check(e.x, e.y)) { e.x -= e.dir * 2.5; if(e.gr) e.vy = -10; }
                 }
             });
+
             ctx.fillStyle = (ticks > 1050 || ticks < 350) ? '#050510' : '#87ceeb';
             ctx.fillRect(0, 0, cvs.width, cvs.height);
             var cx = p.x - cvs.width/2, cy = p.y - cvs.height/2;
@@ -205,13 +233,14 @@
                     var b = getB(x, y); if(b > 0) { ctx.fillStyle = clrs[b]; ctx.fillRect(x*T-cx, y*T-cy, T-0.5, T-0.5); }
                 }
             }
-            [p].concat(ents).forEach(e => {
+            [p].concat(ents).filter(e => e.hp > 0).forEach(e => {
                 ctx.fillStyle = (e===p?'#e67e22':(e.type==='ally'?'#3498db':'#9b59b6'));
                 ctx.fillRect(e.x-cx, e.y-cy, e.w, e.h);
+                // 所有人頭上的血條
                 ctx.fillStyle = "#333"; ctx.fillRect(e.x-cx-4, e.y-cy-12, 30, 5);
                 ctx.fillStyle = "#2ecc71"; ctx.fillRect(e.x-cx-4, e.y-cy-12, 30 * (e.hp/e.max), 5);
             });
-            document.getElementById('alt-v').innerText = Math.floor(Math.abs(p.y/T)*32);
+            document.getElementById('alt-v').innerText = Math.floor(Math.abs(p.y/T - 150)*32);
             document.getElementById('p-hp-hud').innerText = Math.floor(p.hp);
             document.getElementById('tm-v').innerText = Math.floor(ticks/60).toString().padStart(2,'0') + ":" + Math.floor(ticks%60).toString().padStart(2,'0');
         }
