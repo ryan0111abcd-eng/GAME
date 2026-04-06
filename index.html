@@ -2,110 +2,105 @@
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
-    <title>Minecraft 遠征 - 3000m 聖山</title>
+    <title>Minecraft 遠征世界</title>
     <style>
-        body { font-family: sans-serif; background: #1a1a2e; color: white; margin: 0; text-align: center; overflow: hidden; }
-        nav { background: #16213e; padding: 10px 20px; display: flex; justify-content: space-between; border-bottom: 2px solid #4ecca3; }
-        canvas { background: #87CEEB; display: block; margin: 20px auto; border: 4px solid #333; cursor: crosshair; }
-        .vip-tag { background: gold; color: black; padding: 2px 5px; border-radius: 3px; font-weight: bold; }
+        body { font-family: sans-serif; background: #1a1a2e; color: white; margin: 0; overflow: hidden; text-align: center; }
+        nav { background: #16213e; padding: 15px; display: flex; justify-content: space-between; border-bottom: 2px solid #2ecc71; }
+        .rank-VIP { color: gold; text-shadow: 0 0 5px gold; }
+        .rank-MAX { color: orange; }
+        .rank-PLUS { color: lightgreen; }
+        canvas { background: #87CEEB; display: block; margin: 10px auto; border: 4px solid #333; cursor: crosshair; }
     </style>
 </head>
 <body>
 
 <nav>
-    <div id="u-info"></div>
-    <div>海拔：3000m 聖山 | <a href="buy.html" style="color:yellow; text-decoration:none;">方案商店</a></div>
+    <div id="u-info">載入玩家...</div>
+    <div id="p-info"></div>
 </nav>
 
-<div id="price-tag" style="margin-top:10px;">方塊價格：$100 (會員 75 折)</div>
+<div id="price-tag" style="margin: 10px 0;">方塊價格：$100</div>
 
 <canvas id="mcCanvas"></canvas>
 
-<div style="font-size:12px; color:#aaa;">左鍵：挖掘 | 右鍵：放置 | WASD：移動 | 空格：跳躍</div>
+<div style="font-size:12px; color:#888;">左鍵挖掘 | 右鍵建築 | WASD移動 | 空格跳躍</div>
 
 <script>
     const user = localStorage.getItem('game_user');
-    const isVip = localStorage.getItem('isVip') === 'true';
+    const plan = localStorage.getItem('selected_plan');
+    const rank = localStorage.getItem('member_rank');
+    const discount = parseFloat(localStorage.getItem('discount') || 1);
 
-    if (!user) window.location.href = 'auth.html';
-    document.getElementById('u-info').innerHTML = `玩家：${user} ${isVip ? '<span class="vip-tag">PRO</span>' : ''}`;
-    if (isVip) document.getElementById('price-tag').innerHTML = "方塊價格：$100 -> <b style='color:gold'>會員價 $75</b>";
+    if (!user || !plan) window.location.href = 'auth.html';
+
+    // 顯示資訊
+    document.getElementById('u-info').innerHTML = `玩家：${user} <span class="rank-${rank}">[${rank}]</span>`;
+    document.getElementById('p-info').innerText = `目前遠征：${plan}`;
+    document.getElementById('price-tag').innerHTML = `方塊價格：$100 -> <b style="color:lime">折扣價：$${100 * discount}</b>`;
 
     const canvas = document.getElementById('mcCanvas');
     const ctx = canvas.getContext('2d');
     canvas.width = 800; canvas.height = 400;
 
     const blockSize = 40;
-    let world = []; // 存放方塊資料
-    let player = { x: 400, y: 100, w: 30, h: 38, dy: 0, g: false };
+    let world = [];
+    let player = { x: 400, y: 100, w: 25, h: 35, dy: 0, g: false };
     let keys = {};
 
-    // 初始化 3000m 聖山地形
+    // 生成地形 (根據不同方案改變顏色)
+    const colors = { VIP: 'gold', MAX: 'orange', 一般: '#5da346' };
+    const groundColor = colors[rank] || '#5da346';
+
     for(let i=0; i<canvas.width/blockSize; i++) {
         for(let j=7; j<10; j++) {
-            world.push({ x: i * blockSize, y: j * blockSize, type: j===7 ? 'grass' : 'dirt' });
+            world.push({ x: i * blockSize, y: j * blockSize, color: j===7 ? groundColor : '#855c33' });
         }
     }
 
-    // 鍵盤監聽
     window.onkeydown = e => keys[e.code] = true;
     window.onkeyup = e => keys[e.code] = false;
 
-    // 滑鼠監聽 (正版規則：挖掘與放置)
+    // 滑鼠控制：Minecraft 規則
     canvas.onmousedown = e => {
         const rect = canvas.getBoundingClientRect();
-        const mouseX = e.clientX - rect.left;
-        const mouseY = e.clientY - rect.top;
-        const gridX = Math.floor(mouseX / blockSize) * blockSize;
-        const gridY = Math.floor(mouseY / blockSize) * blockSize;
+        const gx = Math.floor((e.clientX - rect.left) / blockSize) * blockSize;
+        const gy = Math.floor((e.clientY - rect.top) / blockSize) * blockSize;
 
-        if (e.button === 0) { // 左鍵挖掘
-            world = world.filter(b => !(b.x === gridX && b.y === gridY));
-        } else if (e.button === 2) { // 右鍵放置
-            if (!world.find(b => b.x === gridX && b.y === gridY)) {
-                world.push({ x: gridX, y: gridY, type: 'wood' });
-            }
+        if (e.button === 0) world = world.filter(b => !(b.x === gx && b.y === gy)); // 挖掘
+        if (e.button === 2) { // 建築
+            if (!world.find(b => b.x === gx && b.y === gy)) world.push({ x: gx, y: gy, color: '#ab7d4f' });
         }
     };
-    canvas.oncontextmenu = e => e.preventDefault(); // 停用右鍵選單
+    canvas.oncontextmenu = e => e.preventDefault();
 
     function loop() {
-        // 物理計算
         if(keys['KeyA']) player.x -= 4;
         if(keys['KeyD']) player.x += 4;
         if(keys['Space'] && player.g) { player.dy = -10; player.g = false; }
         
-        player.dy += 0.5;
-        player.y += player.dy;
+        player.dy += 0.5; player.y += player.dy;
         player.g = false;
 
-        // 碰撞檢測 (與所有方塊判定)
+        // 碰撞判定
         world.forEach(b => {
             if (player.x < b.x + blockSize && player.x + player.w > b.x &&
                 player.y + player.h > b.y && player.y < b.y + blockSize) {
-                if (player.dy > 0) { // 從上面掉下來
-                    player.y = b.y - player.h;
-                    player.dy = 0;
-                    player.g = true;
-                }
+                if (player.dy > 0) { player.y = b.y - player.h; player.dy = 0; player.g = true; }
             }
         });
 
         // 渲染
-        ctx.fillStyle = "#87CEEB"; ctx.fillRect(0,0,800,400); // 天空
+        ctx.fillStyle = (plan === "岩漿地獄") ? "#500" : "#87CEEB"; 
+        ctx.fillRect(0,0,800,400); 
         
         world.forEach(b => {
-            if(b.type === 'grass') ctx.fillStyle = "#5da346";
-            else if(b.type === 'dirt') ctx.fillStyle = "#855c33";
-            else ctx.fillStyle = "#ab7d4f"; // 木頭
+            ctx.fillStyle = b.color;
             ctx.fillRect(b.x, b.y, blockSize-1, blockSize-1);
-            ctx.strokeStyle = "rgba(0,0,0,0.1)";
-            ctx.strokeRect(b.x, b.y, blockSize, blockSize);
         });
 
-        // 畫玩家
-        ctx.fillStyle = isVip ? "gold" : "#fff";
-        if(isVip) { ctx.shadowBlur = 10; ctx.shadowColor = "gold"; }
+        // 畫玩家 (VIP 會發光)
+        ctx.fillStyle = (rank === 'VIP') ? 'gold' : 'white';
+        if(rank === 'VIP') { ctx.shadowBlur = 15; ctx.shadowColor = 'gold'; }
         ctx.fillRect(player.x, player.y, player.w, player.h);
         ctx.shadowBlur = 0;
 
