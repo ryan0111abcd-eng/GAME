@@ -2,21 +2,21 @@
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
-    <title>SUPER HUMAN 2026 - EDITION SELECT</title>
+    <title>SUPER HUMAN 2026 - FLAGSHIP</title>
     <style>
         body, html { margin: 0; padding: 0; width: 100%; height: 100%; background: #000; overflow: hidden; font-family: 'Segoe UI', sans-serif; }
         .ui { position: fixed; inset: 0; z-index: 10000; display: flex; flex-direction: column; align-items: center; justify-content: center; background: radial-gradient(circle, #1a1a1a, #000); color: #f1c40f; }
-        .card { background: rgba(255,255,255,0.05); padding: 40px; border-radius: 24px; border: 1px solid #f1c40f55; text-align: center; width: 380px; }
-        .btn { width: 100%; height: 55px; margin: 10px 0; font-size: 18px; font-weight: bold; cursor: pointer; border-radius: 12px; border: 2px solid #fff; transition: 0.1s; }
+        .card { background: rgba(255,255,255,0.05); padding: 40px; border-radius: 24px; border: 1px solid #f1c40f55; text-align: center; width: 380px; box-shadow: 0 0 50px rgba(0,0,0,0.8); }
+        .btn { width: 100%; height: 55px; margin: 10px 0; font-size: 18px; font-weight: bold; cursor: pointer; border-radius: 12px; border: 2px solid #fff; transition: 0.1s; display: flex; align-items: center; justify-content: center; }
         .btn-main { background: #f1c40f; color: #000; box-shadow: 0 5px 0 #b8860b; }
         .btn-buy { background: #2ecc71; color: #fff; border: none; box-shadow: 0 5px 0 #27ae60; }
         .btn:active { transform: translateY(3px); box-shadow: 0 1px 0 #666; }
         
-        #esc-menu { position: fixed; inset: 0; z-index: 20000; display: none; flex-direction: column; align-items: center; justify-content: center; background: rgba(0,0,0,0.92); backdrop-filter: blur(10px); }
-        .menu-card { background: #1a1a1a; padding: 30px; border: 2px solid #f1c40f; border-radius: 20px; display: flex; gap: 30px; align-items: center; }
+        #esc-menu { position: fixed; inset: 0; z-index: 20000; display: none; flex-direction: column; align-items: center; justify-content: center; background: rgba(0,0,0,0.92); backdrop-filter: blur(15px); }
+        .menu-card { background: #1a1a1a; padding: 30px; border: 2px solid #f1c40f; border-radius: 20px; display: flex; gap: 40px; align-items: center; }
         
-        #hud { position: fixed; top: 15px; left: 15px; z-index: 5000; color: #fff; background: rgba(0,0,0,0.8); padding: 12px; border-radius: 10px; border: 2px solid #f1c40f; display: none; pointer-events: none; }
-        canvas { display: block; visibility: hidden; }
+        #hud { position: fixed; top: 15px; left: 15px; z-index: 5000; color: #fff; background: rgba(0,0,0,0.85); padding: 12px; border-radius: 10px; border: 2px solid #f1c40f; display: none; pointer-events: none; line-height: 1.6; }
+        canvas#g { display: block; position: absolute; top: 0; left: 0; z-index: 1; visibility: hidden; }
         .in { width: 90%; padding: 12px; font-size: 20px; margin-bottom: 15px; text-align: center; border-radius: 8px; border: 2px solid #f1c40f; background: #000; color: #fff; outline: none; }
     </style>
 </head>
@@ -24,77 +24,83 @@
 
     <div id="p-auth" class="ui">
         <div class="card">
-            <h1>SUPER HUMAN 2026</h1>
-            <p style="font-size:12px; color:#666;">輸入授權金鑰以解鎖對應方案權限</p>
-            <input type="password" id="pw" class="in" placeholder="輸入金鑰 (ryan...)">
-            <button class="btn btn-main" onclick="checkAuth()">驗證金鑰</button>
-            <button class="btn btn-buy" onclick="window.open('buy.html','_blank')">🛒 購買個人 / 家庭方案</button>
+            <h1>SUPER HUMAN <span style="color:#fff;">2026</span></h1>
+            <p style="font-size:12px; color:#888;">請輸入對應方案之驗證金鑰</p>
+            <input type="password" id="pw" class="in" placeholder="授權碼碼">
+            <button class="btn btn-main" onclick="checkAuth()">驗證激活</button>
+            <button class="btn btn-buy" onclick="window.open('buy.html','_blank')">🛒 查看升級方案</button>
         </div>
     </div>
 
     <div id="p-mode" class="ui" style="display:none;">
         <div class="card">
-            <h1 id="plan-title">已解鎖：個人版</h1>
-            <input type="range" id="sq-range" min="2" max="5" value="2" oninput="document.getElementById('sq-val').innerText=this.value" style="width:100%; accent-color:#f1c40f;">
-            <p>模擬人數設定：<span id="sq-val" style="color:#f1c40f;">2</span> / <span id="sq-max">5</span></p>
-            <button class="btn btn-main" onclick="start(document.getElementById('sq-range').value)">進入遠征</button>
+            <h2 id="plan-label">方案載入中...</h2>
+            <p>設定模擬規模：<span id="sq-val" style="color:#f1c40f; font-weight:bold;">2</span> / <span id="sq-max">5</span></p>
+            <input type="range" id="sq-range" min="1" max="5" value="2" oninput="document.getElementById('sq-val').innerText=this.value" style="width:100%; accent-color:#f1c40f; cursor:pointer;">
+            <button class="btn btn-main" onclick="startSim(document.getElementById('sq-range').value)">部署遠征</button>
         </div>
     </div>
 
     <div id="esc-menu">
         <div class="menu-card">
             <div style="display:flex; flex-direction:column; width: 220px;">
-                <h2 style="color:#f1c40f; margin-top:0;">模擬暫停</h2>
+                <h2 style="color:#f1c40f; margin-top:0; text-align:center;">模擬暫停</h2>
                 <button class="btn btn-main" onclick="togglePause()">繼續 (ESC)</button>
-                <button class="btn" onclick="world={}; alert('建築已重置')" style="background:#d35400; color:#fff; border:none;">清除方塊</button>
-                <button class="btn" onclick="location.reload()" style="background:#444; color:#fff; border:none;">切換金鑰</button>
+                <button class="btn" onclick="world={}; alert('建築方塊已清除');" style="background:#e67e22; color:#fff; border:none;">清除方塊</button>
+                <button class="btn" onclick="location.reload()" style="background:#444; color:#fff; border:none;">註銷登入</button>
             </div>
-            <div style="text-align:center;">
-                <b style="color:#f1c40f; display:block; margin-bottom:10px;">地形雷達</b>
-                <canvas id="radar" width="200" height="200" style="background:#000; border:2px solid #333; border-radius:15px;"></canvas>
+            <div id="radar-container" style="text-align:center;">
+                <b style="color:#f1c40f; display:block; margin-bottom:12px;">地形雷達</b>
+                <canvas id="radar" width="220" height="220" style="background:#000; border:2px solid #333; border-radius:15px;"></canvas>
             </div>
         </div>
     </div>
 
     <div id="hud">
-        🕒 1.5x 加速 | ❤️ HP: <span id="hp-v">100</span><br>
-        📍 ALT: <span id="alt-v">0</span>m | ⚔️ [K] 攻擊
+        🕒 時間: <span id="clock-v" style="color:#f1c40f;">12:00</span> | ⚡ 1.5x<br>
+        ❤️ HP: <span id="hp-v">100</span> | 📍 海拔: <span id="alt-v">0</span>m<br>
+        ⚔️ [K] 攻擊 | 🏗️ 挖放模式
     </div>
     <canvas id="g"></canvas>
 
 <script>
-    const KEY_SOLO = 'ryan0111407'; // 個人版金鑰
-    const KEY_FAMILY = 'ryan-family-2026'; // 家庭版金鑰
-    var currentPlan = 'solo';
-    var live = false, paused = false, world = {}, ents = [], keys = {}, ticks = 600, T = 32, selB = 1;
+    const KEYS = {
+        STUDENT: 'STUDENT-2026',
+        SOLO: 'ryan0111407',
+        FAMILY: 'ryan-family-2026',
+        ULTIMATE: 'ULTIMATE-RYAN-2026'
+    };
+    var live = false, paused = false, world = {}, ents = [], keys = {}, ticks = 600, T = 32, hasRadar = true;
     var p = { x: -1500, y: 0, w: 22, h: 42, vx: 0, vy: 0, hp: 100, max: 100, gr: false, atkCd: 0 };
 
     function checkAuth() {
-        let val = document.getElementById('pw').value.trim();
-        if(val === KEY_SOLO) {
-            currentPlan = 'solo'; setupModeUI(5);
-        } else if (val === KEY_FAMILY) {
-            currentPlan = 'family'; setupModeUI(20);
-        } else alert("無效金鑰，請確認購買方案。");
+        let v = document.getElementById('pw').value.trim();
+        if(v === KEYS.STUDENT) setup(1, "學生方案 (不含雷達)", false);
+        else if(v === KEYS.SOLO) setup(5, "專業個人方案", true);
+        else if(v === KEYS.FAMILY) setup(20, "家庭 / 團隊方案", true);
+        else if(v === KEYS.ULTIMATE) setup(50, "至尊企業方案", true);
+        else alert("授權碼無效");
     }
 
-    function setupModeUI(max) {
+    function setup(max, label, radar) {
+        hasRadar = radar;
         document.getElementById('p-auth').style.display = 'none';
         document.getElementById('p-mode').style.display = 'flex';
-        document.getElementById('plan-title').innerText = (max === 20) ? "已解鎖：家庭/團隊版" : "已解鎖：個人版";
+        document.getElementById('plan-label').innerText = label;
         document.getElementById('sq-range').max = max;
         document.getElementById('sq-max').innerText = max;
+        if(!radar) document.getElementById('radar-container').style.display = 'none';
     }
 
     function getB(gx, gy) {
         if(world[gx+'_'+gy] !== undefined) return world[gx+'_'+gy];
-        var absGx = Math.abs(gx), f;
-        if (absGx < 65) f = Math.floor(150 - (56 * Math.exp(-Math.pow(gx / 35, 2)))) + Math.floor((gx % 4)/3);
+        var agx = Math.abs(gx), f;
+        if (agx < 65) f = Math.floor(150 - (56 * Math.exp(-Math.pow(gx / 35, 2)))) + Math.floor((gx % 4)/3);
         else f = Math.floor(138 + Math.sin(gx * 0.25) * 12 + Math.cos(gx * 0.1) * 15);
         if(gy < f) return 0; if(gy === f) return (gy < 105) ? 7 : 2; if(gy > f && gy <= f + 5) return 3; return 1;
     }
 
-    function start(n) {
+    function startSim(n) {
         document.getElementById('p-mode').style.display = 'none';
         document.getElementById('hud').style.display = 'block';
         var c = document.getElementById('g'); c.width = window.innerWidth; c.height = window.innerHeight;
@@ -102,33 +108,36 @@
         let sy = 0; while(getB(Math.floor(p.x/T), Math.floor(sy/T)) === 0) sy += T;
         p.y = sy - 160;
         ents = [];
-        for(var i=0; i<n-1; i++) ents.push({x:p.x+(Math.random()-0.5)*300, y:p.y, w:22, h:42, vx:0, vy:0, hp:100, max:100, dir:1});
+        for(var i=0; i<n-1; i++) ents.push({x:p.x+(Math.random()-0.5)*400, y:p.y, w:22, h:42, vx:0, vy:0, hp:100, max:100, dir:1});
         live = true; requestAnimationFrame(loop);
     }
 
     function togglePause() {
-        if(!live) return; paused = !paused;
+        if(!live) return;
+        paused = !paused;
         document.getElementById('esc-menu').style.display = paused ? 'flex' : 'none';
-        if(paused) drawRadar();
+        if(paused && hasRadar) setTimeout(drawRadar, 50);
     }
 
     function drawRadar() {
         var rc = document.getElementById('radar'), rctx = rc.getContext('2d');
-        rctx.fillStyle="#000"; rctx.fillRect(0,0,200,200);
-        var pgx=Math.floor(p.x/T), pgy=Math.floor(p.y/T), s=4;
+        rctx.fillStyle="#000"; rctx.fillRect(0,0,220,220);
+        var pgx=Math.floor(p.x/T), s=4;
         for(var x=-25; x<25; x++) {
             for(var y=-25; y<25; y++) {
-                var b = getB(pgx+x, pgy+y);
-                if(b>0) { rctx.fillStyle=(b===7)?"#fff":(b===2)?"#2ecc71":"#555"; rctx.fillRect(100+x*s, 100+y*s, s, s); }
+                var b = getB(pgx+x, Math.floor(p.y/T)+y);
+                if(b > 0) {
+                    rctx.fillStyle = (b===7)?"#fff":(b===2)?"#2ecc71":"#555";
+                    rctx.fillRect(110 + x*s, 110 + y*s, s, s);
+                }
             }
         }
-        rctx.fillStyle="#f1c40f"; rctx.fillRect(98, 98, 4, 4);
+        rctx.fillStyle="#f1c40f"; rctx.fillRect(108, 108, 5, 5);
     }
 
     window.onkeydown = e => {
         if(e.code === 'Escape') togglePause();
         if(!live || paused) return;
-        if(e.keyCode >= 49 && e.keyCode <= 56) selB = e.keyCode - 48;
         if(e.code === 'KeyK' && p.atkCd <= 0) {
             p.atkCd = 12;
             ents.forEach(e => { if(Math.hypot(e.x-p.x, e.y-p.y)<100){ e.hp-=20; e.vx=(e.x>p.x?15:-15); e.vy=-8; }});
@@ -141,7 +150,7 @@
         if(!live || paused) return;
         var c = document.getElementById('g'), cx = p.x - c.width/2, cy = p.y - c.height/2;
         var gx = Math.floor((e.clientX + cx) / T), gy = Math.floor((e.clientY + cy) / T);
-        if(e.button === 0) world[gx+'_'+gy] = 0; if(e.button === 2) world[gx+'_'+gy] = selB;
+        if(e.button === 0) world[gx+'_'+gy] = 0; if(e.button === 2) world[gx+'_'+gy] = 1;
     };
 
     function collision(x, y) { return getB(Math.floor(x/T), Math.floor(y/T))>0 || getB(Math.floor((x+21)/T), Math.floor((y+41)/T))>0; }
@@ -150,7 +159,7 @@
         if(!live) return;
         if(!paused) {
             var c = document.getElementById('g'), ctx = c.getContext('2d');
-            ticks = (ticks + 0.075) % 1440;
+            ticks = (ticks + 0.075) % 1440; // 1.5x 加速
             if(p.atkCd > 0) p.atkCd--;
             [p].concat(ents).forEach(e => {
                 e.vy += 0.8; e.y += e.vy; e.x += (e.vx || 0); if(e.vx) e.vx *= 0.8;
@@ -167,10 +176,12 @@
             ctx.fillStyle = (ticks > 1050 || ticks < 350) ? '#050510' : '#87ceeb';
             ctx.fillRect(0, 0, c.width, c.height);
             var cx = p.x - c.width/2, cy = p.y - c.height/2;
-            var clrs = ["","#7f8c8d","#2ecc71","#795548","#f1c40f","#5d4037","#27ae60","#ecf0f1","#3498db"];
             for(var x=Math.floor(cx/T); x<=Math.ceil((cx+c.width)/T); x++) {
                 for(var y=Math.floor(cy/T); y<=Math.ceil((cy+c.height)/T); y++) {
-                    var b = getB(x, y); if(b) { ctx.fillStyle = clrs[b]; ctx.fillRect(x*T-cx, y*T-cy, T-0.5, T-0.5); }
+                    var b = getB(x, y); if(b) { 
+                        ctx.fillStyle = b===7?"#fff":b===2?"#2ecc71":b===3?"#795548":"#555";
+                        ctx.fillRect(x*T-cx, y*T-cy, T-0.5, T-0.5); 
+                    }
                 }
             }
             [p].concat(ents).forEach(e => {
@@ -179,7 +190,10 @@
                 ctx.fillStyle="#333"; ctx.fillRect(e.x-cx-4, e.y-cy-12, 30, 5);
                 ctx.fillStyle="#2ecc71"; ctx.fillRect(e.x-cx-4, e.y-cy-12, 30*(e.hp/e.max), 5);
             });
-            document.getElementById('hp-v').innerText = Math.max(0, Math.floor(p.hp));
+            // HUD 時間換算
+            let hrs = Math.floor(ticks/60).toString().padStart(2,'0');
+            let mins = Math.floor(ticks%60).toString().padStart(2,'0');
+            document.getElementById('clock-v').innerText = hrs + ":" + mins;
             document.getElementById('alt-v').innerText = Math.floor(Math.abs(p.y/T - 150)*32);
         }
         requestAnimationFrame(loop);
