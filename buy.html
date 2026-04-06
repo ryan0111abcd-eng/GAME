@@ -2,64 +2,47 @@
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
-    <title>方案與會員中心</title>
+    <title>方案與會員選擇</title>
     <style>
         body { font-family: sans-serif; background: #0d1117; color: white; text-align: center; padding: 20px; }
-        .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 15px; max-width: 1100px; margin: 30px auto; }
-        .plan { background: #161b22; border: 1px solid #30363d; padding: 20px; border-radius: 12px; cursor: pointer; transition: 0.3s; }
+        .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; max-width: 1000px; margin: 30px auto; }
+        .plan { background: #161b22; border: 1px solid #30363d; padding: 20px; border-radius: 12px; cursor: pointer; }
         .plan:hover { border-color: #58a6ff; transform: scale(1.03); }
-        .price { font-size: 24px; color: #3fb950; font-weight: bold; margin: 10px 0; }
-        
         #modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.9); justify-content: center; align-items: center; z-index: 100; }
         .modal-box { background: #1c2128; padding: 30px; border-radius: 20px; width: 400px; border: 1px solid #444; }
-        .opt { background: #2d333b; margin: 10px 0; padding: 15px; border-radius: 10px; cursor: pointer; text-align: left; }
-        .opt:hover { background: #444; border-left: 5px solid #58a6ff; }
+        .opt { background: #2d333b; margin: 10px 0; padding: 15px; border-radius: 10px; cursor: pointer; }
+        .opt:hover { border-left: 5px solid #58a6ff; background: #444; }
     </style>
 </head>
 <body>
-    <h1>選擇遠征地圖方案</h1>
+    <h1>選擇遠征方案 (1-10)</h1>
     <div class="grid" id="planGrid"></div>
 
     <div id="modal">
         <div class="modal-box">
-            <h3>選擇您的會員等級</h3>
+            <h3>您想以哪種會員身分加入？</h3>
             <div class="opt" onclick="finish('一般', 1.0)">一般會員 (原價)</div>
-            <div class="opt" onclick="finish('PRO', 0.9)" style="color:#a5d6ff">PRO (9折)</div>
-            <div class="opt" onclick="finish('Plus', 0.85)" style="color:#79c0ff">Plus (85折)</div>
-            <div class="opt" onclick="finish('Max', 0.8)" style="color:#d2a8ff">Max (8折 + 能量攻擊)</div>
-            <div class="opt" onclick="finish('VIP', 0.75)" style="color:#f2cc60">VIP (75折 + 無限建築)</div>
+            <div class="opt" onclick="finish('Pro', 0.9)" style="color:#a5d6ff">Pro 會員 (9折)</div>
+            <div class="opt" onclick="finish('Plus', 0.85)" style="color:#79c0ff">Plus 會員 (85折)</div>
+            <div class="opt" onclick="finish('Max', 0.8)" style="color:#d2a8ff">Max 會員 (8折)</div>
+            <div class="opt" onclick="finish('VIP', 0.75)" style="color:#f2cc60">VIP 創世神 (75折)</div>
         </div>
     </div>
 
     <script>
         const plans = [
-            {n: "學生方案", p: 90, d: "憑證入場，最優惠"},
-            {n: "一般方案", p: 150, d: "標準 3000m 聖山地圖"},
-            {n: "家庭方案", p: 230, d: "最多支援 5 人同遊"},
-            {n: "大師方案", p: 400, d: "解鎖所有特殊方塊"},
-            {n: "探險方案", p: 500, d: "地圖包含地底洞穴"},
-            {n: "建築方案", p: 600, d: "初始獲得無限石材"},
-            {n: "生存方案", p: 700, d: "高難度生物群落"},
-            {n: "天空方案", p: 850, d: "浮空島嶼生成規則"},
-            {n: "地底方案", p: 990, d: "全程黑暗模式挑戰"},
-            {n: "創世方案", p: 1200, d: "上帝權限與地圖編輯"}
+            {n: "學生方案", p: 90}, {n: "一般方案", p: 150}, {n: "家庭方案", p: 230}, 
+            {n: "大師方案", p: 400}, {n: "冒險方案", p: 500}, {n: "建築方案", p: 600}, 
+            {n: "生存方案", p: 700}, {n: "天空方案", p: 850}, {n: "地底方案", p: 990}, {n: "創世方案", p: 1200}
         ];
-
         const grid = document.getElementById('planGrid');
-        plans.forEach(item => {
-            grid.innerHTML += `
-                <div class="plan" onclick="openModal('${item.n}')">
-                    <h3>${item.n}</h3>
-                    <div class="price">NT$ ${item.p}</div>
-                    <p style="font-size:12px; color:#888;">${item.d}</p>
-                </div>`;
+        plans.forEach(p => {
+            grid.innerHTML += `<div class="plan" onclick="openModal('${p.n}')"><h3>${p.n}</h3><p>NT$ ${p.p}</p></div>`;
         });
-
         function openModal(n) { localStorage.setItem('sel_plan', n); document.getElementById('modal').style.display='flex'; }
         function finish(r, d) {
             localStorage.setItem('member_rank', r);
             localStorage.setItem('discount', d);
-            alert(`身分已確認：${r}。開始 3000m 遠征！`);
             window.location.href = 'index.html';
         }
     </script>
