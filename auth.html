@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <title>SUPER HUMAN 2026 - 帳號中心</title>
+    <style>
+        body { background: #0f0f0f; color: #fff; font-family: sans-serif; display: flex; justify-content: center; padding-top: 100px; }
+        .auth-box { background: #1a1a1a; padding: 40px; border-radius: 20px; width: 320px; border: 1px solid #333; text-align: center; }
+        input { width: 100%; padding: 12px; margin: 10px 0; background: #000; border: 1px solid #444; color: #fff; border-radius: 8px; box-sizing: border-box; }
+        .btn { width: 100%; padding: 15px; background: #f1c40f; color: #000; border: none; border-radius: 10px; font-weight: bold; cursor: pointer; margin-top: 10px; }
+        .link { color: #888; font-size: 13px; cursor: pointer; margin-top: 20px; display: block; }
+    </style>
+</head>
+<body>
+    <div class="auth-box">
+        <h1 id="t">帳號登入</h1>
+        <input type="text" id="u" placeholder="使用者名稱">
+        <input type="password" id="p" placeholder="密碼">
+        <button class="btn" onclick="action()" id="b">登入系統</button>
+        <span class="link" onclick="toggle()" id="l">還沒有帳號？點此註冊</span>
+    </div>
+
+    <script>
+        let isReg = false;
+        function toggle() {
+            isReg = !isReg;
+            document.getElementById('t').innerText = isReg ? "註冊新帳號" : "帳號登入";
+            document.getElementById('b').innerText = isReg ? "立即註冊" : "登入系統";
+            document.getElementById('l').innerText = isReg ? "已有帳號？返回登入" : "還沒有帳號？點此註冊";
+        }
+        function action() {
+            let u = document.getElementById('u').value;
+            let p = document.getElementById('p').value;
+            if(!u || !p) return alert("請輸入完整資訊");
+            if(isReg) {
+                localStorage.setItem('user_'+u, p);
+                alert("註冊成功！現在請登入");
+                toggle();
+            } else {
+                if(localStorage.getItem('user_'+u) === p) {
+                    localStorage.setItem('isLoggedIn', 'true');
+                    window.location.href = 'buy.html';
+                } else alert("帳號或密碼錯誤");
+            }
+        }
+    </script>
+</body>
+</html>
