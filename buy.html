@@ -8,36 +8,37 @@
         .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; max-width: 1000px; margin: 30px auto; }
         .plan { background: #161b22; border: 1px solid #30363d; padding: 20px; border-radius: 12px; cursor: pointer; }
         .plan:hover { border-color: #58a6ff; transform: scale(1.03); }
-        #modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.9); justify-content: center; align-items: center; z-index: 100; }
+        #modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.95); justify-content: center; align-items: center; z-index: 100; }
         .modal-box { background: #1c2128; padding: 30px; border-radius: 20px; width: 400px; border: 1px solid #444; }
-        .opt { background: #2d333b; margin: 10px 0; padding: 15px; border-radius: 10px; cursor: pointer; }
+        .opt { background: #2d333b; margin: 10px 0; padding: 15px; border-radius: 10px; cursor: pointer; text-align: left; }
         .opt:hover { border-left: 5px solid #58a6ff; background: #444; }
+        .price-tag { float: right; font-weight: bold; color: #2ecc71; }
     </style>
 </head>
 <body>
-    <h1>選擇遠征方案 (1-10)</h1>
+    <h1>選擇您的遠征方案 (1-10)</h1>
     <div class="grid" id="planGrid"></div>
 
     <div id="modal">
         <div class="modal-box">
-            <h3>您想以哪種會員身分加入？</h3>
+            <h3>請選擇您的會員等級</h3>
             <div class="opt" onclick="finish('一般', 1.0)">一般會員 (原價)</div>
             <div class="opt" onclick="finish('Pro', 0.9)" style="color:#a5d6ff">Pro 會員 (9折)</div>
             <div class="opt" onclick="finish('Plus', 0.85)" style="color:#79c0ff">Plus 會員 (85折)</div>
-            <div class="opt" onclick="finish('Max', 0.8)" style="color:#d2a8ff">Max 會員 (8折)</div>
-            <div class="opt" onclick="finish('VIP', 0.75)" style="color:#f2cc60">VIP 創世神 (75折)</div>
+            <div class="opt" onclick="finish('Max', 0.8)" style="color:#d2a8ff">Max 會員 (8折+雙倍跳躍)</div>
+            <div class="opt" onclick="finish('VIP', 0.75)" style="color:#f2cc60">VIP 創世神 (75折+金色特效)</div>
         </div>
     </div>
 
     <script>
         const plans = [
             {n: "學生方案", p: 90}, {n: "一般方案", p: 150}, {n: "家庭方案", p: 230}, 
-            {n: "大師方案", p: 400}, {n: "冒險方案", p: 500}, {n: "建築方案", p: 600}, 
+            {n: "大師方案", p: 400}, {n: "探險方案", p: 500}, {n: "建築方案", p: 600}, 
             {n: "生存方案", p: 700}, {n: "天空方案", p: 850}, {n: "地底方案", p: 990}, {n: "創世方案", p: 1200}
         ];
         const grid = document.getElementById('planGrid');
         plans.forEach(p => {
-            grid.innerHTML += `<div class="plan" onclick="openModal('${p.n}')"><h3>${p.n}</h3><p>NT$ ${p.p}</p></div>`;
+            grid.innerHTML += `<div class="plan" onclick="openModal('${p.n}')"><h3>${p.n}</h3><div class="price-tag">NT$ ${p.p}</div></div>`;
         });
         function openModal(n) { localStorage.setItem('sel_plan', n); document.getElementById('modal').style.display='flex'; }
         function finish(r, d) {
