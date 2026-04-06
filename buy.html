@@ -2,26 +2,53 @@
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
-    <title>會員商店 - 75折福利</title>
+    <title>選擇方案</title>
     <style>
-        body { font-family: sans-serif; background: #1a1a2e; color: white; text-align: center; padding: 50px; }
-        .box { background: #16213e; border: 2px solid gold; padding: 40px; border-radius: 20px; display: inline-block; }
-        .price { font-size: 2.5rem; color: #ffd700; margin: 15px 0; }
-        button { background: gold; color: black; padding: 15px 40px; border: none; font-weight: bold; border-radius: 30px; cursor: pointer; }
+        body { font-family: sans-serif; background: #1a1a2e; color: white; display: flex; justify-content: center; align-items: center; height: 100vh; gap: 30px; margin: 0; }
+        .plan { background: #16213e; padding: 30px; border-radius: 20px; width: 260px; text-align: center; border: 3px solid #333; transition: 0.3s; }
+        .plan:hover { transform: translateY(-10px); border-color: #4ecca3; }
+        .pro { border-color: gold; box-shadow: 0 0 15px rgba(255, 215, 0, 0.2); }
+        .price { font-size: 2.5rem; margin: 20px 0; color: #4ecca3; }
+        .pro .price { color: gold; }
+        button { width: 100%; padding: 15px; border-radius: 10px; border: none; cursor: pointer; font-weight: bold; font-size: 1rem; }
+        .btn-free { background: #555; color: white; }
+        .btn-pro { background: gold; color: black; }
     </style>
 </head>
 <body>
-    <div class="box">
-        <h2>PRO 贊助者方案</h2>
-        <p>✅ 解鎖最新 Beta 版本<br>✅ 遊戲內商店永久 75 折</p>
-        <div class="price">$750 <small>TWD</small></div>
-        <button onclick="buy()">立即支付並升級</button>
-        <p><a href="index.html" style="color: #4ecca3;">返回遊戲</a></p>
+
+    <div class="plan">
+        <h3>基本免費版</h3>
+        <div class="price">$0</div>
+        <p>標準物理引擎<br>商城原價購買</p>
+        <button class="btn-free" onclick="handleFree()">選擇此方案</button>
     </div>
+
+    <div class="plan pro">
+        <h3>PRO 會員版</h3>
+        <div class="price">$750</div>
+        <p><strong>最新 v1.1.0-Beta</strong><br><strong>商城永久 75 折</strong></p>
+        <button class="btn-pro" onclick="handlePro()">立即加入會員</button>
+    </div>
+
     <script>
-        function buy() {
+        function handleFree() {
+            // 這是你要的「詢問是否加入會員」規則
+            const wantVip = confirm("【限時特惠】加入 PRO 會員可享商城 75 折優惠！\n\n您確定要繼續使用『原價購買』的免費版嗎？\n(按『取消』即可考慮加入會員)");
+            
+            if (wantVip) {
+                // 玩家堅持要免費
+                localStorage.setItem('isVip', 'false');
+                window.location.href = 'index.html';
+            } else {
+                // 玩家動搖了，留在頁面讓他點金色的按鈕
+                alert("聰明的選擇！點擊金色的按鈕即可升級。");
+            }
+        }
+
+        function handlePro() {
             localStorage.setItem('isVip', 'true');
-            alert("支付成功！已享有 75 折與最新版權限。");
+            alert("恭喜！您已成功加入會員，享有 75 折福利。");
             window.location.href = 'index.html';
         }
     </script>
