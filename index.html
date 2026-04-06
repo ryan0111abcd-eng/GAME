@@ -5,13 +5,11 @@
     <title>Minecraft 遠征世界</title>
     <style>
         body { margin: 0; background: #000; overflow: hidden; font-family: sans-serif; color: white; }
-        nav { position: fixed; top: 0; width: 100%; background: rgba(0,0,0,0.8); padding: 10px 20px; display: flex; justify-content: space-between; z-index: 10; box-sizing: border-box; }
+        nav { position: fixed; top: 0; width: 100%; background: rgba(0,0,0,0.8); padding: 10px 20px; display: flex; justify-content: space-between; z-index: 10; box-sizing: border-box; border-bottom: 1px solid #333; }
         canvas { display: block; background: #87CEEB; }
-        
-        /* ESC 選單樣式 */
-        #pauseMenu { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); flex-direction: column; justify-content: center; align-items: center; z-index: 100; }
-        .menu-btn { width: 200px; padding: 15px; margin: 10px; background: #333; color: white; border: 2px solid #555; cursor: pointer; text-align: center; }
-        .menu-btn:hover { background: #444; border-color: #2ecc71; }
+        #pauseMenu { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); flex-direction: column; justify-content: center; align-items: center; z-index: 100; }
+        .menu-btn { width: 220px; padding: 15px; margin: 10px; background: #222; color: white; border: 2px solid #555; cursor: pointer; text-align: center; font-weight: bold; }
+        .menu-btn:hover { background: #333; border-color: #2ecc71; }
     </style>
 </head>
 <body>
@@ -22,9 +20,10 @@
 </nav>
 
 <div id="pauseMenu">
-    <h2>遊戲暫停</h2>
-    <div class="menu-btn" onclick="togglePause()">返回遊戲 (ESC)</div>
-    <div class="menu-btn" onclick="window.location.href='auth.html'">登出並回首頁</div>
+    <h1>遊戲暫停</h1>
+    <div class="menu-btn" onclick="togglePause()">返回遠征 (ESC)</div>
+    <div class="menu-btn" onclick="window.location.href='buy.html'">重新選擇方案</div>
+    <div class="menu-btn" onclick="window.location.href='auth.html'">登出</div>
 </div>
 
 <canvas id="game"></canvas>
@@ -35,9 +34,9 @@
     const rank = localStorage.getItem('member_rank');
     const disc = parseFloat(localStorage.getItem('discount') || 1);
 
-    if(!user) window.location.href = 'auth.html';
-    document.getElementById('p-info').innerHTML = `玩家: ${user} [${rank}]`;
-    document.getElementById('m-info').innerText = `地圖: ${plan} | 建築折扣: ${Math.round((1-disc)*100)}% OFF`;
+    if(!user || !plan) window.location.href = 'auth.html';
+    document.getElementById('p-info').innerHTML = `玩家: <b>${user}</b> [${rank}]`;
+    document.getElementById('m-info').innerText = `方案: ${plan} | 建築折扣: ${Math.round((1-disc)*100)}%`;
 
     const canvas = document.getElementById('game');
     const ctx = canvas.getContext('2d');
@@ -46,25 +45,29 @@
 
     const blockSize = 40;
     let world = {}; 
-    let player = { x: 200, y: -400, w: 30, h: 38, vx: 0, vy: 0, g: false };
+    let player = { x: 400, y: -500, w: 26, h: 36, vx: 0, vy: 0, g: false };
     let camera = { x: 0, y: 0 };
     let keys = {};
     let isPaused = false;
 
+    // 地形生成：起始大山區，之後轉丘陵
     function generateColumn(x) {
         if (world[x]) return;
-        let groundY = (x < 1500) ? Math.floor(6 + Math.sin(x * 0.01) * 10) : Math.floor(10 + Math.sin(x * 0.05) * 3);
+        let groundY;
+        if (x < 2000) { // 3000m大山區 (視覺上約為座標2000內)
+            groundY = Math.floor(5 + Math.sin(x * 0.01) * 12); 
+        } else { // 丘陵區
+            groundY = Math.floor(12 + Math.sin(x * 0.04) * 4);
+        }
+        
         world[x] = [];
-        for(let y = groundY; y < groundY + 20; y++) {
-            let type = (y === groundY) ? 'grass' : (y > groundY + 4 ? 'stone' : 'dirt');
+        for(let y = groundY; y < groundY + 25; y++) {
+            let type = (y === groundY) ? 'grass' : (y > groundY + 5 ? 'stone' : 'dirt');
             world[x].push({ y: y * blockSize, type: type });
         }
     }
 
-    window.onkeydown = e => {
-        if (e.code === 'Escape') togglePause();
-        keys[e.code] = true;
-    };
+    window.onkeydown = e => { if(e.code === 'Escape') togglePause(); keys[e.code] = true; };
     window.onkeyup = e => keys[e.code] = false;
 
     function togglePause() {
@@ -77,15 +80,15 @@
         const mx = e.clientX + camera.x; const my = e.clientY + camera.y;
         const gx = Math.floor(mx / blockSize) * blockSize;
         const gy = Math.floor(my / blockSize) * blockSize;
-        if(e.button === 0) { if(world[gx]) world[gx] = world[gx].filter(b => b.y !== gy); }
+        if(e.button === 0 && world[gx]) world[gx] = world[gx].filter(b => b.y !== gy);
         else if(e.button === 2) { if(!world[gx]) world[gx] = []; world[gx].push({ y: gy, type: 'wood' }); }
     };
     canvas.oncontextmenu = e => e.preventDefault();
 
     function checkCollision(tx, ty) {
         const gx = Math.floor(tx / blockSize) * blockSize;
-        const cols = [gx - blockSize, gx, gx + blockSize];
-        for (let cx of cols) {
+        const checkCols = [gx - blockSize, gx, gx + blockSize];
+        for (let cx of checkCols) {
             if (world[cx]) {
                 for (let b of world[cx]) {
                     if (tx < cx + blockSize && tx + player.w > cx && ty < b.y + blockSize && ty + player.h > b.y) return b;
@@ -102,31 +105,33 @@
         if(keys['KeyA']) player.vx = -5;
         if(keys['KeyD']) player.vx = 5;
 
-        // X 軸移動檢查 (加上微小 Offset 防止卡牆)
+        // X 軸移動與防卡
         player.x += player.vx;
         let hitX = checkCollision(player.x, player.y);
         if (hitX) {
-            if (player.vx > 0) player.x = hitX.x - player.w - 0.01;
-            else if (player.vx < 0) player.x = hitX.x + blockSize + 0.01;
+            if (player.vx > 0) player.x = hitX.x - player.w - 0.1;
+            else if (player.vx < 0) player.x = hitX.x + blockSize + 0.1;
         }
 
-        // Y 軸重力
-        if(keys['Space'] && player.g) { player.vy = -12; player.g = false; }
+        // Y 軸與重力 (Max會員跳更高)
+        let jumpPower = (rank === 'Max' || rank === 'VIP') ? -14 : -12;
+        if(keys['Space'] && player.g) { player.vy = jumpPower; player.g = false; }
         player.vy += 0.6;
         player.y += player.vy;
         
         let hitY = checkCollision(player.x, player.y);
         if (hitY) {
-            if (player.vy > 0) { player.y = hitY.y - player.h - 0.01; player.g = true; }
-            else { player.y = hitY.y + blockSize + 0.01; }
+            if (player.vy > 0) { player.y = hitY.y - player.h - 0.1; player.g = true; }
+            else { player.y = hitY.y + blockSize + 0.1; }
             player.vy = 0;
         } else { player.g = false; }
 
-        // 地圖生成
+        // 無限生成
         const startX = Math.floor((player.x - 1200) / blockSize) * blockSize;
         const endX = Math.floor((player.x + 1200) / blockSize) * blockSize;
         for(let x = startX; x <= endX; x += blockSize) { generateColumn(x); }
 
+        // 鏡頭鎖定角色
         camera.x += (player.x - canvas.width / 2 - camera.x) * 0.1;
         camera.y += (player.y - canvas.height / 2 - camera.y) * 0.1;
     }
@@ -149,6 +154,7 @@
             }
         }
 
+        // 畫玩家
         ctx.fillStyle = (rank === 'VIP') ? 'gold' : 'white';
         if(rank === 'VIP') { ctx.shadowBlur = 20; ctx.shadowColor = 'gold'; }
         ctx.fillRect(player.x, player.y, player.w, player.h);
