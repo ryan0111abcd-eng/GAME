@@ -3,12 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>SUPER HUMAN 2026 - REALISTIC PAYMENT</title>
+    <title>SUPER HUMAN 2026 - UNLOCKED</title>
     <style>
-        body, html { margin: 0; padding: 0; width: 100%; height: 100%; background: #000; overflow: hidden; font-family: 'Segoe UI', sans-serif; }
-        .ui-layer { position: fixed; inset: 0; z-index: 10000; display: flex; flex-direction: column; align-items: center; justify-content: center; background: radial-gradient(circle, #1a1a1a 0%, #000 100%); color: #f1c40f; }
-        .auth-card { background: rgba(255,255,255,0.05); padding: 40px; border-radius: 20px; border: 1px solid #f1c40f55; text-align: center; box-shadow: 0 0 50px rgba(0,0,0,0.8); }
-        .btn { display: flex; align-items: center; justify-content: center; width: 320px; height: 60px; margin: 15px auto; font-size: 20px; font-weight: bold; color: #000; background: #f1c40f; border: 2px solid #fff; border-radius: 15px; box-shadow: 0 6px 0 #b8860b; cursor: pointer; transition: 0.1s; position: relative; }
+        body, html { margin: 0; padding: 0; width: 100%; height: 100%; background: #000; overflow: hidden; font-family: 'Segoe UI', sans-serif; color: #fff; }
+        .ui-layer { position: fixed; inset: 0; z-index: 10000; display: flex; flex-direction: column; align-items: center; justify-content: center; background: radial-gradient(circle, #1a1a1a 0%, #000 100%); }
+        .auth-card { background: rgba(255,255,255,0.05); padding: 40px; border-radius: 20px; border: 1px solid #f1c40f55; text-align: center; box-shadow: 0 0 50px rgba(0,0,0,0.8); width: 350px; }
+        .btn { display: flex; align-items: center; justify-content: center; width: 300px; height: 60px; margin: 15px auto; font-size: 20px; font-weight: bold; color: #000; background: #f1c40f; border: 2px solid #fff; border-radius: 15px; box-shadow: 0 6px 0 #b8860b; cursor: pointer; transition: 0.1s; text-decoration: none; }
         .btn:active { transform: translateY(4px); box-shadow: 0 2px 0 #b8860b; }
         .btn-buy { background: #2ecc71; color: #fff; box-shadow: 0 6px 0 #27ae60; border: none; }
         .in-box { width: 300px; padding: 15px; font-size: 24px; border: 2px solid #f1c40f; border-radius: 12px; background: #111; color: #fff; text-align: center; margin-bottom: 10px; outline: none; }
@@ -22,50 +22,50 @@
 
     <div id="p-auth" class="ui-layer">
         <div class="auth-card">
-            <h1>SUPER HUMAN <span style="color:#fff;">2026</span></h1>
-            <p style="color:#aaa; font-size: 14px; margin-bottom: 20px;">授權狀態：<span style="color:#e74c3c;">未激活</span></p>
-            <input type="password" id="pw" class="in-box" placeholder="輸入授權金鑰">
-            <button class="btn" onclick="checkAuth()">激活模擬系統</button>
+            <h1 style="color:#f1c40f;">SUPER HUMAN <span style="color:#fff;">2026</span></h1>
+            <p style="color:#aaa; font-size: 14px; margin-bottom: 20px;">請輸入授權碼解鎖完整模擬</p>
+            <input type="password" id="pw" class="in-box" placeholder="••••••••">
+            <button class="btn" onclick="checkAuth()">激活授權</button>
             <hr style="border:0; border-top:1px solid #333; margin:20px 0;">
-            <button class="btn btn-buy" onclick="purchaseKey()">🛒 購買專業版授權 (模擬金流)</button>
+            <button class="btn btn-buy" onclick="purchaseKey()">🛒 購買授權碼 (NTD $299)</button>
         </div>
     </div>
 
     <div id="p-conn" class="ui-layer" style="display:none;">
         <h1 style="color:#2ecc71;">✓ 授權已驗證</h1>
-        <button class="btn" onclick="nextPage('p-mode')">開始遠征任務</button>
-        <button class="btn" onclick="logout()" style="background:#555; color:white; border:none;">解除授權登出</button>
+        <button class="btn" onclick="setMode(1)">👤 單人本機遠征</button>
+        <button class="btn" onclick="setMode(0)">👥 多人小隊模擬</button>
+        <button class="btn" onclick="logout()" style="background:#444; color:white; border:none; height:45px; font-size:16px;">登出帳號</button>
     </div>
 
     <div id="p-mode" class="ui-layer" style="display:none;">
-        <h1>任務分派</h1>
+        <h1 id="mode-title">任務分派</h1>
         <button class="btn" onclick="startGame()">🏔️ 攀登聖山 (3000m 鎖定)</button>
     </div>
 
     <div id="esc-menu">
         <div class="menu-card">
             <div style="display:flex; flex-direction:column;">
-                <h2 style="color:#f1c40f; text-align: center;">系統控制面板</h2>
+                <h2 style="color:#f1c40f; text-align: center;">系統面板</h2>
                 <button class="btn" onclick="togglePause()">繼續模擬 (ESC)</button>
-                <button class="btn" onclick="clearBlocks()" style="background:#d35400; color:white; border:none;">清除自建方塊</button>
-                <button class="btn" onclick="location.reload()" style="background:#444; color:white; border:none;">返回主選單</button>
+                <button class="btn" onclick="clearBlocks()" style="background:#d35400; color:white; border:none;">清除方塊</button>
+                <button class="btn" onclick="location.reload()" style="background:#444; color:white; border:none;">返回選單</button>
             </div>
             <canvas id="esc-mm-canvas" width="250" height="250" style="background:#000; border:2px solid #333; border-radius:15px;"></canvas>
         </div>
     </div>
 
     <div id="hud">
-        🕒 運算速率：1.5x | ❤️ 生命：<span id="p-hp-hud">100</span> | 📍 海拔：<span id="alt-v">0</span>m
+        🕒 運算：1.5x | ❤️ 生命：<span id="p-hp-hud">100</span> | 📍 海拔：<span id="alt-v">0</span>m
     </div>
     <canvas id="g"></canvas>
 
 <script>
     const AUTH_KEY = 'ryan0111407';
-    // 改為綠界科技的官方測試付款頁面，增加真實性
-    const PURCHASE_URL = 'https://payment-stage.ecpay.com.tw/Cashier/CustomPay'; 
+    const TEST_PAY_URL = 'https://payment-stage.ecpay.com.tw/Cashier/CustomPay'; // 修正後的測試支付入口
 
-    var live = false, paused = false, world = {}, keys = {}, ticks = 600, T = 32;
-    var p = { x: 0, y: 0, w: 22, h: 42, vx: 0, vy: 0, hp: 100, gr: false };
+    var live = false, paused = false, world = {}, ents = [], keys = {}, ticks = 600, T = 32, squadSize = 1;
+    var p = { x: 0, y: 0, w: 22, h: 42, vx: 0, vy: 0, hp: 100, max: 100, gr: false };
 
     window.onload = function() {
         if(localStorage.getItem('sh_save_v10')) world = JSON.parse(localStorage.getItem('sh_save_v10'));
@@ -76,13 +76,19 @@
         if(document.getElementById('pw').value.trim() === AUTH_KEY) {
             localStorage.setItem('super_human_auth', AUTH_KEY);
             nextPage('p-conn');
-        } else alert("金鑰驗證錯誤！請購買正式授權碼。");
+        } else alert("無效的金鑰代碼。");
     }
 
     function purchaseKey() {
-        if(confirm("系統將引導您至支付平台獲取授權碼，確定嗎？")) {
-            window.open(PURCHASE_URL, '_blank');
+        if(confirm("即將前往支付頁面，付款後請記住您的金鑰："+AUTH_KEY)) {
+            window.open(TEST_PAY_URL, '_blank');
         }
+    }
+
+    function setMode(isSingle) {
+        squadSize = isSingle ? 1 : 15;
+        document.getElementById('mode-title').innerText = isSingle ? "單人探險模式" : "多人小隊模式 (15 Unit)";
+        nextPage('p-mode');
     }
 
     function nextPage(id) {
@@ -91,23 +97,20 @@
     }
 
     function logout() { localStorage.removeItem('super_human_auth'); location.reload(); }
-    function clearBlocks() { if(confirm("確定清除？")){ world = {}; localStorage.setItem('sh_save_v10', "{}"); } }
+    function clearBlocks() { if(confirm("清除？")){ world = {}; localStorage.setItem('sh_save_v10', "{}"); } }
 
-    // --- 地形引擎 V11.6 (防卡階梯聖山 + 丘陵) ---
+    // --- 地形引擎 V11.7 (聖山階梯防卡 + 丘陵) ---
     function getB(gx, gy) {
         if(world[gx+'_'+gy] !== undefined) return world[gx+'_'+gy];
         var absGx = Math.abs(gx);
         var f;
-        if (absGx < 60) {
-            // 聖山防卡死：使用 Math.floor 強制階梯化，確保每一步都有落差但不陡峭
-            var mountainShape = Math.exp(-Math.pow(gx / 35, 2)); 
-            f = Math.floor(150 - (56 * mountainShape));
-            // 加入細微鋸齒但限制高度落差不超過 1
-            f += Math.floor((gx * 13 % 5) / 4); 
+        if (absGx < 65) {
+            var mountain = Math.exp(-Math.pow(gx / 35, 2)); 
+            f = Math.floor(150 - (56 * mountain)); // 聖山巔峰約在 gy=94 (3000m)
+            f += Math.floor((gx % 4)/3); // 細微階梯
         } else {
-            // 無盡丘陵：加入坡度限制
-            var hillWave = Math.sin(gx * 0.2) * 15 + Math.cos(gx * 0.1) * 10;
-            f = Math.floor(138 + hillWave);
+            var wave = Math.sin(gx * 0.2) * 15 + Math.cos(gx * 0.1) * 10;
+            f = Math.floor(138 + wave);
         }
         if(gy < f) return 0;
         if(gy === f) return (gy < 105) ? 7 : 2; 
@@ -119,9 +122,17 @@
         var cvs = document.getElementById('g');
         cvs.width = window.innerWidth; cvs.height = window.innerHeight;
         cvs.style.visibility = 'visible';
+        
         p.x = -1500; 
         let sy = 0; while(getB(Math.floor(p.x/T), Math.floor(sy/T)) === 0) sy += T;
         p.y = sy - 160;
+
+        // 生成隊友 (如果是多人模式)
+        ents = [];
+        for(var i=0; i < squadSize - 1; i++) {
+            ents.push({ type:'ally', x: p.x + (i-7)*50, y: p.y, w:22, h:42, vx:0, vy:0, hp:100, max:100, dir:(Math.random()>0.5?1:-1) });
+        }
+
         nextPage('none');
         document.getElementById('hud').style.display='block';
         live = true; loop();
@@ -130,6 +141,20 @@
     function togglePause() {
         paused = !paused;
         document.getElementById('esc-menu').style.display = paused ? 'flex' : 'none';
+        if(paused) drawEscMap();
+    }
+
+    function drawEscMap() {
+        var mCtx = document.getElementById('esc-mm-canvas').getContext('2d');
+        mCtx.fillStyle = "#000"; mCtx.fillRect(0,0,250,250);
+        var pgx = Math.floor(p.x/T), pgy = Math.floor(p.y/T), scale = 4;
+        for(var x=-30; x<30; x++) {
+            for(var y=-30; y<30; y++) {
+                var b = getB(pgx+x, pgy+y);
+                if(b>0) { mCtx.fillStyle = (b===7)?"#fff":(b===2)?"#2ecc71":"#555"; mCtx.fillRect(125+x*scale, 125+y*scale, scale, scale); }
+            }
+        }
+        mCtx.fillStyle = "#f1c40f"; mCtx.fillRect(122, 122, 6, 6);
     }
 
     window.onkeydown = e => { if(e.code==='Escape' && live) togglePause(); if(!live || paused) return; keys[e.code] = true; };
@@ -138,26 +163,30 @@
         if(!live || paused) return;
         var cvs = document.getElementById('g'), cx = p.x - cvs.width/2, cy = p.y - cvs.height/2;
         var gx = Math.floor((e.clientX + cx) / T), gy = Math.floor((e.clientY + cy) / T);
-        if(e.button === 0) world[gx+'_'+gy] = 0; 
-        if(e.button === 2) world[gx+'_'+gy] = 1;
+        if(e.button === 0) world[gx+'_'+gy] = 0; if(e.button === 2) world[gx+'_'+gy] = 1;
         localStorage.setItem('sh_save_v10', JSON.stringify(world));
     };
 
-    function check(x,y) { 
-        var gx=Math.floor(x/T), gy=Math.floor(y/T); 
-        return getB(gx, gy)>0 || getB(Math.floor((x+21)/T), Math.floor((y+41)/T))>0; 
-    }
+    function check(x,y) { var gx=Math.floor(x/T), gy=Math.floor(y/T); return getB(gx, gy)>0 || getB(Math.floor((x+21)/T), Math.floor((y+41)/T))>0; }
 
     function loop() {
         if(!live) return;
         if(!paused) {
             var cvs = document.getElementById('g'), ctx = cvs.getContext('2d');
             ticks = (ticks + 0.075) % 1440;
-            p.vy += 0.8; p.y += p.vy;
-            if(check(p.x, p.y)) { while(check(p.x, p.y)) p.y -= 0.5; p.vy = 0; p.gr = true; } else p.gr = false;
-            var dx = (keys['KeyD']?7:0) - (keys['KeyA']?7:0);
-            if(dx !== 0) { p.x += dx; if(check(p.x, p.y)) p.x -= dx; }
-            if(keys['Space'] && p.gr) p.vy = -14;
+            [p].concat(ents).forEach(e => {
+                e.vy += 0.8; e.y += e.vy;
+                if(check(e.x, e.y)) { while(check(e.x, e.y)) e.y -= 0.5; e.vy = 0; e.gr = true; } else e.gr = false;
+                if(e === p) {
+                    var dx = (keys['KeyD']?7:0) - (keys['KeyA']?7:0);
+                    if(dx !== 0) { p.x += dx; if(check(p.x, p.y)) p.x -= dx; }
+                    if(keys['Space'] && p.gr) p.vy = -14;
+                } else {
+                    if(Math.random()<0.02) e.dir *= -1;
+                    e.x += e.dir * 2;
+                    if(check(e.x, e.y)) { e.x -= e.dir * 2; if(e.gr) e.vy = -10; }
+                }
+            });
 
             ctx.fillStyle = (ticks > 1050 || ticks < 350) ? '#050510' : '#87ceeb';
             ctx.fillRect(0, 0, cvs.width, cvs.height);
@@ -168,10 +197,13 @@
                     var b = getB(x, y); if(b > 0) { ctx.fillStyle = clrs[b]; ctx.fillRect(x*T-cx, y*T-cy, T-0.5, T-0.5); }
                 }
             }
-            ctx.fillStyle = '#e67e22'; ctx.fillRect(p.x-cx, p.y-cy, p.w, p.h);
-            ctx.fillStyle = "#2ecc71"; ctx.fillRect(p.x-cx-4, p.y-cy-12, 30, 5);
+            [p].concat(ents).forEach(e => {
+                ctx.fillStyle = (e===p?'#e67e22':'#3498db');
+                ctx.fillRect(e.x-cx, e.y-cy, e.w, e.h);
+                ctx.fillStyle="#333"; ctx.fillRect(e.x-cx-4, e.y-cy-12, 30, 5);
+                ctx.fillStyle="#2ecc71"; ctx.fillRect(e.x-cx-4, e.y-cy-12, 30*(e.hp/e.max), 5);
+            });
             document.getElementById('alt-v').innerText = Math.floor(Math.abs(p.y/T - 150)*32);
-            document.getElementById('p-hp-hud').innerText = Math.floor(p.hp);
         }
         requestAnimationFrame(loop);
     }
