@@ -2,40 +2,38 @@
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
-    <title>遊戲開發者 - 登入/註冊</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>遊戲開發 - 登入</title>
     <style>
-        body { font-family: sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; background: #1a1a1a; color: white; }
-        .auth-card { background: #2a2a2a; padding: 2rem; border-radius: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.5); width: 300px; }
-        input { width: 100%; margin: 10px 0; padding: 10px; border-radius: 4px; border: none; box-sizing: border-box; }
-        button { width: 100%; padding: 10px; background: #4CAF50; color: white; border: none; border-radius: 4px; cursor: pointer; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #121212; color: white; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; }
+        .card { background: #1e1e1e; padding: 30px; border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); width: 100%; max-width: 350px; text-align: center; }
+        h2 { margin-bottom: 20px; color: #4CAF50; }
+        input { width: 100%; padding: 12px; margin: 10px 0; border-radius: 6px; border: 1px solid #333; background: #252525; color: white; box-sizing: border-box; }
+        button { width: 100%; padding: 12px; background: #4CAF50; border: none; color: white; font-weight: bold; border-radius: 6px; cursor: pointer; transition: 0.3s; margin-top: 10px; }
         button:hover { background: #45a049; }
-        .toggle { font-size: 0.8rem; text-align: center; margin-top: 10px; cursor: pointer; color: #aaa; }
+        .link { font-size: 13px; color: #888; margin-top: 15px; cursor: pointer; }
     </style>
 </head>
 <body>
-    <div class="auth-card">
-        <h2 id="auth-title">會員登入</h2>
-        <input type="text" id="username" placeholder="使用者名稱">
-        <input type="password" id="password" placeholder="密碼">
-        <button onclick="handleAuth()">進入遊戲世界</button>
-        <p class="toggle" onclick="toggleAuth()">沒有帳號？點此註冊</p>
+    <div class="card">
+        <h2 id="title">進入遊戲大廳</h2>
+        <input type="text" id="username" placeholder="輸入玩家名稱">
+        <input type="password" id="password" placeholder="輸入密碼">
+        <button onclick="login()">登入 / 開始開發</button>
+        <div class="link">這只是個展示系統，隨意輸入即可進入</div>
     </div>
 
     <script>
-        function handleAuth() {
+        function login() {
             const user = document.getElementById('username').value;
-            if(user) {
-                // 模擬存儲登入狀態
-                localStorage.setItem('game_user', user);
-                // 預設給一個測試狀態（之後由購買頁面改變）
-                if(!localStorage.getItem('isVip')) localStorage.setItem('isVip', 'false');
-                alert('登入成功！');
-                window.location.href = 'index.html';
+            if (!user) return alert("請輸入名稱");
+            
+            localStorage.setItem('game_user', user);
+            // 初始化會員狀態 (如果沒買過就是 false)
+            if (localStorage.getItem('isVip') === null) {
+                localStorage.setItem('isVip', 'false');
             }
-        }
-        function toggleAuth() {
-            const title = document.getElementById('auth-title');
-            title.innerText = title.innerText === '會員登入' ? '註冊帳號' : '會員登入';
+            window.location.href = 'index.html';
         }
     </script>
 </body>
