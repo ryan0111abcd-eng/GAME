@@ -2,64 +2,65 @@
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
-    <title>遊戲控制台</title>
+    <title>網頁版遊戲主廳</title>
     <style>
-        body { font-family: sans-serif; background: #2c3e50; color: white; padding: 20px; }
-        .card { background: #34495e; padding: 20px; border-radius: 10px; margin-bottom: 20px; border: 1px solid #444; }
-        .btn { background: #27ae60; color: white; padding: 12px 25px; text-decoration: none; display: inline-block; border-radius: 5px; font-weight: bold; }
-        .locked { background: #7f8c8d; cursor: not-allowed; opacity: 0.6; }
-        .vip-badge { background: gold; color: black; padding: 2px 6px; border-radius: 3px; font-size: 12px; font-weight: bold; }
+        body { font-family: 'Segoe UI', sans-serif; background: #2c3e50; color: white; margin: 0; text-align: center; }
+        nav { background: #1a252f; padding: 15px 30px; display: flex; justify-content: space-between; align-items: center; border-bottom: 3px solid #4CAF50; }
+        .game-area { width: 90%; max-width: 800px; height: 450px; background: #000; margin: 30px auto; border: 6px solid #555; border-radius: 15px; display: flex; justify-content: center; align-items: center; position: relative; transition: 0.5s; }
+        .is-vip-box { border-color: gold; box-shadow: 0 0 30px rgba(255, 215, 0, 0.4); }
+        .game-content { font-family: 'Courier New', monospace; font-size: 24px; color: #4CAF50; }
+        .vip-label { background: gold; color: black; padding: 3px 8px; border-radius: 5px; font-weight: bold; font-size: 14px; }
+        .btn-shop { background: #f1c40f; color: black; padding: 10px 20px; text-decoration: none; border-radius: 5px; font-weight: bold; }
+        .info-text { color: #bdc3c7; margin-top: 10px; }
     </style>
 </head>
 <body>
 
-    <h2 id="greet">載入中...</h2>
+<nav>
+    <div id="player-display">載入中...</div>
+    <a href="buy.html" class="btn-shop">會員商店</a>
+</nav>
 
-    <div class="card">
-        <h3>穩定版 v1.0.0</h3>
-        <p>公開免費版本。</p>
-        <a href="game_v100.zip" download class="btn" onclick="checkFile(this)">下載遊戲 (.zip)</a>
+<h1>網頁即時玩模式</h1>
+
+<div class="game-area" id="gameScreen">
+    <div class="game-content" id="gameText">
+        [ 正在載入世界數據... ]
     </div>
+</div>
 
-    <div class="card">
-        <h3>測試版 v1.1.0 <span class="vip-badge">PRO</span></h3>
-        <p id="beta-desc">此版本僅限會員，包含 75 折商店功能。</p>
-        <a href="game_beta_v110.zip" id="beta-btn" download class="btn locked" onclick="checkFile(this)">尚未解鎖</a>
-    </div>
+<div class="info-text">
+    <p>控制方式：WASD 移動 | 空格跳躍</p>
+    <p id="status-desc">目前版本：穩定版 v1.0.0</p>
+</div>
 
-    <script>
-        const user = localStorage.getItem('game_user');
-        const isVip = localStorage.getItem('isVip') === 'true';
+<script>
+    const user = localStorage.getItem('game_user');
+    const isVip = localStorage.getItem('isVip') === 'true';
 
-        if (!user) {
-            window.location.href = 'auth.html';
+    if (!user) {
+        window.location.href = 'auth.html';
+    } else {
+        // 顯示玩家資訊
+        const display = document.getElementById('player-display');
+        display.innerHTML = `歡迎回來，<strong>${user}</strong> ${isVip ? '<span class="vip-label">PRO</span>' : ''}`;
+
+        const screen = document.getElementById('gameScreen');
+        const text = document.getElementById('gameText');
+        const desc = document.getElementById('status-desc');
+
+        if (isVip) {
+            // 會員專屬視覺效果
+            screen.classList.add('is-vip-box');
+            text.innerHTML = "✨ [ 網頁版 PRO 測試場景 ] ✨<br><small style='color:white'>已修復卡在地圖 Bug</small>";
+            text.style.color = "gold";
+            desc.innerHTML = "目前版本：<strong>v1.1.0-Beta (會員搶先體驗)</strong>";
         } else {
-            document.getElementById('greet').innerText = `你好, ${user} ${isVip ? '[PRO]' : ''}`;
-            
-            if (isVip) {
-                const btn = document.getElementById('beta-btn');
-                document.getElementById('beta-desc').innerText = "已解鎖會員權限！請下載測試。";
-                btn.classList.remove('locked');
-                btn.innerText = "下載測試版 (VIP)";
-                btn.style.background = "#27ae60";
-            } else {
-                const btn = document.getElementById('beta-btn');
-                btn.onclick = function(e) {
-                    e.preventDefault();
-                    alert("這是會員專屬版本，請先去商店升級！");
-                    window.location.href = 'buy.html';
-                };
-            }
+            // 普通版效果
+            text.innerHTML = "[ 網頁版 穩定場景 ]<br><small style='color:#888'>商店 75 折未解鎖</small>";
         }
+    }
+</script>
 
-        // 下載錯誤提示函數
-        function checkFile(element) {
-            // 如果檔案不存在，瀏覽器下載時會失敗，這裡給個溫馨提示
-            console.log("正在嘗試下載: " + element.href);
-            setTimeout(() => {
-                alert("如果下載失敗，請檢查資料夾內是否有 " + element.getAttribute('href') + " 這個檔案！");
-            }, 500);
-        }
-    </script>
 </body>
 </html>
