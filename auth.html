@@ -2,24 +2,25 @@
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
-    <title>遠征隊 - 註冊</title>
+    <title>Minecraft 遠征 - 登入</title>
     <style>
         body { font-family: sans-serif; background: #0d1117; color: white; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; }
-        .card { background: #161b22; padding: 40px; border-radius: 20px; text-align: center; width: 300px; border: 1px solid #30363d; }
+        .card { background: #161b22; padding: 40px; border-radius: 20px; text-align: center; width: 320px; border: 1px solid #30363d; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
         input { width: 100%; padding: 12px; margin: 20px 0; border-radius: 8px; border: 1px solid #30363d; background: #0d1117; color: #58a6ff; box-sizing: border-box; }
-        button { width: 100%; padding: 12px; background: #238636; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; }
+        button { width: 100%; padding: 12px; background: #238636; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; font-size: 16px; }
+        button:hover { background: #2ea043; }
     </style>
 </head>
 <body>
     <div class="card">
-        <h2>遠征隊 ID 註冊</h2>
-        <input type="text" id="pID" placeholder="輸入玩家 ID">
-        <button onclick="login()">開始選擇方案</button>
+        <h2>遠征隊玩家登入</h2>
+        <input type="text" id="pID" placeholder="請輸入玩家名稱...">
+        <button onclick="login()">下一步：選擇方案</button>
     </div>
     <script>
         function login() {
             const name = document.getElementById('pID').value;
-            if(!name) return alert("請輸入 ID");
+            if(!name) return alert("請輸入 ID 以開始遠征");
             localStorage.setItem('mc_user', name);
             window.location.href = 'buy.html';
         }
