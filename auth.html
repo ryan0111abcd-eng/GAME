@@ -2,11 +2,11 @@
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
-    <title>Minecraft 遠征 - 登入</title>
+    <title>遠征隊 - 登入</title>
     <style>
         body { font-family: sans-serif; background: #0d1117; color: white; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; }
         .card { background: #161b22; padding: 40px; border-radius: 20px; text-align: center; width: 320px; border: 1px solid #30363d; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
-        input { width: 100%; padding: 12px; margin: 20px 0; border-radius: 8px; border: 1px solid #30363d; background: #0d1117; color: #58a6ff; box-sizing: border-box; }
+        input { width: 100%; padding: 12px; margin: 20px 0; border-radius: 8px; border: 1px solid #30363d; background: #0d1117; color: #58a6ff; box-sizing: border-box; outline: none; }
         button { width: 100%; padding: 12px; background: #238636; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; font-size: 16px; }
         button:hover { background: #2ea043; }
     </style>
@@ -22,7 +22,7 @@
             const name = document.getElementById('pID').value;
             if(!name) return alert("請輸入 ID 以開始遠征");
             localStorage.setItem('mc_user', name);
-            window.location.href = 'buy.html';
+            window.location.href = 'buy.html'; // 跳轉到方案頁
         }
     </script>
 </body>
