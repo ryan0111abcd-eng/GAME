@@ -3,15 +3,20 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>SUPER HUMAN 2026 - UNLOCKED</title>
+    <title>SUPER HUMAN 2026 - PREMIUM EDITION</title>
     <style>
-        body, html { margin: 0; padding: 0; width: 100%; height: 100%; background: #000; overflow: hidden; font-family: 'Segoe UI', sans-serif; color: #fff; }
-        .ui-layer { position: fixed; inset: 0; z-index: 10000; display: flex; flex-direction: column; align-items: center; justify-content: center; background: radial-gradient(circle, #1a1a1a 0%, #000 100%); }
-        .auth-card { background: rgba(255,255,255,0.05); padding: 40px; border-radius: 20px; border: 1px solid #f1c40f55; text-align: center; box-shadow: 0 0 50px rgba(0,0,0,0.8); width: 350px; }
-        .btn { display: flex; align-items: center; justify-content: center; width: 300px; height: 60px; margin: 15px auto; font-size: 20px; font-weight: bold; color: #000; background: #f1c40f; border: 2px solid #fff; border-radius: 15px; box-shadow: 0 6px 0 #b8860b; cursor: pointer; transition: 0.1s; text-decoration: none; }
+        body, html { margin: 0; padding: 0; width: 100%; height: 100%; background: #000; overflow: hidden; font-family: 'Segoe UI', sans-serif; }
+        .ui-layer { position: fixed; inset: 0; z-index: 10000; display: flex; flex-direction: column; align-items: center; justify-content: center; background: radial-gradient(circle, #1a1a1a 0%, #000 100%); color: #f1c40f; }
+        .auth-card { background: rgba(255,255,255,0.05); padding: 40px; border-radius: 24px; border: 1px solid #f1c40f55; text-align: center; box-shadow: 0 0 50px rgba(0,0,0,0.8); width: 360px; }
+        .btn { display: flex; align-items: center; justify-content: center; width: 320px; height: 60px; margin: 15px auto; font-size: 20px; font-weight: bold; color: #000; background: #f1c40f; border: 2px solid #fff; border-radius: 15px; box-shadow: 0 6px 0 #b8860b; cursor: pointer; transition: 0.1s; position: relative; }
         .btn:active { transform: translateY(4px); box-shadow: 0 2px 0 #b8860b; }
         .btn-buy { background: #2ecc71; color: #fff; box-shadow: 0 6px 0 #27ae60; border: none; }
         .in-box { width: 300px; padding: 15px; font-size: 24px; border: 2px solid #f1c40f; border-radius: 12px; background: #111; color: #fff; text-align: center; margin-bottom: 10px; outline: none; }
+        
+        /* 付款成功彈窗 */
+        #payment-success-box { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 320px; background: #fff; color: #333; padding: 30px; border-radius: 20px; text-align: center; z-index: 10001; display: none; box-shadow: 0 0 100px rgba(46, 204, 113, 0.6); animation: pop 0.3s ease-out; }
+        @keyframes pop { from { transform: translate(-50%, -40%); opacity: 0; } to { transform: translate(-50%, -50%); opacity: 1; } }
+
         #esc-menu { position: fixed; inset: 0; z-index: 20000; display: none; flex-direction: column; align-items: center; justify-content: center; background: rgba(0,0,0,0.9); backdrop-filter: blur(15px); }
         .menu-card { background: #1a1a1a; padding: 30px; border: 2px solid #f1c40f; border-radius: 20px; display: flex; gap: 30px; align-items: center; }
         #hud { position: fixed; top: 15px; left: 15px; z-index: 5000; color: white; background: rgba(0,0,0,0.8); padding: 12px; border-radius: 10px; border: 2px solid #f1c40f; display: none; pointer-events: none; }
@@ -22,48 +27,55 @@
 
     <div id="p-auth" class="ui-layer">
         <div class="auth-card">
-            <h1 style="color:#f1c40f;">SUPER HUMAN <span style="color:#fff;">2026</span></h1>
-            <p style="color:#aaa; font-size: 14px; margin-bottom: 20px;">請輸入授權碼解鎖完整模擬</p>
-            <input type="password" id="pw" class="in-box" placeholder="••••••••">
+            <h1>SUPER HUMAN <span style="color:#fff;">2026</span></h1>
+            <p style="color:#aaa; font-size: 14px; margin-bottom: 20px;">請輸入 10 碼金鑰以解鎖完整遠征</p>
+            <input type="password" id="pw" class="in-box" placeholder="輸入啟動金鑰">
             <button class="btn" onclick="checkAuth()">激活授權</button>
             <hr style="border:0; border-top:1px solid #333; margin:20px 0;">
-            <button class="btn btn-buy" onclick="purchaseKey()">🛒 購買授權碼 (NTD $299)</button>
+            <button class="btn btn-buy" onclick="purchaseKey()">🛒 立即購買啟動金鑰</button>
         </div>
     </div>
 
+    <div id="payment-success-box">
+        <div style="font-size: 60px; color: #2ecc71;">✓</div>
+        <h2 style="margin: 10px 0;">付款成功！</h2>
+        <p style="color: #666; font-size: 14px;">您的專屬授權碼已生成：</p>
+        <div style="font-size: 24px; font-weight: bold; background: #f0f0f0; padding: 15px; border: 2px dashed #2ecc71; margin: 15px 0; color: #2c3e50; letter-spacing: 1px;">ryan0111407</div>
+        <button class="btn" onclick="closeSuccess()" style="width: 100%; height: 50px; font-size: 18px; box-shadow: none; margin: 0;">關閉並自動填入</button>
+    </div>
+
     <div id="p-conn" class="ui-layer" style="display:none;">
-        <h1 style="color:#2ecc71;">✓ 授權已驗證</h1>
+        <h1 style="color:#2ecc71;">✓ 授權驗證成功</h1>
+        <p style="margin-bottom: 20px; color: #aaa;">請選擇模擬模式</p>
         <button class="btn" onclick="setMode(1)">👤 單人本機遠征</button>
         <button class="btn" onclick="setMode(0)">👥 多人小隊模擬</button>
-        <button class="btn" onclick="logout()" style="background:#444; color:white; border:none; height:45px; font-size:16px;">登出帳號</button>
+        <button class="btn" onclick="logout()" style="background:#444; color:white; border:none; height:45px; font-size:16px;">登出並解除授權</button>
     </div>
 
     <div id="p-mode" class="ui-layer" style="display:none;">
         <h1 id="mode-title">任務分派</h1>
-        <button class="btn" onclick="startGame()">🏔️ 攀登聖山 (3000m 鎖定)</button>
+        <button class="btn" onclick="startGame()">🏔️ 進入 3000m 聖山地帶</button>
     </div>
 
     <div id="esc-menu">
         <div class="menu-card">
             <div style="display:flex; flex-direction:column;">
                 <h2 style="color:#f1c40f; text-align: center;">系統面板</h2>
-                <button class="btn" onclick="togglePause()">繼續模擬 (ESC)</button>
+                <button class="btn" onclick="togglePause()">繼續 (ESC)</button>
                 <button class="btn" onclick="clearBlocks()" style="background:#d35400; color:white; border:none;">清除方塊</button>
-                <button class="btn" onclick="location.reload()" style="background:#444; color:white; border:none;">返回選單</button>
+                <button class="btn" onclick="location.reload()" style="background:#444; color:white; border:none;">回到選單</button>
             </div>
             <canvas id="esc-mm-canvas" width="250" height="250" style="background:#000; border:2px solid #333; border-radius:15px;"></canvas>
         </div>
     </div>
 
     <div id="hud">
-        🕒 運算：1.5x | ❤️ 生命：<span id="p-hp-hud">100</span> | 📍 海拔：<span id="alt-v">0</span>m
+        🕒 速率 1.5x | ❤️ 生命：<span id="p-hp-hud">100</span> | 📍 海拔：<span id="alt-v">0</span>m
     </div>
     <canvas id="g"></canvas>
 
 <script>
     const AUTH_KEY = 'ryan0111407';
-    const TEST_PAY_URL = 'https://payment-stage.ecpay.com.tw/Cashier/CustomPay'; // 修正後的測試支付入口
-
     var live = false, paused = false, world = {}, ents = [], keys = {}, ticks = 600, T = 32, squadSize = 1;
     var p = { x: 0, y: 0, w: 22, h: 42, vx: 0, vy: 0, hp: 100, max: 100, gr: false };
 
@@ -76,18 +88,29 @@
         if(document.getElementById('pw').value.trim() === AUTH_KEY) {
             localStorage.setItem('super_human_auth', AUTH_KEY);
             nextPage('p-conn');
-        } else alert("無效的金鑰代碼。");
+        } else alert("無效的金鑰代碼，請確認購買。");
     }
 
     function purchaseKey() {
-        if(confirm("即將前往支付頁面，付款後請記住您的金鑰："+AUTH_KEY)) {
-            window.open(TEST_PAY_URL, '_blank');
+        if(confirm("即將開啟支付頁面，請在付款完成後回到此視窗獲取金鑰。")) {
+            // 開啟分頁模擬支付
+            window.open('https://payment-stage.ecpay.com.tw/Cashier/CustomPay', '_blank');
+            // 模擬 3 秒後後端回傳成功
+            setTimeout(() => {
+                document.getElementById('payment-success-box').style.display = 'block';
+            }, 3000);
         }
+    }
+
+    function closeSuccess() {
+        document.getElementById('payment-success-box').style.display = 'none';
+        document.getElementById('pw').value = AUTH_KEY;
+        document.getElementById('pw').focus();
     }
 
     function setMode(isSingle) {
         squadSize = isSingle ? 1 : 15;
-        document.getElementById('mode-title').innerText = isSingle ? "單人探險模式" : "多人小隊模式 (15 Unit)";
+        document.getElementById('mode-title').innerText = isSingle ? "單人遠征準備就緒" : "小隊模式 (15人) 準備就緒";
         nextPage('p-mode');
     }
 
@@ -97,42 +120,35 @@
     }
 
     function logout() { localStorage.removeItem('super_human_auth'); location.reload(); }
-    function clearBlocks() { if(confirm("清除？")){ world = {}; localStorage.setItem('sh_save_v10', "{}"); } }
+    function clearBlocks() { if(confirm("清除建築？")){ world = {}; localStorage.setItem('sh_save_v10', "{}"); } }
 
-    // --- 地形引擎 V11.7 (聖山階梯防卡 + 丘陵) ---
     function getB(gx, gy) {
         if(world[gx+'_'+gy] !== undefined) return world[gx+'_'+gy];
         var absGx = Math.abs(gx);
         var f;
         if (absGx < 65) {
             var mountain = Math.exp(-Math.pow(gx / 35, 2)); 
-            f = Math.floor(150 - (56 * mountain)); // 聖山巔峰約在 gy=94 (3000m)
-            f += Math.floor((gx % 4)/3); // 細微階梯
+            f = Math.floor(150 - (56 * mountain)) + Math.floor((gx % 4)/3);
         } else {
             var wave = Math.sin(gx * 0.2) * 15 + Math.cos(gx * 0.1) * 10;
             f = Math.floor(138 + wave);
         }
-        if(gy < f) return 0;
-        if(gy === f) return (gy < 105) ? 7 : 2; 
-        if(gy > f && gy <= f + 5) return 3;
-        return 1;
+        if(gy < f) return 0; if(gy === f) return (gy < 105) ? 7 : 2; if(gy > f && gy <= f + 5) return 3; return 1;
     }
 
     function startGame() {
         var cvs = document.getElementById('g');
         cvs.width = window.innerWidth; cvs.height = window.innerHeight;
         cvs.style.visibility = 'visible';
-        
         p.x = -1500; 
         let sy = 0; while(getB(Math.floor(p.x/T), Math.floor(sy/T)) === 0) sy += T;
         p.y = sy - 160;
-
-        // 生成隊友 (如果是多人模式)
         ents = [];
-        for(var i=0; i < squadSize - 1; i++) {
-            ents.push({ type:'ally', x: p.x + (i-7)*50, y: p.y, w:22, h:42, vx:0, vy:0, hp:100, max:100, dir:(Math.random()>0.5?1:-1) });
+        if(squadSize > 1) {
+            for(var i=0; i < 14; i++) {
+                ents.push({ type:'ally', x: p.x + (i-7)*50, y: p.y, w:22, h:42, vx:0, vy:0, hp:100, max:100, dir:(Math.random()>0.5?1:-1) });
+            }
         }
-
         nextPage('none');
         document.getElementById('hud').style.display='block';
         live = true; loop();
@@ -147,10 +163,10 @@
     function drawEscMap() {
         var mCtx = document.getElementById('esc-mm-canvas').getContext('2d');
         mCtx.fillStyle = "#000"; mCtx.fillRect(0,0,250,250);
-        var pgx = Math.floor(p.x/T), pgy = Math.floor(p.y/T), scale = 4;
+        var pgx = Math.floor(p.x/T), scale = 4;
         for(var x=-30; x<30; x++) {
             for(var y=-30; y<30; y++) {
-                var b = getB(pgx+x, pgy+y);
+                var b = getB(pgx+x, Math.floor(p.y/T)+y);
                 if(b>0) { mCtx.fillStyle = (b===7)?"#fff":(b===2)?"#2ecc71":"#555"; mCtx.fillRect(125+x*scale, 125+y*scale, scale, scale); }
             }
         }
@@ -187,7 +203,6 @@
                     if(check(e.x, e.y)) { e.x -= e.dir * 2; if(e.gr) e.vy = -10; }
                 }
             });
-
             ctx.fillStyle = (ticks > 1050 || ticks < 350) ? '#050510' : '#87ceeb';
             ctx.fillRect(0, 0, cvs.width, cvs.height);
             var cx = p.x - cvs.width/2, cy = p.y - cvs.height/2;
