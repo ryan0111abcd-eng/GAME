@@ -2,121 +2,116 @@
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
-    <title>SUPER HUMAN 2026 - ECOSYSTEM</title>
+    <title>SUPER HUMAN 2026 - EVOLUTION</title>
     <style>
-        body, html { margin: 0; padding: 0; width: 100%; height: 100%; background: #000; overflow: hidden; font-family: sans-serif; }
-        .ui { position: fixed; inset: 0; z-index: 10; display: flex; flex-direction: column; align-items: center; justify-content: center; background: #000; color: #f1c40f; }
-        canvas { display: block; visibility: hidden; }
-        #hud { position: fixed; top: 15px; left: 15px; z-index: 5; color: #fff; background: rgba(0,0,0,0.7); padding: 10px; border-radius: 8px; display: none; }
+        body, html { margin: 0; padding: 0; width: 100%; height: 100%; background: #000; overflow: hidden; font-family: 'Segoe UI', sans-serif; }
+        .ui { position: fixed; inset: 0; z-index: 10000; display: flex; flex-direction: column; align-items: center; justify-content: center; background: radial-gradient(circle, #1a1a1a, #000); color: #f1c40f; }
+        .card { background: rgba(255,255,255,0.05); padding: 40px; border-radius: 24px; border: 1px solid #f1c40f55; text-align: center; width: 380px; }
+        .btn { width: 100%; height: 55px; margin: 10px 0; font-size: 18px; font-weight: bold; cursor: pointer; border-radius: 12px; border: 2px solid #fff; transition: 0.1s; display: flex; align-items: center; justify-content: center; }
+        .btn-main { background: #f1c40f; color: #000; box-shadow: 0 5px 0 #b8860b; }
+        .btn:active { transform: translateY(3px); box-shadow: 0 1px 0 #666; }
+        
+        #hud { position: fixed; top: 15px; left: 15px; z-index: 5000; color: #fff; background: rgba(0,0,0,0.8); padding: 15px; border-radius: 12px; border: 2px solid #f1c40f; display: none; pointer-events: none; min-width: 200px; }
+        .xp-bar { width: 100%; height: 8px; background: #333; border-radius: 4px; margin-top: 10px; overflow: hidden; }
+        .xp-fill { height: 100%; background: #3498db; width: 0%; transition: 0.3s; }
+        
+        #msg-log { position: fixed; bottom: 20px; left: 20px; z-index: 5000; color: #2ecc71; font-weight: bold; }
+        canvas#g { display: block; position: absolute; top: 0; left: 0; z-index: 1; visibility: hidden; }
+        .in { width: 90%; padding: 12px; font-size: 20px; margin-bottom: 15px; text-align: center; border-radius: 8px; border: 2px solid #f1c40f; background: #000; color: #fff; outline: none; }
     </style>
 </head>
-<body>
+<body oncontextmenu="event.preventDefault();">
+
     <div id="p-auth" class="ui">
-        <h1>SUPER HUMAN 2026</h1>
-        <input type="password" id="pw" placeholder="輸入激活金鑰" style="padding:10px; margin:10px;">
-        <button onclick="check()" style="padding:10px 40px;">驗證</button>
-        <button onclick="window.location.href='auth.html'" style="margin-top:20px; background:none; border:none; color:#666; cursor:pointer;">尚未登入購買？</button>
+        <div class="card">
+            <h1>SUPER HUMAN <span style="color:#fff;">2026</span></h1>
+            <p style="font-size:12px; color:#888;">授權系統 V18.0</p>
+            <input type="password" id="pw" class="in" placeholder="輸入激活金鑰">
+            <button class="btn btn-main" onclick="checkAuth()">激活並進入</button>
+            <button onclick="window.location.href='auth.html'" style="margin-top:15px; background:none; border:none; color:#666; cursor:pointer;">尚未登入購買？點此前往</button>
+        </div>
     </div>
 
     <div id="hud">
-        🕒 <span id="clock-v">12:00</span> | ❤️ HP: <span id="hp-v">100</span><br>
-        ⚔️ [K] 攻擊 | 🏗️ 挖/放方塊
+        🕒 時間: <span id="tm">12:00</span> | ⭐ 等級: <span id="lv">1</span><br>
+        ❤️ 血量: <span id="hp">100</span> / <span id="mhp">100</span><br>
+        📍 海拔: <span id="alt">0</span>m | ⚔️ [K] 攻擊
+        <div class="xp-bar"><div id="xp-f" class="xp-fill"></div></div>
     </div>
+
+    <div id="msg-log"></div>
     <canvas id="g"></canvas>
 
 <script>
     const KEYS = { SOLO: 'ryan0111407', FAM: 'ryan-family-2026' };
     var live = false, world = {}, ents = [], keys = {}, ticks = 600, T = 32;
-    var p = { x: -500, y: 0, w: 20, h: 40, vx: 0, vy: 0, hp: 100, atkCd: 0 };
+    var p = { x: -1500, y: 0, w: 22, h: 42, vx: 0, vy: 0, hp: 100, max: 100, xp: 0, lv: 1, atkCd: 0 };
+    var clouds = [];
 
-    function check() {
+    function checkAuth() {
         let v = document.getElementById('pw').value.trim();
         if(v === KEYS.SOLO || v === KEYS.FAM) {
             document.getElementById('p-auth').style.display='none';
-            start(v === KEYS.FAM ? 15 : 1);
-        } else alert("金鑰無效");
+            startGame(v === KEYS.FAM ? 15 : 1);
+        } else alert("金鑰錯誤");
     }
 
     function getB(gx, gy) {
         if(world[gx+'_'+gy] !== undefined) return world[gx+'_'+gy];
-        let f = Math.floor(130 + Math.sin(gx * 0.2) * 15);
-        return (gy < f) ? 0 : (gy === f ? 2 : 1);
+        var agx = Math.abs(gx), f;
+        if (agx < 65) f = Math.floor(150 - (56 * Math.exp(-Math.pow(gx / 35, 2)))) + Math.floor((gx % 4)/3);
+        else f = Math.floor(138 + Math.sin(gx * 0.2) * 15 + Math.cos(gx * 0.1) * 10);
+        return (gy < f) ? 0 : (gy === f ? 2 : (gy <= f+5 ? 3 : 1));
     }
 
-    function start(n) {
+    function startGame(n) {
         let c = document.getElementById('g'); c.width = window.innerWidth; c.height = window.innerHeight;
         c.style.visibility = 'visible'; document.getElementById('hud').style.display='block';
         let sy = 0; while(getB(Math.floor(p.x/T), Math.floor(sy/T)) === 0) sy += T;
-        p.y = sy - 100;
+        p.y = sy - 160;
         
-        // 生成隊友、怪物與動物
-        for(let i=0; i<n-1; i++) ents.push({type:'ally', x:p.x+50, y:p.y, hp:100, dir:1});
-        for(let i=0; i<5; i++) ents.push({type:'mob', x:p.x+800+(i*200), y:p.y, hp:50, dir:1}); // 怪物
-        for(let i=0; i<5; i++) ents.push({type:'animal', x:p.x-500-(i*200), y:p.y, hp:20, dir:1}); // 動物
+        // 初始化雲朵
+        for(let i=0; i<15; i++) clouds.push({x: Math.random()*c.width, y: Math.random()*300, s: Math.random()*2+1});
+        
+        // 生成隊友與生物
+        for(let i=0; i<n-1; i++) ents.push({type:'ally', x:p.x+50+(i*30), y:p.y, hp:100, max:100, vx:0, vy:0});
+        for(let i=0; i<8; i++) spawnMob();
         
         live = true; loop();
     }
 
+    function spawnMob() {
+        let tx = p.x + (Math.random() > 0.5 ? 800 : -800) + (Math.random()*400);
+        ents.push({type: Math.random()>0.7?'mob':'animal', x:tx, y:p.y-200, hp:40, max:40, vx:0, vy:0, dir:1});
+    }
+
+    function log(m) {
+        let el = document.getElementById('msg-log'); el.innerText = m;
+        setTimeout(() => el.innerText = "", 2000);
+    }
+
     window.onkeydown = e => {
         if(e.code === 'KeyK' && p.atkCd <= 0) {
-            p.atkCd = 15;
+            p.atkCd = 12;
             ents.forEach(e => {
-                if(Math.hypot(e.x-p.x, e.y-p.y) < 80) { e.hp -= 20; e.vx = (e.x > p.x ? 10 : -10); }
+                if(Math.hypot(e.x-p.x, e.y-p.y) < 100) {
+                    e.hp -= 20; e.vx = (e.x > p.x ? 12 : -12);
+                    if(e.hp <= 0) { p.xp += 30; log("+30 XP 獲得"); checkLv(); }
+                }
             });
         }
         keys[e.code] = true;
     };
     window.onkeyup = e => keys[e.code] = false;
 
-    function loop() {
+    window.onmousedown = e => {
         if(!live) return;
-        let c = document.getElementById('g'), ctx = c.getContext('2d');
-        ticks = (ticks + 0.08) % 1440;
-        if(p.atkCd > 0) p.atkCd--;
+        let c = document.getElementById('g'), cx = p.x-c.width/2, cy = p.y-c.height/2;
+        let gx = Math.floor((e.clientX+cx)/T), gy = Math.floor((e.clientY+cy)/T);
+        if(e.button === 0) { world[gx+'_'+gy] = 0; log("挖掘方塊"); }
+        if(e.button === 2) { world[gx+'_'+gy] = 1; log("放置石頭"); }
+    };
 
-        [p, ...ents].forEach(e => {
-            e.vy = (e.vy || 0) + 0.8; e.y += e.vy; e.x += (e.vx || 0); e.vx = (e.vx || 0) * 0.8;
-            let hit = () => getB(Math.floor(e.x/T), Math.floor(e.y/T))>0;
-            if(hit()) { while(hit()) e.y -= 1; e.vy = 0; e.gr = true; } else e.gr = false;
-
-            if(e === p) {
-                if(keys['KeyD']) p.x += 7; if(keys['KeyA']) p.x -= 7;
-                if(keys['Space'] && p.gr) p.vy = -12;
-            } else {
-                // AI 行為
-                if(e.type === 'mob') { // 怪物追玩家
-                    e.x += (p.x > e.x ? 2.5 : -2.5);
-                    if(Math.hypot(e.x-p.x, e.y-p.y) < 30) p.hp -= 0.5;
-                } else if(e.type === 'animal') { // 動物逃跑
-                    if(Math.hypot(e.x-p.x, e.y-p.y) < 150) e.x += (p.x > e.x ? -3 : 3);
-                }
-                if(hit() && e.gr) e.vy = -8;
-            }
-        });
-
-        ctx.fillStyle = (ticks > 1000 || ticks < 300) ? '#050510' : '#87ceeb';
-        ctx.fillRect(0,0,c.width,c.height);
-        let cx = p.x-c.width/2, cy = p.y-c.height/2;
-        
-        // 繪製地圖
-        for(let x=Math.floor(cx/T); x<Math.ceil((cx+c.width)/T); x++) {
-            for(let y=Math.floor(cy/T); y<Math.ceil((cy+c.height)/T); y++) {
-                let b = getB(x, y);
-                if(b) { ctx.fillStyle = b===2?"#2ecc71":"#795548"; ctx.fillRect(x*T-cx, y*T-cy, T, T); }
-            }
-        }
-
-        // 繪製實體
-        [p, ...ents].forEach(e => {
-            if(e.hp <= 0) return;
-            ctx.fillStyle = e===p?'#e67e22':(e.type==='mob'?'#e74c3c':(e.type==='animal'?'#2ecc71':'#3498db'));
-            ctx.fillRect(e.x-cx, e.y-cy, 20, 40);
-        });
-
-        document.getElementById('hp-v').innerText = Math.max(0, Math.floor(p.hp));
-        document.getElementById('clock-v').innerText = Math.floor(ticks/60).toString().padStart(2,'0')+":"+Math.floor(ticks%60).toString().padStart(2,'0');
-        requestAnimationFrame(loop);
-    }
-</script>
-</body>
-</html>
+    function checkLv() {
+        if(p.xp >= p.lv * 100) {
+            p.xp = 0; p.lv++; p.max += 20; p.hp = p.max;
