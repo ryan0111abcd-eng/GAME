@@ -2,21 +2,19 @@
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
-    <title>Minecraft 遠征隊 - 登入</title>
+    <title>遠征隊註冊</title>
     <style>
-        body { font-family: 'Segoe UI', sans-serif; background: #1a1a1a; color: white; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; }
-        .card { background: #2d2d2d; padding: 40px; border-radius: 12px; border: 4px solid #000; box-shadow: inset -4px -4px #1a1a1a; width: 300px; text-align: center; }
-        input { width: 100%; padding: 12px; margin: 20px 0; background: #000; border: 2px solid #555; color: #3fb950; box-sizing: border-box; }
-        button { width: 100%; padding: 12px; background: #3fb950; color: white; border: none; cursor: pointer; font-weight: bold; }
-        button:hover { background: #45c957; }
+        body { font-family: sans-serif; background: #0d1117; color: white; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; }
+        .card { background: #161b22; padding: 40px; border-radius: 20px; text-align: center; width: 300px; border: 1px solid #30363d; }
+        input { width: 100%; padding: 12px; margin: 20px 0; border-radius: 8px; border: 1px solid #30363d; background: #0d1117; color: #58a6ff; box-sizing: border-box; }
+        button { width: 100%; padding: 12px; background: #238636; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; }
     </style>
 </head>
 <body>
     <div class="card">
-        <h2 style="margin-bottom: 5px;">遠征隊登入</h2>
-        <p style="font-size: 12px; color: #888;">請輸入您的玩家標籤</p>
-        <input type="text" id="pID" placeholder="Player ID">
-        <button onclick="login()">進入方案選擇頁</button>
+        <h2>遠征隊 ID 註冊</h2>
+        <input type="text" id="pID" placeholder="輸入玩家 ID">
+        <button onclick="login()">開始選擇方案</button>
     </div>
     <script>
         function login() {
