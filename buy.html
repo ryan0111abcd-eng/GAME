@@ -2,37 +2,42 @@
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
-    <title>贊助會員 - 享75折福利</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>升級會員 - 75折福利</title>
     <style>
-        body { font-family: sans-serif; background: #121212; color: white; padding: 2rem; text-align: center; }
-        .price-card { background: #1e1e1e; border: 2px solid #4CAF50; padding: 2rem; display: inline-block; border-radius: 15px; }
-        .old-price { text-decoration: line-through; color: #888; }
-        .new-price { font-size: 2rem; color: #4CAF50; font-weight: bold; }
-        .benefit { margin: 15px 0; text-align: left; }
-        .btn-buy { background: #ffd700; color: black; padding: 15px 30px; font-weight: bold; border-radius: 5px; cursor: pointer; text-decoration: none; display: inline-block; }
+        body { font-family: sans-serif; background: #1a1a1a; color: #ddd; text-align: center; padding-top: 50px; }
+        .premium-box { background: linear-gradient(145deg, #222, #111); border: 2px solid #ffd700; padding: 40px; border-radius: 20px; display: inline-block; max-width: 400px; box-shadow: 0 0 20px rgba(255,215,0,0.2); }
+        .discount-badge { background: #e74c3c; color: white; padding: 5px 10px; border-radius: 5px; font-weight: bold; }
+        .price { font-size: 2.5rem; color: #ffd700; margin: 20px 0; }
+        .old-price { text-decoration: line-through; color: #666; font-size: 1.2rem; }
+        ul { text-align: left; line-height: 2; margin: 20px 0; }
+        .buy-btn { background: #ffd700; color: #000; padding: 15px 40px; border-radius: 30px; font-weight: bold; cursor: pointer; border: none; font-size: 1.1rem; }
+        .buy-btn:hover { transform: scale(1.05); background: #fff; }
     </style>
 </head>
 <body>
-    <h1>升級成為 Pro 會員</h1>
-    <div class="price-card">
-        <h3>全選通會員</h3>
-        <p class="old-price">原價：$1000 TWD</p>
-        <p class="new-price">特價：$750 TWD</p>
-        <div class="benefit">
-            <p>✅ 遊戲內商店永久 75 折</p>
-            <p>✅ 搶先體驗最新 1.1.0 Beta 版本</p>
-            <p>✅ 專屬會員重生點 (不再卡地表)</p>
-        </div>
-        <div class="btn-buy" onclick="upgradeMember()">立即升級</div>
+    <div class="premium-box">
+        <span class="discount-badge">限時福利：75折</span>
+        <h2>PRO 開發者會員</h2>
+        <div class="old-price">原價 $1,000</div>
+        <div class="price">$750 <small>TWD</small></div>
+        <ul>
+            <li>✅ 解鎖最新 v1.1.0-dev 測試版</li>
+            <li>✅ 遊戲內商城所有方塊 75 折</li>
+            <li>✅ 優先解決「卡在地面」Bug 諮詢</li>
+            <li>✅ 專屬金黃色玩家名稱標籤</li>
+        </ul>
+        <button class="buy-btn" onclick="purchase()">立即購買升級</button>
+        <p><a href="index.html" style="color: #888; text-decoration: none;">返回首頁</a></p>
     </div>
-    <br><br>
-    <a href="index.html" style="color: #aaa;">回到首頁</a>
 
     <script>
-        function upgradeMember() {
-            localStorage.setItem('isVip', 'true');
-            alert('感謝支持！您已獲得會員福利。');
-            window.location.href = 'index.html';
+        function purchase() {
+            if (confirm("確認要花費 $750 升級為 PRO 會員嗎？")) {
+                localStorage.setItem('isVip', 'true');
+                alert("升級成功！歡迎加入開發團隊。");
+                window.location.href = 'index.html';
+            }
         }
     </script>
 </body>
