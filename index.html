@@ -4,104 +4,88 @@
     <meta charset="UTF-8">
     <title>我的類 Minecraft 網頁版</title>
     <style>
-        body { font-family: 'Segoe UI', sans-serif; background: #1a1a2e; color: white; margin: 0; text-align: center; overflow: hidden; }
+        body { font-family: 'Segoe UI', sans-serif; background: #1a1a2e; color: white; margin: 0; text-align: center; }
         nav { background: #16213e; padding: 10px 20px; display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #4ecca3; }
-        .game-header { margin-top: 10px; font-size: 14px; color: #95a5a6; }
-        
-        /* 遊戲畫布容器 */
-        #game-container { 
-            width: 800px; height: 400px; background: #000; margin: 20px auto; 
-            border: 4px solid #333; border-radius: 10px; position: relative; overflow: hidden;
-        }
+        #game-container { width: 800px; height: 400px; background: #000; margin: 20px auto; border: 4px solid #333; border-radius: 10px; position: relative; }
         .vip-active { border-color: gold !important; box-shadow: 0 0 20px rgba(255, 215, 0, 0.5); }
-        
-        /* 介面元素 */
         .badge { background: gold; color: black; padding: 2px 6px; border-radius: 4px; font-weight: bold; font-size: 12px; }
-        .shop-link { background: #f1c40f; color: black; padding: 8px 15px; text-decoration: none; border-radius: 5px; font-weight: bold; }
-        .price-info { margin-top: 10px; font-size: 18px; color: #4ecca3; }
+        .shop-btn { background: #f1c40f; color: black; padding: 8px 15px; text-decoration: none; border-radius: 5px; font-weight: bold; }
     </style>
 </head>
 <body>
 
 <nav>
-    <div id="user-tag">載入玩家...</div>
+    <div id="user-display">載入中...</div>
     <div>
-        <span id="version-tag">版本：v1.0.0</span>
-        <a href="buy.html" class="shop-link">進入商店 (會員75折)</a>
+        <span id="ver">版本：v1.0.0</span>
+        <a href="buy.html" class="shop-btn">商店 (75折)</a>
     </div>
 </nav>
 
-<div class="game-header">操控：WASD 移動 | 空白鍵跳躍</div>
+<div style="margin-top:10px; color:#888;">WASD 移動 | 空白鍵跳躍</div>
 
 <div id="game-container">
-    <canvas id="gameCanvas"></canvas>
+    <canvas id="mainCanvas"></canvas>
 </div>
 
-<div class="price-info" id="price-display">
-    今日方塊特價：$100 <span id="discount-text"></span>
-</div>
+<div id="price-tag">今日方塊：$100 <span id="discount"></span></div>
 
 <script>
-    // --- 1. 讀取以前的規則 (會員與玩家資料) ---
-    const username = localStorage.getItem('game_user') || "遊客";
+    // --- 1. 初始化與自動登入規則 ---
+    let user = localStorage.getItem('game_user');
+    if (!user) {
+        user = "快速測試者"; // 如果沒登入，強制給予名稱，避免卡死
+        localStorage.setItem('game_user', user);
+    }
     const isVip = localStorage.getItem('isVip') === 'true';
-    
-    // 更新介面顯示
-    document.getElementById('user-tag').innerHTML = `玩家：${username} ${isVip ? '<span class="badge">PRO 會員</span>' : ''}`;
-    
+
+    // UI 更新
+    document.getElementById('user-display').innerHTML = `玩家：${user} ${isVip ? '<span class="badge">PRO</span>' : ''}`;
     if (isVip) {
-        document.getElementById('version-tag').innerText = "版本：v1.1.0-Beta (最新版)";
+        document.getElementById('ver').innerText = "版本：v1.1.0-Beta";
         document.getElementById('game-container').classList.add('vip-active');
-        document.getElementById('discount-text').innerHTML = "<strong style='color:gold'> -> 會員價 $75 (75折)</strong>";
+        document.getElementById('discount').innerHTML = " -> <b style='color:gold'>會員價 $75</b>";
     }
 
-    // --- 2. 遊戲核心邏輯 (防止卡在地面) ---
-    const canvas = document.getElementById('gameCanvas');
+    // --- 2. 遊戲引擎循環 (防止卡在地面) ---
+    const canvas = document.getElementById('mainCanvas');
     const ctx = canvas.getContext('2d');
-    canvas.width = 800;
-    canvas.height = 400;
+    canvas.width = 800; canvas.height = 400;
 
-    // 玩家屬性
-    let player = {
-        x: 100,
-        y: 300,
-        width: 30,
-        height: 30,
-        color: isVip ? "gold" : "#4ecca3",
-        dy: 0,
-        jumpForce: -12,
-        speed: 5,
-        grounded: false
-    };
-
-    let gravity = 0.6;
+    let player = { x: 100, y: 300, w: 30, h: 30, dy: 0, grounded: false };
     let keys = {};
 
-    // 監聽按鍵
-    window.addEventListener('keydown', e => keys[e.code] = true);
-    window.addEventListener('keyup', e => keys[e.code] = false);
+    window.onkeydown = (e) => keys[e.code] = true;
+    window.onkeyup = (e) => keys[e.code] = false;
 
-    function update() {
-        // 左右移動
-        if (keys['KeyA']) player.x -= player.speed;
-        if (keys['KeyD']) player.x += player.speed;
+    function gameLoop() {
+        // 物理計算
+        if (keys['KeyA']) player.x -= 5;
+        if (keys['KeyD']) player.x += 5;
+        if (keys['Space'] && player.grounded) { player.dy = -12; player.grounded = false; }
 
-        // 跳躍邏輯
-        if (keys['Space'] && player.grounded) {
-            player.dy = player.jumpForce;
-            player.grounded = false;
-        }
-
-        // 重力演算
-        player.dy += gravity;
+        player.dy += 0.6; // 重力
         player.y += player.dy;
 
-        // --- 核心防卡規則：地面判定 ---
-        const groundLevel = canvas.height - 40; // 假設地表高度
-        
-        if (player.y + player.height > groundLevel) {
-            player.y = groundLevel - player.height; // 強制修正坐標到地表上方
+        // 地面判定 (y=360 是地板)
+        if (player.y + player.h > 360) {
+            player.y = 360 - player.h; // 防止卡入地面的關鍵回推
             player.dy = 0;
             player.grounded = true;
-        } else {
-            player.ground
+        }
+
+        // 渲染畫面
+        ctx.fillStyle = "#1a1a2e"; ctx.fillRect(0, 0, 800, 400); // 背景
+        ctx.fillStyle = "#333"; ctx.fillRect(0, 360, 800, 40); // 地板
+
+        if (isVip) { ctx.shadowBlur = 20; ctx.shadowColor = "gold"; }
+        ctx.fillStyle = isVip ? "gold" : "#4ecca3";
+        ctx.fillRect(player.x, player.y, player.w, player.h); // 玩家
+        ctx.shadowBlur = 0;
+
+        requestAnimationFrame(gameLoop);
+    }
+    gameLoop();
+</script>
+</body>
+</html>
