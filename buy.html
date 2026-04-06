@@ -4,60 +4,47 @@
     <meta charset="UTF-8">
     <title>方案與會員選擇</title>
     <style>
-        body { font-family: sans-serif; background: #0a0a0a; color: white; text-align: center; padding: 20px; }
-        .grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 15px; max-width: 1200px; margin: 0 auto; }
-        .plan-card { background: #161616; border: 1px solid #333; padding: 20px; border-radius: 15px; cursor: pointer; transition: 0.3s; }
-        .plan-card:hover { border-color: #2ecc71; transform: scale(1.05); }
-        .plan-card h3 { color: #2ecc71; font-size: 16px; }
+        body { font-family: sans-serif; background: #0d1117; color: white; text-align: center; padding: 20px; }
+        .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; max-width: 1100px; margin: 0 auto; }
+        .plan-card { background: #161b22; border: 1px solid #30363d; padding: 20px; border-radius: 15px; cursor: pointer; transition: 0.3s; }
+        .plan-card:hover { border-color: #58a6ff; transform: translateY(-5px); }
+        .plan-card h3 { color: #58a6ff; margin: 10px 0; }
         
-        /* 會員彈窗 */
-        #modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.9); justify-content: center; align-items: center; }
-        .modal-content { background: #222; padding: 30px; border-radius: 20px; width: 400px; }
-        .member-opt { background: #333; margin: 10px 0; padding: 15px; border-radius: 10px; cursor: pointer; transition: 0.2s; }
-        .member-opt:hover { background: #444; border-left: 5px solid gold; }
+        /* 彈窗 */
+        #modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); justify-content: center; align-items: center; z-index: 100; }
+        .modal-content { background: #161b22; padding: 30px; border-radius: 20px; width: 450px; border: 1px solid #30363d; }
+        .opt { background: #21262d; margin: 10px 0; padding: 15px; border-radius: 10px; cursor: pointer; text-align: left; transition: 0.2s; border: 1px solid transparent; }
+        .opt:hover { border-color: #58a6ff; background: #30363d; }
+        .price-tag { float: right; font-weight: bold; color: #3fb950; }
     </style>
 </head>
 <body>
-    <h1>選擇您的遠征方案 (1-10)</h1>
+    <h1>選擇遠征目的地</h1>
     <div class="grid" id="planGrid"></div>
 
     <div id="modal">
         <div class="modal-content">
-            <h3>請選擇會員等級</h3>
-            <p>等級越高，方塊折扣越多</p>
-            <div class="member-opt" onclick="setMember('一般', 1.0)">一般會員 (原價)</div>
-            <div class="member-opt" onclick="setMember('PRO', 0.9)" style="color: #add8e6;">PRO (9折)</div>
-            <div class="member-opt" onclick="setMember('PLUS', 0.85)" style="color: #90ee90;">PLUS (85折)</div>
-            <div class="member-opt" onclick="setMember('MAX', 0.8)" style="color: #ffa500;">MAX (8折)</div>
-            <div class="member-opt" onclick="setMember('VIP', 0.75)" style="color: #ffd700;">VIP (75折)</div>
+            <h3>請選擇會員方案</h3>
+            <div class="opt" onclick="setM('一般', 1.0)">一般方案 (單人模擬) <span class="price-tag">NT$ 150</span></div>
+            <div class="opt" onclick="setM('學生', 1.0)" style="color: #a5d6ff;">學生方案 (憑證折扣) <span class="price-tag">NT$ 90</span></div>
+            <div class="opt" onclick="setM('家庭', 1.0)" style="color: #ff7b72;">家庭方案 (多帳號共享) <span class="price-tag">NT$ 230</span></div>
+            <div class="opt" onclick="setM('大師', 0.85)" style="color: #d2a8ff;">大師方案 (享85折+特效) <span class="price-tag">NT$ 400</span></div>
+            <div class="opt" onclick="setM('VIP', 0.75)" style="color: #f2cc60;">終極 VIP (享75折+飛行) <span class="price-tag">NT$ 750</span></div>
         </div>
     </div>
 
     <script>
-        const plans = [
-            "聖山地圖", "深海遠征", "沙漠之鷹", "叢林生存", "地底迷宮", 
-            "極地寒冬", "天空之城", "岩漿地獄", "終界冒險", "創世神域"
-        ];
-        
+        const maps = ["聖山之巔", "地心礦脈", "浮空群島", "末日荒野", "深海亞特", "叢林秘境", "熔岩廢墟", "寒冰峽谷", "月球基地", "虛空神殿"];
         const grid = document.getElementById('planGrid');
-        plans.forEach((p, i) => {
-            grid.innerHTML += `
-                <div class="plan-card" onclick="openMember('${p}')">
-                    <h3>方案 ${i+1}</h3>
-                    <p>${p}</p>
-                    <small>NT$ ${99 + i*100}</small>
-                </div>`;
+        maps.forEach((m, i) => {
+            grid.innerHTML += `<div class="plan-card" onclick="openM('${m}')"><h3>方案 ${i+1}</h3><p>${m}</p></div>`;
         });
-
-        function openMember(planName) {
-            localStorage.setItem('selected_plan', planName);
-            document.getElementById('modal').style.display = 'flex';
-        }
-
-        function setMember(rank, discount) {
-            localStorage.setItem('member_rank', rank);
-            localStorage.setItem('discount', discount);
-            alert(`已選擇 ${rank} 等級！即將進入遊戲。`);
+        function openM(m) { localStorage.setItem('sel_map', m); document.getElementById('modal').style.display='flex'; }
+        function setM(r, d) {
+            localStorage.setItem('rank', r);
+            localStorage.setItem('disc', d);
+            const wantVip = (r === '一般' || r === '學生') ? confirm("【限時詢問】升級為 VIP 可享方塊 75 折與飛行！要加入嗎？") : false;
+            if(wantVip) { localStorage.setItem('rank', 'VIP'); localStorage.setItem('disc', 0.75); }
             window.location.href = 'index.html';
         }
     </script>
