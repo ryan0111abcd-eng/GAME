@@ -2,70 +2,80 @@
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
-    <title>遊戲主廳</title>
+    <title>遠征世界</title>
     <style>
-        body { font-family: sans-serif; background: #1a1a2e; color: white; margin: 0; text-align: center; }
-        nav { background: #16213e; padding: 15px; display: flex; justify-content: space-between; border-bottom: 2px solid #4ecca3; }
-        #game-screen { width: 800px; height: 400px; background: #000; margin: 20px auto; border: 5px solid #333; border-radius: 15px; overflow: hidden; }
-        .vip-glow { border-color: gold !important; box-shadow: 0 0 25px gold; }
-        .badge { background: gold; color: black; padding: 2px 6px; border-radius: 4px; font-weight: bold; }
+        body { font-family: sans-serif; background: #0a0a0a; color: white; margin: 0; text-align: center; }
+        nav { background: #1a1a1a; padding: 15px 30px; display: flex; justify-content: space-between; border-bottom: 2px solid #2ecc71; }
+        #stage { width: 800px; height: 400px; background: #000; margin: 20px auto; border-radius: 15px; border: 3px solid #333; position: relative; }
+        .pro-border { border-color: #f1c40f !important; box-shadow: 0 0 20px #f1c40f66; }
+        .master-border { border-color: #e67e22 !important; box-shadow: 0 0 20px #e67e2266; }
+        .tag { padding: 2px 8px; border-radius: 4px; font-size: 12px; font-weight: bold; margin-left: 10px; }
     </style>
 </head>
 <body>
 
 <nav>
-    <div id="p-info">載入中...</div>
-    <div id="v-info">穩定版 v1.0.0</div>
+    <div id="u-display">載入玩家...</div>
+    <div id="p-display">方案：未定</div>
 </nav>
 
-<div id="game-screen">
-    <canvas id="stage"></canvas>
+<div id="stage">
+    <canvas id="gameCanvas"></canvas>
 </div>
 
-<p id="shop-text">方塊售價：$100</p>
+<div id="info" style="color:#666; font-size:14px;">WASD 移動 | 會員可享 75 折建築優惠</div>
 
 <script>
     const user = localStorage.getItem('game_user');
+    const plan = localStorage.getItem('plan') || 'none';
     const isVip = localStorage.getItem('isVip') === 'true';
 
-    if (!user) window.location.href = 'auth.html';
+    if (!user || plan === 'none') window.location.href = 'auth.html';
 
-    document.getElementById('p-info').innerHTML = `玩家：${user} ${isVip ? '<span class="badge">PRO</span>' : ''}`;
-    
-    if (isVip) {
-        document.getElementById('v-info').innerText = "最新版 v1.1.0-Beta";
-        document.getElementById('game-screen').classList.add('vip-glow');
-        document.getElementById('shop-text').innerHTML = "方塊售價：$100 -> <b style='color:gold'>會員價 $75 (75折)</b>";
+    // UI 更新
+    document.getElementById('u-display').innerHTML = `冒險者：${user}`;
+    const pDisplay = document.getElementById('p-display');
+    const stage = document.getElementById('stage');
+
+    if (plan === 'pro') {
+        pDisplay.innerHTML = `<span class="tag" style="background:gold; color:black">專業版</span>`;
+        stage.classList.add('pro-border');
+    } else if (plan === 'master') {
+        pDisplay.innerHTML = `<span class="tag" style="background:#e67e22; color:white">大師版</span>`;
+        stage.classList.add('master-border');
+    } else {
+        pDisplay.innerHTML = `<span class="tag" style="background:#555; color:white">基礎版</span>`;
     }
 
-    // 遊戲物理引擎
-    const canvas = document.getElementById('stage');
+    // 遊戲物理
+    const canvas = document.getElementById('gameCanvas');
     const ctx = canvas.getContext('2d');
     canvas.width = 800; canvas.height = 400;
-    let p = { x: 100, y: 300, dy: 0, onG: false };
-    let k = {};
+    let player = { x: 50, y: 300, dy: 0, g: false, color: isVip ? "gold" : "#2ecc71" };
+    let keys = {};
 
-    window.onkeydown = e => k[e.code] = true;
-    window.onkeyup = e => k[e.code] = false;
+    window.onkeydown = e => keys[e.code] = true;
+    window.onkeyup = e => keys[e.code] = false;
 
-    function run() {
-        if(k['KeyA']) p.x -= 5;
-        if(k['KeyD']) p.x += 5;
-        if(k['Space'] && p.onG) { p.dy = -12; p.onG = false; }
+    function loop() {
+        if(keys['KeyA']) player.x -= 5;
+        if(keys['KeyD']) player.x += 5;
+        if(keys['Space'] && player.g) { player.dy = -12; player.g = false; }
         
-        p.dy += 0.6; p.y += p.dy;
-        if(p.y > 330) { p.y = 330; p.dy = 0; p.onG = true; } // 防卡地面
+        player.dy += 0.6; player.y += player.dy;
+        if(player.y > 330) { player.y = 330; player.dy = 0; player.g = true; }
 
-        ctx.fillStyle = "#1a1a2e"; ctx.fillRect(0,0,800,400);
-        ctx.fillStyle = "#333"; ctx.fillRect(0,360,800,40); // 地板
+        ctx.fillStyle = "#000"; ctx.fillRect(0,0,800,400);
+        ctx.fillStyle = "#1a1a1a"; ctx.fillRect(0,360,800,40);
         
-        if (isVip) { ctx.shadowBlur = 15; ctx.shadowColor = "gold"; }
-        ctx.fillStyle = isVip ? "gold" : "#4ecca3";
-        ctx.fillRect(p.x, p.y, 30, 30);
-        
-        requestAnimationFrame(run);
+        if (isVip) { ctx.shadowBlur = 20; ctx.shadowColor = player.color; }
+        ctx.fillStyle = player.color;
+        ctx.fillRect(player.x, player.y, 30, 30);
+        ctx.shadowBlur = 0;
+
+        requestAnimationFrame(loop);
     }
-    run();
+    loop();
 </script>
 </body>
 </html>
