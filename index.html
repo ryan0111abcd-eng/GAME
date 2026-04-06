@@ -2,12 +2,13 @@
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
-    <title>Minecraft 遠征 - 無限延伸</title>
+    <title>Minecraft 遠征世界</title>
     <style>
         body { margin: 0; background: #000; overflow: hidden; font-family: sans-serif; color: white; }
-        nav { position: fixed; top: 0; width: 100%; background: rgba(0,0,0,0.7); padding: 10px 20px; display: flex; justify-content: space-between; z-index: 10; }
+        nav { position: fixed; top: 0; width: 100%; background: rgba(0,0,0,0.7); padding: 10px 20px; display: flex; justify-content: space-between; z-index: 10; box-sizing: border-box; }
         canvas { display: block; background: #87CEEB; }
-        .hud { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: rgba(0,0,0,0.5); padding: 10px; border-radius: 10px; }
+        .hud { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: rgba(0,0,0,0.6); padding: 10px 20px; border-radius: 12px; font-size: 14px; border: 1px solid #555; }
+        .vip-gold { color: gold; font-weight: bold; }
     </style>
 </head>
 <body>
@@ -19,7 +20,7 @@
 
 <canvas id="game"></canvas>
 
-<div class="hud">A/D 移動 | 空白跳躍 | 左鍵挖塊 | 右鍵蓋塊</div>
+<div class="hud">A/D 移動 | 空白跳躍 | 左鍵挖掘 | 右鍵蓋塊</div>
 
 <script>
     const user = localStorage.getItem('mc_user');
@@ -28,8 +29,8 @@
     const disc = parseFloat(localStorage.getItem('discount') || 1);
 
     if(!user) window.location.href = 'auth.html';
-    document.getElementById('p-info').innerHTML = `玩家: ${user} [${rank}]`;
-    document.getElementById('m-info').innerText = `地圖: ${plan} | 折扣價: $${Math.round(100*disc)}`;
+    document.getElementById('p-info').innerHTML = `玩家: ${user} <span class="${rank==='VIP'?'vip-gold':''}">[${rank}]</span>`;
+    document.getElementById('m-info').innerText = `方案: ${plan} | 方塊價: $${Math.round(100*disc)}`;
 
     const canvas = document.getElementById('game');
     const ctx = canvas.getContext('2d');
@@ -37,20 +38,22 @@
     canvas.height = window.innerHeight;
 
     const blockSize = 40;
-    let world = {}; // 使用 Object 儲存，方便座標查詢 (無限延伸核心)
-    let player = { x: 200, y: 100, w: 30, h: 38, dy: 0, g: false };
+    let world = {}; 
+    let player = { x: 200, y: 0, w: 30, h: 38, dy: 0, g: false };
     let camera = { x: 0, y: 0 };
     let keys = {};
 
-    // 生成地形函式 (簡單隨機算法，模擬 3000m 山脈)
+    // --- 關鍵修正：填滿地圖 ---
     function generateColumn(x) {
-        if (world[x]) return; // 已生成過就不再生成
-        const baseHeight = 10;
-        const noise = Math.sin(x * 0.1) * 3; // 產生起伏
-        const h = Math.floor(baseHeight + noise);
+        if (world[x]) return;
+        const groundY = Math.floor(8 + Math.sin(x * 0.05) * 4); // 隨機地形起伏
         world[x] = [];
-        for(let y=h; y<h+5; y++) {
-            world[x].push({ y: y * blockSize, type: y === h ? 'grass' : 'dirt' });
+        // 從 groundY 一路填滿到下方 (25格深)
+        for(let y = groundY; y < groundY + 25; y++) {
+            let type = 'dirt';
+            if (y === groundY) type = 'grass';
+            if (y > groundY + 4) type = 'stone';
+            world[x].push({ y: y * blockSize, type: type });
         }
     }
 
@@ -62,10 +65,9 @@
         const my = e.clientY + camera.y;
         const gx = Math.floor(mx / blockSize) * blockSize;
         const gy = Math.floor(my / blockSize) * blockSize;
-
-        if(e.button === 0) { // 挖掘
+        if(e.button === 0) {
             if(world[gx]) world[gx] = world[gx].filter(b => b.y !== gy);
-        } else if(e.button === 2) { // 建築
+        } else if(e.button === 2) {
             if(!world[gx]) world[gx] = [];
             world[gx].push({ y: gy, type: 'wood' });
         }
@@ -81,14 +83,11 @@
         player.y += player.dy;
         player.g = false;
 
-        // 檢查當前玩家座標前後，自動生成地圖
-        const startX = Math.floor((player.x - 1000) / blockSize) * blockSize;
-        const endX = Math.floor((player.x + 1000) / blockSize) * blockSize;
-        for(let x = startX; x <= endX; x += blockSize) {
-            generateColumn(x);
-        }
+        const startX = Math.floor((player.x - 1200) / blockSize) * blockSize;
+        const endX = Math.floor((player.x + 1200) / blockSize) * blockSize;
+        for(let x = startX; x <= endX; x += blockSize) { generateColumn(x); }
 
-        // 碰撞檢測 (僅檢測玩家附近的方塊)
+        // 碰撞檢測
         const px = Math.floor(player.x / blockSize) * blockSize;
         [-blockSize, 0, blockSize].forEach(off => {
             let col = world[px + off];
@@ -96,13 +95,14 @@
                 col.forEach(b => {
                     if(player.x < (px + off) + blockSize && player.x + player.w > (px + off) &&
                        player.y + player.h > b.y && player.y < b.y + blockSize) {
-                        if(player.dy > 0) { player.y = b.y - player.h; player.dy = 0; player.g = true; }
+                        if(player.dy > 0 && player.y + player.h < b.y + 20) { 
+                            player.y = b.y - player.h; player.dy = 0; player.g = true; 
+                        }
                     }
                 });
             }
         });
 
-        // 鏡頭隨動
         camera.x = player.x - canvas.width / 2;
         camera.y = player.y - canvas.height / 2;
     }
@@ -112,20 +112,21 @@
         ctx.save();
         ctx.translate(-camera.x, -camera.y);
 
-        // 只繪製攝影機範圍內的方塊 (節省效能)
         const vStart = Math.floor(camera.x / blockSize) * blockSize;
         const vEnd = Math.floor((camera.x + canvas.width) / blockSize) * blockSize;
 
         for(let x = vStart; x <= vEnd; x += blockSize) {
             if(world[x]) {
                 world[x].forEach(b => {
-                    ctx.fillStyle = b.type === 'grass' ? '#5da346' : (b.type==='dirt'?'#855c33':'#ab7d4f');
+                    if(b.type === 'grass') ctx.fillStyle = '#5da346';
+                    else if(b.type === 'dirt') ctx.fillStyle = '#855c33';
+                    else if(b.type === 'stone') ctx.fillStyle = '#777';
+                    else ctx.fillStyle = '#ab7d4f';
                     ctx.fillRect(x, b.y, blockSize-1, blockSize-1);
                 });
             }
         }
 
-        // 玩家
         ctx.fillStyle = (rank === 'VIP') ? 'gold' : 'white';
         if(rank === 'VIP') { ctx.shadowBlur = 20; ctx.shadowColor = 'gold'; }
         ctx.fillRect(player.x, player.y, player.w, player.h);
