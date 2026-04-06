@@ -2,56 +2,41 @@
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
-    <title>選擇您的方案</title>
+    <title>選擇遠征方案</title>
     <style>
-        body { font-family: sans-serif; background: #0a0a0a; color: white; margin: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; }
+        body { font-family: sans-serif; background: #0a0a0a; color: white; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; margin: 0; }
         .container { display: flex; gap: 20px; }
-        .card { background: #161616; border: 1px solid #333; border-radius: 24px; width: 260px; padding: 40px 20px; text-align: center; transition: 0.3s; position: relative; }
-        .card:hover { border-color: #2ecc71; transform: translateY(-10px); }
-        .pro-card { border: 2px solid #f1c40f; box-shadow: 0 0 20px rgba(241, 196, 15, 0.2); }
+        .card { background: #161616; border: 1px solid #333; border-radius: 20px; width: 260px; padding: 40px 20px; text-align: center; transition: 0.3s; position: relative; }
+        .pro { border: 2px solid #f1c40f; box-shadow: 0 0 20px #f1c40f33; }
         .price { font-size: 32px; font-weight: bold; margin: 20px 0; }
-        .features { text-align: left; margin: 25px 0; font-size: 13px; color: #bbb; min-height: 100px; }
-        .features div { margin: 8px 0; }
-        .features div::before { content: '✓ '; color: #2ecc71; }
         .buy-btn { background: #2ecc71; color: white; border: none; width: 100%; padding: 15px; border-radius: 12px; font-weight: bold; cursor: pointer; }
         .recom { position: absolute; top: -12px; left: 50%; transform: translateX(-50%); background: #f1c40f; color: black; padding: 2px 10px; border-radius: 4px; font-size: 12px; }
     </style>
 </head>
 <body>
-    <h1 style="margin-bottom:40px;">選擇您的方案</h1>
+    <h1 style="margin-bottom:40px;">選擇您的遠征方案</h1>
     <div class="container">
         <div class="card">
-            <h2 style="color:#bbb">基礎版</h2>
+            <h2>基礎版</h2>
             <div class="price">NT$ 99</div>
-            <div class="features">
-                <div>單人 3000m 聖山地圖</div>
-                <div>基礎生存包</div>
-            </div>
-            <button class="buy-btn" onclick="select(false)">立即購買</button>
+            <p style="font-size:13px; color:#888;">3000m 聖山地圖<br>正版物理規則</p>
+            <button class="buy-btn" onclick="check(false)">立即購買</button>
         </div>
-        <div class="card pro-card">
+        <div class="card pro">
             <div class="recom">推薦</div>
             <h2 style="color:#f1c40f">專業版</h2>
             <div class="price">NT$ 299</div>
-            <div class="features">
-                <div>多人小隊權限</div>
-                <div>能量攻擊 [K] 鍵</div>
-                <div><strong>商城 75 折優惠</strong></div>
-            </div>
-            <button class="buy-btn" style="background:#f1c40f; color:black;" onclick="select(true)">立即購買</button>
+            <p style="font-size:13px; color:#888;"><strong>商城永久 75 折</strong><br>[K] 鍵能量攻擊</p>
+            <button class="buy-btn" style="background:#f1c40f; color:black" onclick="check(true)">立即購買</button>
         </div>
     </div>
-
     <script>
-        function select(isVip) {
-            // 規則：選完後問你要不要加入會員
+        function check(isVip) {
             if (!isVip) {
-                const upgrade = confirm("【冒險者請留步！】\n專業版僅需 NT$299，即可享有商城 75 折與能量攻擊！\n\n點擊『確定』繼續基礎版\n點擊『取消』回頁面升級專業版");
+                const upgrade = confirm("【會員招募中】\n專業版僅需 $299，即可享有商城 75 折優惠！\n\n按『確定』：繼續基礎版\n按『取消』：回頁面加入會員");
                 if (!upgrade) return;
             }
-            
             localStorage.setItem('isVip', isVip ? 'true' : 'false');
-            localStorage.setItem('plan_selected', 'true');
             alert("方案套用成功！");
             window.location.href = 'index.html';
         }
