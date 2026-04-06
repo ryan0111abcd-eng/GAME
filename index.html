@@ -2,174 +2,118 @@
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>SUPER HUMAN 2026 - FIX</title>
+    <title>SUPER HUMAN 2026 - GAME</title>
     <style>
-        body, html { margin: 0; padding: 0; width: 100%; height: 100%; background: #000; overflow: hidden; font-family: 'Segoe UI', sans-serif; }
-        .ui-layer { position: fixed; inset: 0; z-index: 10000; display: flex; flex-direction: column; align-items: center; justify-content: center; background: radial-gradient(circle, #1a1a1a 0%, #000 100%); color: #f1c40f; }
-        .auth-card { background: rgba(255,255,255,0.05); padding: 40px; border-radius: 24px; border: 1px solid #f1c40f55; text-align: center; box-shadow: 0 0 50px rgba(0,0,0,0.8); width: 350px; }
-        .btn { display: flex; align-items: center; justify-content: center; width: 320px; height: 60px; margin: 15px auto; font-size: 20px; font-weight: bold; color: #000; background: #f1c40f; border: 2px solid #fff; border-radius: 15px; box-shadow: 0 6px 0 #b8860b; cursor: pointer; transition: 0.1s; }
-        .btn:active { transform: translateY(4px); box-shadow: 0 2px 0 #b8860b; }
-        .btn-buy { background: #2ecc71; color: #fff; box-shadow: 0 6px 0 #27ae60; border: none; }
-        .in-box { width: 300px; padding: 15px; font-size: 24px; border: 2px solid #f1c40f; border-radius: 12px; background: #111; color: #fff; text-align: center; margin-bottom: 10px; outline: none; }
-        #hud { position: fixed; top: 15px; left: 15px; z-index: 5000; color: white; background: rgba(0,0,0,0.8); padding: 12px; border-radius: 10px; border: 2px solid #f1c40f; display: none; pointer-events: none; }
-        canvas#g { display: block; position: absolute; top: 0; left: 0; z-index: 1; visibility: hidden; background: #000; }
+        body, html { margin: 0; padding: 0; width: 100%; height: 100%; background: #000; overflow: hidden; font-family: sans-serif; }
+        .ui { position: fixed; inset: 0; z-index: 10; display: flex; flex-direction: column; align-items: center; justify-content: center; background: radial-gradient(circle, #1a1a1a, #000); color: #f1c40f; }
+        .card { background: rgba(255,255,255,0.05); padding: 40px; border-radius: 20px; border: 1px solid #f1c40f55; text-align: center; width: 320px; }
+        .btn { width: 100%; height: 55px; margin: 10px 0; font-size: 18px; font-weight: bold; cursor: pointer; border-radius: 12px; border: 2px solid #fff; transition: 0.1s; }
+        .btn-main { background: #f1c40f; color: #000; box-shadow: 0 5px 0 #b8860b; }
+        .btn-buy { background: #2ecc71; color: #fff; border: none; box-shadow: 0 5px 0 #27ae60; }
+        .btn:active { transform: translateY(3px); box-shadow: 0 1px 0 #666; }
+        .in { width: 90%; padding: 12px; font-size: 20px; margin-bottom: 15px; text-align: center; border-radius: 8px; border: 2px solid #f1c40f; background: #000; color: #fff; }
+        #hud { position: fixed; top: 15px; left: 15px; z-index: 5; color: #fff; background: rgba(0,0,0,0.7); padding: 10px; border-radius: 8px; border: 1px solid #f1c40f; display: none; pointer-events: none; }
+        canvas { display: block; visibility: hidden; }
     </style>
 </head>
-<body oncontextmenu="event.preventDefault();">
+<body>
 
-    <div id="p-auth" class="ui-layer">
-        <div class="auth-card">
-            <h1>SUPER HUMAN <span style="color:#fff;">2026</span></h1>
-            <p id="auth-hint" style="color:#aaa; font-size: 14px; margin-bottom: 20px;">請輸入金鑰激活系統</p>
-            <input type="password" id="pw" class="in-box" placeholder="點擊貼上金鑰">
-            <button class="btn" onclick="checkAuth()">驗證授權</button>
-            <hr style="border:0; border-top:1px solid #333; margin:20px 0;">
-            <button class="btn btn-buy" onclick="goToStore()">🛒 前往購買授權金鑰</button>
+    <div id="p-auth" class="ui">
+        <div class="card">
+            <h1>SUPER HUMAN 2026</h1>
+            <input type="password" id="pw" class="in" placeholder="在此貼上金鑰">
+            <button class="btn btn-main" onclick="check()">驗證授權</button>
+            <button class="btn btn-buy" onclick="window.open('buy.html','_blank')">🛒 前往購買金鑰</button>
         </div>
     </div>
 
-    <div id="p-conn" class="ui-layer" style="display:none;">
-        <h1 style="color:#2ecc71;">✓ 驗證成功</h1>
-        <button class="btn" onclick="startGame(1)">👤 單人模式</button>
-        <button class="btn" onclick="startGame(15)">👥 多人小隊 (15人)</button>
+    <div id="p-conn" class="ui" style="display:none;">
+        <h1 style="color:#2ecc71;">激活成功</h1>
+        <button class="btn btn-main" onclick="start(1)">👤 單人模式</button>
+        <button class="btn btn-main" onclick="start(15)">👥 多人小隊 (15人)</button>
     </div>
 
-    <div id="hud">
-        🕒 速率 1.5x | ❤️ HP: <span id="p-hp-hud">100</span> | 📍 海拔: <span id="alt-v">0</span>m | ⚔️ [K] 攻擊
-    </div>
+    <div id="hud">❤️ HP: <span id="hp">100</span> | 📍 海拔: <span id="alt">0</span>m | ⚔️ [K] 攻擊</div>
     <canvas id="g"></canvas>
 
 <script>
-    const AUTH_KEY = 'ryan0111407';
-    var live = false, world = {}, ents = [], keys = {}, ticks = 600, T = 32, squadSize = 1;
-    var p = { x: 0, y: 0, w: 22, h: 42, vx: 0, vy: 0, hp: 100, max: 100, gr: false, atkCd: 0 };
+    const KEY = 'ryan0111407';
+    var live = false, world = {}, ents = [], keys = {}, ticks = 600, T = 32;
+    var p = { x: -1500, y: 0, w: 22, h: 42, vx: 0, vy: 0, hp: 100, max: 100, atkCd: 0 };
 
-    window.onload = function() {
-        if(localStorage.getItem('sh_save_v10')) world = JSON.parse(localStorage.getItem('sh_save_v10'));
-        if (localStorage.getItem('super_human_auth') === AUTH_KEY) {
-            document.getElementById('p-auth').style.display = 'none';
-            document.getElementById('p-conn').style.display = 'flex';
-        }
-    };
-
-    function goToStore() {
-        window.open('buy.html', '_blank');
-        document.getElementById('auth-hint').innerText = "請在 buy.html 購買後回到此處輸入代碼";
-        document.getElementById('auth-hint').style.color = "#f1c40f";
-    }
-
-    function checkAuth() {
-        if(document.getElementById('pw').value.trim() === AUTH_KEY) {
-            localStorage.setItem('super_human_auth', AUTH_KEY);
-            document.getElementById('p-auth').style.display = 'none';
-            document.getElementById('p-conn').style.display = 'flex';
-        } else {
-            alert("無效金鑰，請確認購買。");
-        }
+    function check() {
+        if(document.getElementById('pw').value.trim() === KEY) {
+            document.getElementById('p-auth').style.display='none';
+            document.getElementById('p-conn').style.display='flex';
+        } else alert("金鑰錯誤！");
     }
 
     function getB(gx, gy) {
-        if(world[gx+'_'+gy] !== undefined) return world[gx+'_'+gy];
-        var absGx = Math.abs(gx);
-        var f;
-        if (absGx < 65) {
-            var mountain = Math.exp(-Math.pow(gx / 35, 2)); 
-            f = Math.floor(150 - (56 * mountain)) + Math.floor((gx % 4)/3);
-        } else {
-            f = Math.floor(138 + Math.sin(gx * 0.2) * 15 + Math.cos(gx * 0.1) * 10);
-        }
-        if(gy < f) return 0; if(gy === f) return (gy < 105) ? 7 : 2; if(gy > f && gy <= f + 5) return 3; return 1;
+        if(world[gx+'_'+gy]) return world[gx+'_'+gy];
+        var agx = Math.abs(gx), f;
+        if(agx < 65) f = Math.floor(150 - (56 * Math.exp(-Math.pow(gx/35, 2)))) + Math.floor((gx%4)/3);
+        else f = Math.floor(138 + Math.sin(gx*0.2)*15 + Math.cos(gx*0.1)*10);
+        return (gy < f) ? 0 : (gy === f ? (gy < 105 ? 7 : 2) : (gy <= f+5 ? 3 : 1));
     }
 
-    function startGame(n) {
-        squadSize = n;
-        var cvs = document.getElementById('g');
-        cvs.width = window.innerWidth; cvs.height = window.innerHeight;
-        cvs.style.visibility = 'visible';
-        
-        p.x = -1500; 
+    function start(n) {
+        document.getElementById('p-conn').style.display='none';
+        document.getElementById('hud').style.display='block';
+        var c = document.getElementById('g');
+        c.width = window.innerWidth; c.height = window.innerHeight;
+        c.style.visibility = 'visible';
         let sy = 0; while(getB(Math.floor(p.x/T), Math.floor(sy/T)) === 0) sy += T;
         p.y = sy - 160;
-        
-        ents = [];
-        for(var i=0; i < squadSize - 1; i++) {
-            ents.push({ type:'ally', x: p.x + (i-7)*50, y: p.y, w:22, h:42, vx:0, vy:0, hp:100, max:100, dir:1 });
-        }
-        
-        document.getElementById('p-conn').style.display = 'none';
-        document.getElementById('hud').style.display = 'block';
-        live = true; 
-        requestAnimationFrame(loop); // 啟動循環
+        for(var i=0; i<n-1; i++) ents.push({x:p.x+(i-7)*50, y:p.y, w:22, h:42, vx:0, vy:0, hp:100, max:100, dir:1});
+        live = true; loop();
     }
 
     window.onkeydown = e => { 
-        if(!live) return;
         if(e.code === 'KeyK' && p.atkCd <= 0) {
             p.atkCd = 12;
-            ents.forEach(e => {
-                var d = Math.sqrt(Math.pow(e.x-p.x,2) + Math.pow(e.y-p.y,2));
-                if(d < 100) { e.hp -= 25; e.vx = (e.x > p.x ? 15 : -15); e.vy = -8; }
-            });
+            ents.forEach(e => { if(Math.hypot(e.x-p.x, e.y-p.y) < 100) { e.hp-=25; e.vx=(e.x>p.x?15:-15); e.vy=-8; }});
         }
         keys[e.code] = true; 
     };
-    window.onkeyup = e => { keys[e.code] = false; };
-
-    function checkCollision(x,y) { 
-        var gx=Math.floor(x/T), gy=Math.floor(y/T); 
-        return getB(gx, gy)>0 || getB(Math.floor((x+21)/T), Math.floor((y+41)/T))>0; 
-    }
+    window.onkeyup = e => keys[e.code] = false;
 
     function loop() {
         if(!live) return;
-        var cvs = document.getElementById('g'), ctx = cvs.getContext('2d');
+        var c = document.getElementById('g'), ctx = c.getContext('2d');
         ticks = (ticks + 0.075) % 1440;
         if(p.atkCd > 0) p.atkCd--;
 
         [p].concat(ents).forEach(e => {
-            e.vy += 0.8; e.y += e.vy; e.x += (e.vx || 0);
-            if(e.vx) e.vx *= 0.8;
-            if(checkCollision(e.x, e.y)) { while(checkCollision(e.x, e.y)) e.y -= 0.5; e.vy = 0; e.gr = true; } else e.gr = false;
-            
+            e.vy += 0.8; e.y += e.vy; e.x += (e.vx || 0); if(e.vx) e.vx *= 0.8;
+            var hit = () => getB(Math.floor(e.x/T), Math.floor(e.y/T))>0 || getB(Math.floor((e.x+21)/T), Math.floor((e.y+41)/T))>0;
+            if(hit()) { while(hit()) e.y -= 0.5; e.vy = 0; e.gr = true; } else e.gr = false;
             if(e === p) {
                 var dx = (keys['KeyD']?7:0) - (keys['KeyA']?7:0);
-                if(dx !== 0) { p.x += dx; if(checkCollision(p.x, p.y)) p.x -= dx; }
+                if(dx) { p.x += dx; if(hit()) p.x -= dx; }
                 if(keys['Space'] && p.gr) p.vy = -14;
             } else {
-                if(Math.random()<0.02) e.dir *= -1;
-                e.x += e.dir * 2;
-                if(checkCollision(e.x, e.y)) { e.x -= e.dir * 2; if(e.gr) e.vy = -10; }
+                if(Math.random()<0.02) e.dir *= -1; e.x += e.dir*2;
+                if(hit()) { e.x -= e.dir*2; if(e.gr) e.vy = -10; }
             }
         });
 
-        // 重新繪製背景
         ctx.fillStyle = (ticks > 1050 || ticks < 350) ? '#050510' : '#87ceeb';
-        ctx.fillRect(0, 0, cvs.width, cvs.height);
-        
-        var cx = p.x - cvs.width/2, cy = p.y - cvs.height/2;
+        ctx.fillRect(0, 0, c.width, c.height);
+        var cx = p.x - c.width/2, cy = p.y - c.height/2;
         var clrs = ["","#7f8c8d","#2ecc71","#795548","#f1c40f","#5d4037","#27ae60","#ecf0f1","#3498db"];
-        
-        for(var x=Math.floor(cx/T); x<=Math.ceil((cx+cvs.width)/T); x++) {
-            for(var y=Math.floor(cy/T); y<=Math.ceil((cy+cvs.height)/T); y++) {
-                var b = getB(x, y); 
-                if(b > 0) { 
-                    ctx.fillStyle = clrs[b]; 
-                    ctx.fillRect(x*T-cx, y*T-cy, T-0.5, T-0.5); 
-                }
+        for(var x=Math.floor(cx/T); x<=Math.ceil((cx+c.width)/T); x++) {
+            for(var y=Math.floor(cy/T); y<=Math.ceil((cy+c.height)/T); y++) {
+                var b = getB(x, y); if(b) { ctx.fillStyle = clrs[b]; ctx.fillRect(x*T-cx, y*T-cy, T, T); }
             }
         }
-
         [p].concat(ents).forEach(e => {
             if(e.hp <= 0) return;
-            ctx.fillStyle = (e===p?'#e67e22':'#3498db');
-            ctx.fillRect(e.x-cx, e.y-cy, e.w, e.h);
+            ctx.fillStyle = (e===p?'#e67e22':'#3498db'); ctx.fillRect(e.x-cx, e.y-cy, e.w, e.h);
             ctx.fillStyle="#333"; ctx.fillRect(e.x-cx-4, e.y-cy-12, 30, 5);
             ctx.fillStyle="#2ecc71"; ctx.fillRect(e.x-cx-4, e.y-cy-12, 30*(e.hp/e.max), 5);
         });
-
-        if(p.atkCd > 8) { ctx.strokeStyle = "white"; ctx.beginPath(); ctx.arc(p.x-cx+11, p.y-cy+21, 50, 0, Math.PI*2); ctx.stroke(); }
-        document.getElementById('alt-v').innerText = Math.floor(Math.abs(p.y/T - 150)*32);
+        document.getElementById('hp').innerText = Math.max(0, Math.floor(p.hp));
+        document.getElementById('alt').innerText = Math.floor(Math.abs(p.y/T - 150)*32);
         requestAnimationFrame(loop);
     }
 </script>
