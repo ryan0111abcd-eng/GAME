@@ -12,6 +12,13 @@
         nav { padding: 20px 50px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #333; }
         .logo { font-size: 24px; font-weight: bold; color: var(--primary); }
         
+        /* 離開按鈕 (右上角) */
+        .exit-btn { 
+            padding: 8px 20px; border: 1px solid #555; border-radius: 20px; 
+            color: #888; text-decoration: none; font-size: 14px; transition: 0.3s;
+        }
+        .exit-btn:hover { border-color: #f1c40f; color: #f1c40f; background: rgba(241,196,15,0.05); }
+
         /* 主要內容 */
         .container { max-width: 1000px; margin: 50px auto; padding: 20px; display: flex; gap: 50px; flex-wrap: wrap; justify-content: center; }
         
@@ -33,27 +40,31 @@
             background: var(--secondary); color: #fff; border: none; border-radius: 12px; 
             cursor: pointer; transition: 0.3s; box-shadow: 0 10px 20px rgba(46, 204, 113, 0.2); 
         }
-        .btn-checkout:hover { transform: translateY(-3px); background: #27ae60; box-shadow: 0 15px 30px rgba(46, 204, 113, 0.4); }
-        .btn-checkout:active { transform: translateY(0); }
+        .btn-checkout:hover { transform: translateY(-3px); background: #27ae60; }
         
         .payment-methods { margin-top: 20px; opacity: 0.6; display: flex; justify-content: center; gap: 10px; font-size: 12px; }
 
         /* 付款模擬 Modal */
-        .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.9); display: none; align-items: center; justify-content: center; z-index: 9999; }
+        .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.95); display: none; align-items: center; justify-content: center; z-index: 9999; }
         .pay-window { background: #fff; color: #333; width: 400px; padding: 40px; border-radius: 30px; text-align: center; box-shadow: 0 0 100px rgba(241, 196, 15, 0.3); }
         .loader { width: 50px; height: 50px; border: 5px solid #f3f3f3; border-top: 5px solid var(--primary); border-radius: 50%; animation: spin 1s linear infinite; margin: 20px auto; }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
 
         /* 最終成功視窗 */
-        #success-screen { display: none; }
-        .key-box { font-size: 28px; font-weight: bold; color: #d35400; background: #f8f8f8; padding: 20px; border: 2px dashed #ccc; margin: 20px 0; letter-spacing: 2px; }
+        .key-box { font-size: 28px; font-weight: bold; color: #d35400; background: #f8f8f8; padding: 20px; border: 2px dashed #ccc; margin: 20px 0; letter-spacing: 2px; cursor: pointer; }
+        .back-to-game { 
+            display: inline-block; width: 100%; padding: 15px; margin-top: 10px; 
+            background: #000; color: #fff; text-decoration: none; border-radius: 10px; 
+            font-weight: bold; transition: 0.3s;
+        }
+        .back-to-game:hover { background: #333; }
     </style>
 </head>
 <body>
 
 <nav>
     <div class="logo">SUPER HUMAN 2026</div>
-    <div style="font-size: 14px; color: #888;">官方安全支付節點</div>
+    <a href="#" onclick="window.close()" class="exit-btn">✕ 離開網頁</a>
 </nav>
 
 <div class="container">
@@ -76,53 +87,56 @@
         <button class="btn-checkout" onclick="startPayment()">立即安全結帳</button>
         
         <div class="payment-methods">
-            <span>💳 信用卡</span> | <span>🏦 網路銀行</span> | <span>📱 LINE PAY / 街口</span>
+            <span>💳 信用卡</span> | <span>🏦 網路銀行</span> | <span>📱 街口 / LINE PAY</span>
         </div>
-        <p style="font-size: 11px; color: #555; margin-top: 30px;">
-            此為測試模擬環境，點擊結帳將進行虛擬付款流程。
-        </p>
     </div>
 </div>
 
 <div id="modal" class="modal-overlay">
     <div id="processing-screen" class="pay-window">
         <div class="loader"></div>
-        <h2>安全加密付款中</h2>
-        <p style="color: #666;">正在連線至銀行網關，請勿關閉視窗...</p>
+        <h2>加密支付處理中</h2>
+        <p style="color: #666;">正在確認授權節點...</p>
     </div>
 
-    <div id="success-screen" class="pay-window">
+    <div id="success-screen" class="pay-window" style="display:none;">
         <div style="font-size: 60px; color: #2ecc71;">✓</div>
         <h1 style="margin: 10px 0;">交易完成！</h1>
-        <p style="color: #666;">感謝您的購買，您的產品啟動碼如下：</p>
-        <div class="key-box">ryan0111407</div>
-        <p style="font-size: 13px; color: #888;">請複製此代碼並回到遊戲驗證頁面輸入。</p>
-        <button onclick="copyKey()" id="copy-btn" style="padding: 12px 30px; background: #333; color: #fff; border: none; border-radius: 8px; cursor: pointer;">複製金鑰</button>
+        <p style="color: #666; font-size: 14px;">您的專屬授權碼已生成，請複製後回到遊戲：</p>
+        <div class="key-box" onclick="copyKey()" id="key-display">ryan0111407</div>
+        <p id="copy-status" style="font-size: 12px; color: #2ecc71; height: 18px; margin: 0;"></p>
+        
+        <a href="#" onclick="goBack()" class="back-to-game">回到遊戲主頁 (激活)</a>
+        <p onclick="window.close()" style="margin-top: 15px; font-size: 13px; color: #999; cursor: pointer; text-decoration: underline;">直接關閉視窗</p>
     </div>
 </div>
 
 <script>
     function startPayment() {
         document.getElementById('modal').style.display = 'flex';
-        // 模擬 2.5 秒的付款處理時間
         setTimeout(() => {
             document.getElementById('processing-screen').style.display = 'none';
             document.getElementById('success-screen').style.display = 'block';
-        }, 2500);
+        }, 2000);
     }
 
     function copyKey() {
         const key = "ryan0111407";
         navigator.clipboard.writeText(key).then(() => {
-            const btn = document.getElementById('copy-btn');
-            btn.innerText = "已複製！";
-            btn.style.background = "#2ecc71";
-            
-            // 提醒使用者回遊戲
-            setTimeout(() => {
-                alert("金鑰已複製。現在您可以回到遊戲網頁，輸入此金鑰激活系統！");
-            }, 500);
+            document.getElementById('copy-status').innerText = "已成功複製金鑰！";
+            document.getElementById('key-display').style.borderColor = "#2ecc71";
         });
+    }
+
+    function goBack() {
+        // 嘗試關閉目前分頁並回到前一頁 (通常是遊戲頁)
+        alert("金鑰已備好！請在遊戲登入框中按 Ctrl+V 貼上金鑰。");
+        if (window.opener) {
+            window.close();
+        } else {
+            // 如果不是彈窗開啟，則導向回根目錄
+            window.location.href = "index.html"; 
+        }
     }
 </script>
 
