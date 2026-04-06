@@ -2,90 +2,27 @@
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
-    <title>我的類 Minecraft 網頁版</title>
+    <title>遊戲註冊</title>
     <style>
-        body { font-family: 'Segoe UI', sans-serif; background: #1a1a2e; color: white; margin: 0; text-align: center; }
-        nav { background: #16213e; padding: 10px 20px; display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #4ecca3; }
-        #game-container { width: 800px; height: 400px; background: #000; margin: 20px auto; border: 4px solid #333; border-radius: 10px; position: relative; }
-        .vip-active { border-color: gold !important; box-shadow: 0 0 20px rgba(255, 215, 0, 0.5); }
-        .badge { background: gold; color: black; padding: 2px 6px; border-radius: 4px; font-weight: bold; font-size: 12px; }
-        .shop-btn { background: #f1c40f; color: black; padding: 8px 15px; text-decoration: none; border-radius: 5px; font-weight: bold; }
+        body { font-family: sans-serif; background: #1a1a2e; color: white; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; }
+        .card { background: #16213e; padding: 40px; border-radius: 15px; width: 300px; text-align: center; border: 2px solid #4ecca3; }
+        input { width: 100%; padding: 12px; margin: 15px 0; border-radius: 8px; border: none; background: #0f3460; color: white; box-sizing: border-box; }
+        button { width: 100%; padding: 12px; background: #4ecca3; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; }
     </style>
 </head>
 <body>
-
-<nav>
-    <div id="user-display">載入中...</div>
-    <div>
-        <span id="ver">版本：v1.0.0</span>
-        <a href="buy.html" class="shop-btn">商店 (75折)</a>
+    <div class="card">
+        <h2>建立帳號</h2>
+        <input type="text" id="username" placeholder="輸入暱稱">
+        <button onclick="login()">註冊並選擇方案</button>
     </div>
-</nav>
-
-<div style="margin-top:10px; color:#888;">WASD 移動 | 空白鍵跳躍</div>
-
-<div id="game-container">
-    <canvas id="mainCanvas"></canvas>
-</div>
-
-<div id="price-tag">今日方塊：$100 <span id="discount"></span></div>
-
-<script>
-    // --- 1. 初始化與自動登入規則 ---
-    let user = localStorage.getItem('game_user');
-    if (!user) {
-        user = "快速測試者"; // 如果沒登入，強制給予名稱，避免卡死
-        localStorage.setItem('game_user', user);
-    }
-    const isVip = localStorage.getItem('isVip') === 'true';
-
-    // UI 更新
-    document.getElementById('user-display').innerHTML = `玩家：${user} ${isVip ? '<span class="badge">PRO</span>' : ''}`;
-    if (isVip) {
-        document.getElementById('ver').innerText = "版本：v1.1.0-Beta";
-        document.getElementById('game-container').classList.add('vip-active');
-        document.getElementById('discount').innerHTML = " -> <b style='color:gold'>會員價 $75</b>";
-    }
-
-    // --- 2. 遊戲引擎循環 (防止卡在地面) ---
-    const canvas = document.getElementById('mainCanvas');
-    const ctx = canvas.getContext('2d');
-    canvas.width = 800; canvas.height = 400;
-
-    let player = { x: 100, y: 300, w: 30, h: 30, dy: 0, grounded: false };
-    let keys = {};
-
-    window.onkeydown = (e) => keys[e.code] = true;
-    window.onkeyup = (e) => keys[e.code] = false;
-
-    function gameLoop() {
-        // 物理計算
-        if (keys['KeyA']) player.x -= 5;
-        if (keys['KeyD']) player.x += 5;
-        if (keys['Space'] && player.grounded) { player.dy = -12; player.grounded = false; }
-
-        player.dy += 0.6; // 重力
-        player.y += player.dy;
-
-        // 地面判定 (y=360 是地板)
-        if (player.y + player.h > 360) {
-            player.y = 360 - player.h; // 防止卡入地面的關鍵回推
-            player.dy = 0;
-            player.grounded = true;
+    <script>
+        function login() {
+            const name = document.getElementById('username').value;
+            if(!name) return alert("請輸入暱稱");
+            localStorage.setItem('game_user', name);
+            window.location.href = 'buy.html';
         }
-
-        // 渲染畫面
-        ctx.fillStyle = "#1a1a2e"; ctx.fillRect(0, 0, 800, 400); // 背景
-        ctx.fillStyle = "#333"; ctx.fillRect(0, 360, 800, 40); // 地板
-
-        if (isVip) { ctx.shadowBlur = 20; ctx.shadowColor = "gold"; }
-        ctx.fillStyle = isVip ? "gold" : "#4ecca3";
-        ctx.fillRect(player.x, player.y, player.w, player.h); // 玩家
-        ctx.shadowBlur = 0;
-
-        requestAnimationFrame(gameLoop);
-    }
-    gameLoop();
-</script>
+    </script>
 </body>
 </html>
