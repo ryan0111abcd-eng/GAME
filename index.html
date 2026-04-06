@@ -3,12 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>SUPER HUMAN 2026 - THE GREAT PEAK V11.2</title>
+    <title>SUPER HUMAN 2026 - SAFETY LOCK</title>
     <style>
         body, html { margin: 0; padding: 0; width: 100%; height: 100%; background: #000; overflow: hidden; font-family: sans-serif; user-select: none; }
         .page { position: fixed; inset: 0; z-index: 9999; display: flex; flex-direction: column; align-items: center; justify-content: center; background: #050505; color: #f1c40f; }
-        .btn { display: flex; align-items: center; justify-content: center; width: 300px; height: 55px; margin: 8px; font-size: 18px; font-weight: bold; color: #000; background: #f1c40f; border: 3px solid #fff; border-radius: 12px; box-shadow: 0 5px 0 #b8860b; cursor: pointer; transition: 0.1s; }
+        .btn { display: flex; align-items: center; justify-content: center; width: 300px; height: 50px; margin: 8px; font-size: 18px; font-weight: bold; color: #000; background: #f1c40f; border: 3px solid #fff; border-radius: 12px; box-shadow: 0 5px 0 #b8860b; cursor: pointer; transition: 0.1s; }
         .btn:active { transform: translateY(3px); box-shadow: 0 1px 0 #b8860b; }
+        .btn-buy { background: #555; color: #fff; box-shadow: 0 5px 0 #222; border-color: #888; margin-top: 20px; width: 220px; height: 40px; font-size: 14px; }
         .in-box { width: 280px; padding: 12px; font-size: 22px; border: 4px solid #f1c40f; border-radius: 10px; background: #111; color: #fff; text-align: center; margin-bottom: 20px; outline: none; }
         #esc-menu { position: fixed; inset: 0; z-index: 10000; display: none; flex-direction: column; align-items: center; justify-content: center; background: rgba(0,0,0,0.96); backdrop-filter: blur(15px); }
         .menu-card { background: #1a1a1a; padding: 25px; border: 3px solid #f1c40f; border-radius: 20px; display: flex; flex-direction: row; gap: 25px; align-items: center; }
@@ -19,44 +20,40 @@
 <body oncontextmenu="event.preventDefault();">
 
     <div id="p-auth" class="page" style="display:none;">
-        <h1>SYSTEM ACCESS</h1>
+        <h1 style="letter-spacing: 5px;">SYSTEM ACCESS</h1>
         <input type="password" id="pw" class="in-box" placeholder="啟動碼">
-        <button class="btn" onclick="checkAuth()">驗證進入</button>
+        <button class="btn" onclick="checkAuth()">進入系統</button>
+        <button class="btn btn-buy" onclick="alert('請聯繫系統管理員 RYAN 獲取新的啟動金鑰。')">🛒 購買或找回啟動碼</button>
     </div>
 
     <div id="p-conn" class="page" style="display:none;">
         <h1>CONNECTION</h1>
         <button class="btn" onclick="setConn(1)">👤 單人模式</button>
-        <button class="btn" onclick="setConn(0)">👥 多人模式</button>
-    </div>
-
-    <div id="p-count" class="page" style="display:none;">
-        <h1>SQUAD SIZE</h1>
-        <h2 id="cnt-disp" style="font-size: 40px; color:#fff;">5</h2>
-        <input type="range" id="member-sld" min="2" max="15" value="5" oninput="document.getElementById('cnt-disp').innerText=this.value" style="width:280px; accent-color:#f1c40f;">
-        <button class="btn" onclick="toModeSel()">下一步</button>
+        <button class="btn" onclick="setConn(0)">👥 多人小隊</button>
     </div>
 
     <div id="p-mode" class="page" style="display:none;">
-        <h1>MISSION SELECT</h1>
-        <button class="btn" onclick="prepareBrief('SURV')">🏔️ 聖山遠征</button>
-        <button class="btn" onclick="prepareBrief('ARCH')">🏗️ 丘陵建築</button>
+        <h1>MISSION</h1>
+        <button class="btn" onclick="prepareBrief()">🏔️ 聖山遠征</button>
     </div>
 
     <div id="p-brief" class="page" style="display:none;">
-        <h1>MISSION BRIEFING</h1>
-        <div id="brief-text" style="padding:15px; color:#aaa; line-height:1.6;"></div>
-        <button class="btn" onclick="startGame()">開始模擬</button>
+        <h1>BRIEFING</h1>
+        <div id="brief-text" style="padding:15px; color:#aaa; line-height:1.6; text-align:left;">
+            ● <b>地形升級</b>：修正陡峭落差，角色不再會因地形卡住。<br>
+            ● <b>結構</b>：中心 3000m 聖山，外圍連綿丘陵。<br>
+            ● <b>安全</b>：啟動碼已記住，遺失請點選主頁購買。
+        </div>
+        <button class="btn" onclick="startGame()">開始部署</button>
     </div>
 
     <div id="esc-menu">
         <div class="menu-card">
             <div style="display:flex; flex-direction:column;">
-                <h2 style="color:#f1c40f; margin:0 0 10px 0; text-align: center;">暫停選單</h2>
-                <button class="btn" onclick="togglePause()">繼續 (ESC)</button>
+                <h2 style="color:#f1c40f; text-align: center;">模擬暫停</h2>
+                <button class="btn" onclick="togglePause()">繼續遊戲 (ESC)</button>
                 <button class="btn" onclick="clearBlocks()" style="background:#d35400; color:white; border:none;">清除建築方塊</button>
-                <button class="btn" onclick="resetAllSave()" style="background:#c0392b; color:white; border:none;">移除所有存檔</button>
-                <button class="btn" onclick="logout()" style="background:#7f8c8d; color:white; border:none;">登出帳號</button>
+                <button class="btn" onclick="logout()" style="background:#7f8c8d; color:white; border:none;">登出金鑰</button>
                 <button class="btn" onclick="exitGame()" style="background:#000; color:#f00; border:2px solid #f00;">離開遊戲</button>
             </div>
             <div style="text-align:center;">
@@ -67,17 +64,14 @@
     </div>
 
     <div id="hud">
-        🕒 時間: <span id="tm-v">12:00</span> | ❤️ HP: <span id="p-hp-hud">100</span><br>
-        🏗️ SLOT: <span id="cur-b" style="color:#f1c40f;">石頭</span> | 📍 海拔: <span id="alt-v">0</span>m
+        🕒 時間: <span id="tm-v">12:00</span> | ❤️ HP: <span id="p-hp-hud">100</span> | 📍 海拔: <span id="alt-v">0</span>m
     </div>
     <canvas id="g"></canvas>
 
 <script>
-    document.addEventListener('contextmenu', e => e.preventDefault());
-    var live = false, paused = false, world = {}, keys = {}, ents = [], ticks = 600, sSize = 1;
-    var p = { x: 0, y: 0, w: 22, h: 42, vx: 0, vy: 0, hp: 100, max: 100, gr: false, atkCd: 0, face: 1 };
-    var T = 32, selB = 1, villagerTimer = 0;
-    const AUTH_KEY = 'ryan0111407';
+    var AUTH_KEY = 'ryan0111407';
+    var live = false, paused = false, world = {}, keys = {}, ents = [], ticks = 600, T = 32, selB = 1;
+    var p = { x: 0, y: 0, w: 22, h: 42, vx: 0, vy: 0, hp: 100, max: 100, gr: false, atkCd: 0 };
 
     window.onload = function() {
         if(localStorage.getItem('sh_save_v10')) world = JSON.parse(localStorage.getItem('sh_save_v10'));
@@ -89,42 +83,33 @@
         if(document.getElementById('pw').value.trim() === AUTH_KEY) {
             localStorage.setItem('super_human_auth', AUTH_KEY);
             document.getElementById('p-auth').style.display='none'; document.getElementById('p-conn').style.display='flex';
-        } else alert("啟動碼錯誤");
+        } else alert("啟動碼錯誤，請重新輸入或點選下方購買按鈕。");
     }
 
     function logout() { localStorage.removeItem('super_human_auth'); location.reload(); }
     function clearBlocks() { if(confirm("清除？")){ world = {}; localStorage.setItem('sh_save_v10', "{}"); } }
-    function resetAllSave() { if(confirm("移除所有？")){ localStorage.clear(); location.reload(); } }
-    function exitGame() { if(confirm("離開？")){ window.close(); window.location.href="about:blank"; } }
+    function exitGame() { if(confirm("離開？")){ window.location.href="about:blank"; } }
 
-    function setConn(n) { document.getElementById('p-conn').style.display='none'; if(n===1){sSize=1;document.getElementById('p-mode').style.display='flex';}else{document.getElementById('p-count').style.display='flex';} }
-    function toModeSel() { sSize=parseInt(document.getElementById('member-sld').value); document.getElementById('p-count').style.display='none'; document.getElementById('p-mode').style.display='flex'; }
+    function setConn(n) { document.getElementById('p-conn').style.display='none'; document.getElementById('p-mode').style.display='flex'; }
+    function prepareBrief() { document.getElementById('p-mode').style.display='none'; document.getElementById('p-brief').style.display='flex'; }
 
-    function prepareBrief(type) {
-        document.getElementById('p-mode').style.display='none'; document.getElementById('p-brief').style.display='flex';
-        document.getElementById('brief-text').innerHTML = "● <b>世界結構</b>：中心座標存在一座 3000m 聖山，其餘區域為無盡丘陵。<br>● <b>戰鬥功能</b>：按 <b>[ K ]</b> 鍵發動近戰攻擊。<br>● <b>時間</b>：1.5x 加速運轉。電腦隊友將獨立行動。";
-    }
-
-    // --- 地形引擎 V11.2 (聖山 + 無盡丘陵) ---
+    // --- 地形引擎 V11.3 (防卡死平滑化) ---
     function getB(gx, gy) {
         if(world[gx+'_'+gy] !== undefined) return world[gx+'_'+gy];
-        
         var absGx = Math.abs(gx);
         var f;
 
         if (absGx < 60) {
-            // 聖山區域 (座標 -60 ~ 60)
-            // 使用鈴鐺曲線，頂點在 gx=0, 高度約在 gy=94 (3000m)
-            var mountainBase = 150; 
-            var mountainHeight = 56; // 150 - 56 = 94
-            var shape = Math.exp(-Math.pow(gx / 25, 2)); 
-            var jitter = (gx * 17 % 7) / 2;
-            f = Math.floor(mountainBase - (mountainHeight * shape) + jitter);
+            // 聖山 (3000m)
+            var shape = Math.exp(-Math.pow(gx / 28, 2)); 
+            f = Math.floor(150 - (56 * shape) + (gx * 13 % 3));
         } else {
-            // 無盡丘陵區域
-            var hillWave = Math.sin(gx * 0.5) * 12 + Math.cos(gx * 1.2) * 5 + Math.sin(gx * 0.1) * 30;
-            var hillNoise = (Math.abs(Math.sin(gx * 2137.85)) * 6);
-            f = Math.floor(140 + hillWave + hillNoise);
+            // 無盡丘陵
+            // 使用低頻波形確保連貫性
+            var hillWave = Math.sin(gx * 0.3) * 15 + Math.cos(gx * 0.1) * 20;
+            // 限制雜湊雜訊，防止出現 3 格以上的垂直牆
+            var jitter = (gx % 3 === 0) ? 2 : 0; 
+            f = Math.floor(140 + hillWave + jitter);
         }
 
         if(gy < f) return 0;
@@ -137,16 +122,9 @@
         var cvs = document.getElementById('g');
         cvs.width = window.innerWidth; cvs.height = window.innerHeight;
         cvs.style.visibility = 'visible'; cvs.style.display = 'block';
-        
-        // 從聖山腳下開始
-        p.x = -1500; 
+        p.x = -1200; 
         let sy = 0; while(getB(Math.floor(p.x/T), Math.floor(sy/T)) === 0) sy += T;
         p.y = sy - 160;
-
-        ents = [];
-        for(var i=0; i < sSize-1; i++) {
-            ents.push({ type: 'ally', x: p.x + (i-sSize/2)*60, y: p.y, w: 22, h: 42, vx: 0, vy: 0, hp: 100, max: 100, gr: false, dir: (Math.random()>0.5?1:-1) });
-        }
         document.getElementById('p-brief').style.display='none';
         document.getElementById('hud').style.display='block';
         live = true; loop();
@@ -175,13 +153,6 @@
         if(e.code==='Escape' && live) togglePause(); 
         if(!live || paused) return; 
         if(e.keyCode>=49 && e.keyCode<=56) selB = e.keyCode-48; 
-        if(e.code==='KeyK' && p.atkCd <= 0) {
-            p.atkCd = 15;
-            ents.forEach(e => {
-                var dist = Math.sqrt(Math.pow(e.x-p.x,2)+Math.pow(e.y-p.y,2));
-                if(dist < 80) { e.hp -= 20; e.vx = (e.x > p.x ? 10 : -10); e.vy = -5; }
-            });
-        }
         keys[e.code] = true; 
     };
     window.onkeyup = e => { keys[e.code] = false; };
@@ -200,29 +171,11 @@
         if(!paused) {
             var cvs = document.getElementById('g'), ctx = cvs.getContext('2d');
             ticks = (ticks + 0.075) % 1440;
-            villagerTimer += 1.5;
-            if(villagerTimer > 600) { 
-                ents.push({ type:'villager', x: p.x + (Math.random()>0.5?800:-800), y: p.y-400, w:22, h:42, vx:0, vy:0, hp:100, max:100, dir:1 }); 
-                villagerTimer = 0; 
-            }
-            if(p.atkCd > 0) p.atkCd--;
-
-            [p].concat(ents).forEach(e => {
-                e.vy += 0.8; e.y += e.vy; e.x += (e.vx || 0);
-                if(e.vx) e.vx *= 0.9;
-                if(check(e.x, e.y)) { while(check(e.x, e.y)) e.y -= 0.5; e.vy = 0; e.gr = true; } else e.gr = false;
-                
-                if(e === p) {
-                    var dx = (keys['KeyD']?7:0) - (keys['KeyA']?7:0);
-                    if(dx !== 0) { p.x += dx; if(check(p.x, p.y)) p.x -= dx; p.face = dx>0?1:-1; }
-                    if(keys['Space'] && p.gr) p.vy = -14;
-                } else {
-                    // 電腦隊友/村民自主行動 (不再跟隨)
-                    if(Math.random()<0.02) e.dir *= -1;
-                    e.x += e.dir * 2.5;
-                    if(check(e.x, e.y)) { e.x -= e.dir * 2.5; if(e.gr) e.vy = -10; }
-                }
-            });
+            p.vy += 0.8; p.y += p.vy;
+            if(check(p.x, p.y)) { while(check(p.x, p.y)) p.y -= 0.5; p.vy = 0; p.gr = true; } else p.gr = false;
+            var dx = (keys['KeyD']?7:0) - (keys['KeyA']?7:0);
+            if(dx !== 0) { p.x += dx; if(check(p.x, p.y)) p.x -= dx; }
+            if(keys['Space'] && p.gr) p.vy = -14;
 
             ctx.fillStyle = (ticks > 1050 || ticks < 350) ? '#050510' : '#87ceeb';
             ctx.fillRect(0, 0, cvs.width, cvs.height);
@@ -233,13 +186,9 @@
                     var b = getB(x, y); if(b > 0) { ctx.fillStyle = clrs[b]; ctx.fillRect(x*T-cx, y*T-cy, T-0.5, T-0.5); }
                 }
             }
-            [p].concat(ents).filter(e => e.hp > 0).forEach(e => {
-                ctx.fillStyle = (e===p?'#e67e22':(e.type==='ally'?'#3498db':'#9b59b6'));
-                ctx.fillRect(e.x-cx, e.y-cy, e.w, e.h);
-                // 所有人頭上的血條
-                ctx.fillStyle = "#333"; ctx.fillRect(e.x-cx-4, e.y-cy-12, 30, 5);
-                ctx.fillStyle = "#2ecc71"; ctx.fillRect(e.x-cx-4, e.y-cy-12, 30 * (e.hp/e.max), 5);
-            });
+            ctx.fillStyle = '#e67e22'; ctx.fillRect(p.x-cx, p.y-cy, p.w, p.h);
+            ctx.fillStyle = "#2ecc71"; ctx.fillRect(p.x-cx-4, p.y-cy-12, 30, 5);
+
             document.getElementById('alt-v').innerText = Math.floor(Math.abs(p.y/T - 150)*32);
             document.getElementById('p-hp-hud').innerText = Math.floor(p.hp);
             document.getElementById('tm-v').innerText = Math.floor(ticks/60).toString().padStart(2,'0') + ":" + Math.floor(ticks%60).toString().padStart(2,'0');
