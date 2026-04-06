@@ -2,24 +2,30 @@
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
-    <title>升級會員 - 75折福利</title>
+    <title>贊助商店 - 75折福利</title>
     <style>
         body { font-family: sans-serif; background: #1a1a1a; color: white; text-align: center; padding: 50px; }
-        .box { border: 2px solid gold; padding: 30px; display: inline-block; border-radius: 15px; }
-        .btn { background: gold; color: black; padding: 10px 20px; border: none; font-weight: bold; cursor: pointer; border-radius: 5px; }
+        .shop-card { background: #222; border: 2px solid gold; padding: 40px; border-radius: 20px; display: inline-block; box-shadow: 0 0 20px rgba(255, 215, 0, 0.2); }
+        .price-tag { font-size: 2.5rem; color: #ffd700; margin: 20px 0; }
+        .discount { background: #e74c3c; padding: 5px 10px; border-radius: 5px; font-size: 0.9rem; }
+        .buy-btn { background: #ffd700; color: black; padding: 15px 40px; border: none; font-weight: bold; border-radius: 30px; cursor: pointer; font-size: 1.2rem; }
+        .back-link { display: block; margin-top: 20px; color: #888; text-decoration: none; }
     </style>
 </head>
 <body>
-    <div class="box">
-        <h2>PRO 會員 (75折)</h2>
-        <p>原價 $1000 -> <strong>特價 $750</strong></p>
-        <button class="btn" onclick="buy()">立即支付並升級</button>
-        <p><a href="index.html" style="color: #888;">返回首頁</a></p>
+    <div class="shop-card">
+        <span class="discount">會員專屬：全館 75 折</span>
+        <h2>升級為 PRO 會員</h2>
+        <div class="price-tag">$750 <small>TWD</small></div>
+        <p>✅ 解鎖網頁版「最新測試場景」</p>
+        <p>✅ 獲得專屬金色發光邊框</p>
+        <button class="buy-btn" onclick="makeVip()">立即升級</button>
+        <a href="index.html" class="back-link">暫不升級，回遊戲</a>
     </div>
     <script>
-        function buy() {
+        function makeVip() {
             localStorage.setItem('isVip', 'true');
-            alert("感謝購買！已解鎖最新版本下載權限。");
+            alert("支付成功！您現在是 PRO 會員了。");
             window.location.href = 'index.html';
         }
     </script>
