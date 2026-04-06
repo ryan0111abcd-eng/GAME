@@ -2,112 +2,138 @@
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
-    <title>遠征世界 - 鏡頭隨動版</title>
+    <title>Minecraft 遠征 - 無限延伸</title>
     <style>
-        body { font-family: sans-serif; background: #0d1117; color: white; margin: 0; overflow: hidden; text-align: center; }
-        nav { background: #161b22; padding: 15px; display: flex; justify-content: space-between; border-bottom: 2px solid #238636; }
-        canvas { display: block; background: #87CEEB; margin: 0 auto; cursor: crosshair; }
-        .badge { padding: 2px 8px; border-radius: 4px; font-weight: bold; background: #238636; }
-        .VIP { background: gold; color: black; }
-        .大師 { background: #d2a8ff; color: black; }
+        body { margin: 0; background: #000; overflow: hidden; font-family: sans-serif; color: white; }
+        nav { position: fixed; top: 0; width: 100%; background: rgba(0,0,0,0.7); padding: 10px 20px; display: flex; justify-content: space-between; z-index: 10; }
+        canvas { display: block; background: #87CEEB; }
+        .hud { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: rgba(0,0,0,0.5); padding: 10px; border-radius: 10px; }
     </style>
 </head>
 <body>
 
 <nav>
-    <div id="u-tag">載入中...</div>
-    <div id="m-tag"></div>
+    <div id="p-info">載入中...</div>
+    <div id="m-info"></div>
 </nav>
 
 <canvas id="game"></canvas>
 
-<div style="position: fixed; bottom: 20px; width: 100%; color: #8b949e; font-size: 12px;">
-    WASD 移動 | 空白鍵跳躍 | 左鍵挖掘 | 右鍵建築
-</div>
+<div class="hud">A/D 移動 | 空白跳躍 | 左鍵挖塊 | 右鍵蓋塊</div>
 
 <script>
-    const user = localStorage.getItem('game_user');
-    const mapName = localStorage.getItem('sel_map');
-    const rank = localStorage.getItem('rank');
-    const disc = parseFloat(localStorage.getItem('disc') || 1);
+    const user = localStorage.getItem('mc_user');
+    const plan = localStorage.getItem('sel_plan');
+    const rank = localStorage.getItem('member_rank');
+    const disc = parseFloat(localStorage.getItem('discount') || 1);
 
-    if (!user) window.location.href = 'auth.html';
-
-    document.getElementById('u-tag').innerHTML = `冒險者：${user} <span class="badge ${rank}">${rank}</span>`;
-    document.getElementById('m-tag').innerText = `目標：${mapName} | 方塊價：$${Math.round(100*disc)}`;
+    if(!user) window.location.href = 'auth.html';
+    document.getElementById('p-info').innerHTML = `玩家: ${user} [${rank}]`;
+    document.getElementById('m-info').innerText = `地圖: ${plan} | 折扣價: $${Math.round(100*disc)}`;
 
     const canvas = document.getElementById('game');
     const ctx = canvas.getContext('2d');
     canvas.width = window.innerWidth;
-    canvas.height = window.innerHeight - 70;
+    canvas.height = window.innerHeight;
 
     const blockSize = 40;
-    let world = [];
-    // 初始化大地圖 (3000公尺寬)
-    for(let i=0; i<200; i++) {
-        for(let j=10; j<15; j++) {
-            world.push({ x: i*blockSize, y: j*blockSize, type: j===10?'grass':'dirt' });
+    let world = {}; // 使用 Object 儲存，方便座標查詢 (無限延伸核心)
+    let player = { x: 200, y: 100, w: 30, h: 38, dy: 0, g: false };
+    let camera = { x: 0, y: 0 };
+    let keys = {};
+
+    // 生成地形函式 (簡單隨機算法，模擬 3000m 山脈)
+    function generateColumn(x) {
+        if (world[x]) return; // 已生成過就不再生成
+        const baseHeight = 10;
+        const noise = Math.sin(x * 0.1) * 3; // 產生起伏
+        const h = Math.floor(baseHeight + noise);
+        world[x] = [];
+        for(let y=h; y<h+5; y++) {
+            world[x].push({ y: y * blockSize, type: y === h ? 'grass' : 'dirt' });
         }
     }
-
-    let player = { x: 400, y: 100, w: 30, h: 38, dy: 0, g: false };
-    let keys = {};
-    
-    // --- 鏡頭物件 ---
-    let camera = { x: 0, y: 0 };
 
     window.onkeydown = e => keys[e.code] = true;
     window.onkeyup = e => keys[e.code] = false;
 
     canvas.onmousedown = e => {
-        const gx = Math.floor((e.clientX - canvas.offsetLeft + camera.x) / blockSize) * blockSize;
-        const gy = Math.floor((e.clientY - canvas.offsetTop + camera.y) / blockSize) * blockSize;
-        if(e.button === 0) world = world.filter(b => !(b.x === gx && b.y === gy));
-        if(e.button === 2) {
-            if(!world.find(b => b.x === gx && b.y === gy)) world.push({ x: gx, y: gy, type: 'wood' });
+        const mx = e.clientX + camera.x;
+        const my = e.clientY + camera.y;
+        const gx = Math.floor(mx / blockSize) * blockSize;
+        const gy = Math.floor(my / blockSize) * blockSize;
+
+        if(e.button === 0) { // 挖掘
+            if(world[gx]) world[gx] = world[gx].filter(b => b.y !== gy);
+        } else if(e.button === 2) { // 建築
+            if(!world[gx]) world[gx] = [];
+            world[gx].push({ y: gy, type: 'wood' });
         }
     };
     canvas.oncontextmenu = e => e.preventDefault();
 
-    function loop() {
-        // 物理
+    function update() {
         if(keys['KeyA']) player.x -= 5;
         if(keys['KeyD']) player.x += 5;
         if(keys['Space'] && player.g) { player.dy = -12; player.g = false; }
-        player.dy += 0.6; player.y += player.dy;
+
+        player.dy += 0.6;
+        player.y += player.dy;
         player.g = false;
 
-        // 碰撞與鏡頭跟隨計算
-        world.forEach(b => {
-            if (player.x < b.x + blockSize && player.x + player.w > b.x &&
-                player.y + player.h > b.y && player.y < b.y + blockSize) {
-                if (player.dy > 0) { player.y = b.y - player.h; player.dy = 0; player.g = true; }
+        // 檢查當前玩家座標前後，自動生成地圖
+        const startX = Math.floor((player.x - 1000) / blockSize) * blockSize;
+        const endX = Math.floor((player.x + 1000) / blockSize) * blockSize;
+        for(let x = startX; x <= endX; x += blockSize) {
+            generateColumn(x);
+        }
+
+        // 碰撞檢測 (僅檢測玩家附近的方塊)
+        const px = Math.floor(player.x / blockSize) * blockSize;
+        [-blockSize, 0, blockSize].forEach(off => {
+            let col = world[px + off];
+            if(col) {
+                col.forEach(b => {
+                    if(player.x < (px + off) + blockSize && player.x + player.w > (px + off) &&
+                       player.y + player.h > b.y && player.y < b.y + blockSize) {
+                        if(player.dy > 0) { player.y = b.y - player.h; player.dy = 0; player.g = true; }
+                    }
+                });
             }
         });
 
-        // 鏡頭鎖定角色中心
+        // 鏡頭隨動
         camera.x = player.x - canvas.width / 2;
         camera.y = player.y - canvas.height / 2;
+    }
 
-        // 渲染
+    function draw() {
         ctx.fillStyle = "#87CEEB"; ctx.fillRect(0,0,canvas.width, canvas.height);
-        
         ctx.save();
-        ctx.translate(-camera.x, -camera.y); // 套用鏡頭位移
+        ctx.translate(-camera.x, -camera.y);
 
-        world.forEach(b => {
-            ctx.fillStyle = b.type === 'grass' ? '#5da346' : (b.type==='dirt'?'#855c33':'#ab7d4f');
-            ctx.fillRect(b.x, b.y, blockSize-1, blockSize-1);
-        });
+        // 只繪製攝影機範圍內的方塊 (節省效能)
+        const vStart = Math.floor(camera.x / blockSize) * blockSize;
+        const vEnd = Math.floor((camera.x + canvas.width) / blockSize) * blockSize;
 
-        // 畫玩家
+        for(let x = vStart; x <= vEnd; x += blockSize) {
+            if(world[x]) {
+                world[x].forEach(b => {
+                    ctx.fillStyle = b.type === 'grass' ? '#5da346' : (b.type==='dirt'?'#855c33':'#ab7d4f');
+                    ctx.fillRect(x, b.y, blockSize-1, blockSize-1);
+                });
+            }
+        }
+
+        // 玩家
         ctx.fillStyle = (rank === 'VIP') ? 'gold' : 'white';
         if(rank === 'VIP') { ctx.shadowBlur = 20; ctx.shadowColor = 'gold'; }
         ctx.fillRect(player.x, player.y, player.w, player.h);
-        
+
         ctx.restore();
-        requestAnimationFrame(loop);
     }
+
+    function loop() { update(); draw(); requestAnimationFrame(loop); }
     loop();
 </script>
 </body>
