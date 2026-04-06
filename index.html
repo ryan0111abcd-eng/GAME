@@ -2,59 +2,69 @@
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
-    <title>我的類 Minecraft 遊戲</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>遊戲開發首頁</title>
     <style>
-        body { font-family: 'Courier New', monospace; background: #333; color: #eee; margin: 0; }
-        nav { background: #000; padding: 1rem; display: flex; justify-content: space-between; }
-        .container { padding: 2rem; text-align: center; }
-        .version-box { background: #444; padding: 20px; border-radius: 10px; margin: 20px auto; max-width: 500px; }
-        .vip-tag { background: gold; color: black; padding: 2px 8px; border-radius: 3px; font-weight: bold; font-size: 0.8rem; }
-        .download-btn { background: #4CAF50; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; display: inline-block; margin-top: 10px; }
-        .disabled { background: #666; cursor: not-allowed; }
+        body { font-family: 'Courier New', Courier, monospace; background: #2c3e50; color: white; margin: 0; }
+        header { background: #1a252f; padding: 15px 30px; display: flex; justify-content: space-between; align-items: center; border-bottom: 3px solid #4CAF50; }
+        .container { max-width: 800px; margin: 40px auto; padding: 0 20px; }
+        .card { background: #34495e; padding: 25px; border-radius: 10px; margin-bottom: 20px; position: relative; }
+        .vip-only { border: 2px dashed #ffd700; opacity: 0.6; }
+        .is-vip .vip-only { opacity: 1; border: 2px solid #ffd700; }
+        .badge { background: gold; color: black; padding: 3px 8px; border-radius: 4px; font-weight: bold; font-size: 12px; vertical-align: middle; }
+        .btn { background: #27ae60; color: white; padding: 10px 20px; border-radius: 5px; text-decoration: none; display: inline-block; margin-top: 10px; }
+        .btn.locked { background: #7f8c8d; cursor: not-allowed; }
+        .status-bar { font-size: 14px; color: #bdc3c7; }
     </style>
 </head>
-<body>
+<body id="main-body">
 
-<nav>
-    <div><strong>MY CRAFT PROJECT</strong></div>
-    <div id="user-info">載入中...</div>
-</nav>
+<header>
+    <div><strong>VoxelCraft Dev Project</strong></div>
+    <div id="user-display"></div>
+</header>
 
 <div class="container">
-    <h1>歡迎來到方塊世界</h1>
+    <h2>開發者控制台</h2>
     
-    <div class="version-box">
-        <h3>穩定版 (v1.0.0)</h3>
-        <p>所有玩家可用</p>
-        <a href="#" class="download-btn">下載遊戲</a>
+    <div class="card">
+        <h3>穩定版 v1.0.0</h3>
+        <p>當前最穩定版本，包含基礎的 AABB 碰撞檢測修正。</p>
+        <a href="#" class="btn">下載穩定版</a>
     </div>
 
-    <div class="version-box" id="latest-version-box">
-        <h3>最新測試版 (v1.1.0-Beta) <span class="vip-tag">PRO</span></h3>
-        <p id="version-status">升級會員以解鎖此版本</p>
-        <a href="#" id="dev-link" class="download-btn disabled">尚未解鎖</a>
+    <div class="card vip-only" id="beta-card">
+        <h3>最新測試版 v1.1.0-Beta <span class="badge">PRO</span></h3>
+        <p id="beta-text">鎖定中：此版本包含新的 3D 渲染引擎與 75 折商店功能。</p>
+        <a href="buy.html" id="beta-btn" class="btn locked">前往商店解鎖</a>
     </div>
 
-    <p>遇到卡在地面問題？<a href="#" style="color: #4CAF50;">查看脫困教學</a></p>
+    <div class="card" style="border-left: 5px solid #e74c3c;">
+        <h3>遇到 Bug 了嗎？</h3>
+        <p>如果你還遇到「卡在地面」的問題，請檢查你的 $y$ 軸碰撞邏輯。</p>
+        <button onclick="alert('教學：確保在 y < groundHeight 時，執行 y = groundHeight 并清空 y 速度！')">查看脫困代碼</button>
+    </div>
 </div>
 
 <script>
-    // 檢查登入與會員狀態
-    const username = localStorage.getItem('game_user');
+    const user = localStorage.getItem('game_user');
     const isVip = localStorage.getItem('isVip') === 'true';
 
-    if (!username) {
+    if (!user) {
         window.location.href = 'auth.html';
     } else {
-        const userInfo = document.getElementById('user-info');
-        userInfo.innerHTML = `${username} ${isVip ? '<span class="vip-tag">PRO</span>' : ''} | <a href="buy.html" style="color:yellow">商店</a>`;
-        
+        // 顯示用戶資訊
+        const display = document.getElementById('user-display');
+        display.innerHTML = `玩家: ${user} ${isVip ? '<span class="badge">PRO 會員</span>' : ''} | <a href="auth.html" style="color:#ecf0f1">登出</a>`;
+
+        // 如果是 VIP，解鎖內容
         if (isVip) {
-            document.getElementById('version-status').innerText = "您已獲得測試版權限！";
-            const devLink = document.getElementById('dev-link');
-            devLink.innerText = "立即下載 Beta";
-            devLink.classList.remove('disabled');
-            devLink.href = "#download-link-for-v110";
+            document.getElementById('main-body').classList.add('is-vip');
+            document.getElementById('beta-text').innerText = "已解鎖：您可以下載最新測試版本並享有商店 75 折福利。";
+            const btn = document.getElementById('beta-btn');
+            btn.innerText = "下載測試版 (已授權)";
+            btn.classList.remove('locked');
+            btn.href = "#download-v110";
         }
     }
 </script>
