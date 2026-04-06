@@ -2,200 +2,119 @@
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
-    <title>SUPER HUMAN 2026 - FLAGSHIP</title>
+    <title>SUPER HUMAN 2026 - ECOSYSTEM</title>
     <style>
-        body, html { margin: 0; padding: 0; width: 100%; height: 100%; background: #000; overflow: hidden; font-family: 'Segoe UI', sans-serif; }
-        .ui { position: fixed; inset: 0; z-index: 10000; display: flex; flex-direction: column; align-items: center; justify-content: center; background: radial-gradient(circle, #1a1a1a, #000); color: #f1c40f; }
-        .card { background: rgba(255,255,255,0.05); padding: 40px; border-radius: 24px; border: 1px solid #f1c40f55; text-align: center; width: 380px; box-shadow: 0 0 50px rgba(0,0,0,0.8); }
-        .btn { width: 100%; height: 55px; margin: 10px 0; font-size: 18px; font-weight: bold; cursor: pointer; border-radius: 12px; border: 2px solid #fff; transition: 0.1s; display: flex; align-items: center; justify-content: center; }
-        .btn-main { background: #f1c40f; color: #000; box-shadow: 0 5px 0 #b8860b; }
-        .btn-buy { background: #2ecc71; color: #fff; border: none; box-shadow: 0 5px 0 #27ae60; }
-        .btn:active { transform: translateY(3px); box-shadow: 0 1px 0 #666; }
-        
-        #esc-menu { position: fixed; inset: 0; z-index: 20000; display: none; flex-direction: column; align-items: center; justify-content: center; background: rgba(0,0,0,0.92); backdrop-filter: blur(15px); }
-        .menu-card { background: #1a1a1a; padding: 30px; border: 2px solid #f1c40f; border-radius: 20px; display: flex; gap: 40px; align-items: center; }
-        
-        #hud { position: fixed; top: 15px; left: 15px; z-index: 5000; color: #fff; background: rgba(0,0,0,0.85); padding: 12px; border-radius: 10px; border: 2px solid #f1c40f; display: none; pointer-events: none; line-height: 1.6; }
-        canvas#g { display: block; position: absolute; top: 0; left: 0; z-index: 1; visibility: hidden; }
-        .in { width: 90%; padding: 12px; font-size: 20px; margin-bottom: 15px; text-align: center; border-radius: 8px; border: 2px solid #f1c40f; background: #000; color: #fff; outline: none; }
+        body, html { margin: 0; padding: 0; width: 100%; height: 100%; background: #000; overflow: hidden; font-family: sans-serif; }
+        .ui { position: fixed; inset: 0; z-index: 10; display: flex; flex-direction: column; align-items: center; justify-content: center; background: #000; color: #f1c40f; }
+        canvas { display: block; visibility: hidden; }
+        #hud { position: fixed; top: 15px; left: 15px; z-index: 5; color: #fff; background: rgba(0,0,0,0.7); padding: 10px; border-radius: 8px; display: none; }
     </style>
 </head>
-<body oncontextmenu="event.preventDefault();">
-
+<body>
     <div id="p-auth" class="ui">
-        <div class="card">
-            <h1>SUPER HUMAN <span style="color:#fff;">2026</span></h1>
-            <p style="font-size:12px; color:#888;">請輸入對應方案之驗證金鑰</p>
-            <input type="password" id="pw" class="in" placeholder="授權碼碼">
-            <button class="btn btn-main" onclick="checkAuth()">驗證激活</button>
-            <button class="btn btn-buy" onclick="window.open('buy.html','_blank')">🛒 查看升級方案</button>
-        </div>
-    </div>
-
-    <div id="p-mode" class="ui" style="display:none;">
-        <div class="card">
-            <h2 id="plan-label">方案載入中...</h2>
-            <p>設定模擬規模：<span id="sq-val" style="color:#f1c40f; font-weight:bold;">2</span> / <span id="sq-max">5</span></p>
-            <input type="range" id="sq-range" min="1" max="5" value="2" oninput="document.getElementById('sq-val').innerText=this.value" style="width:100%; accent-color:#f1c40f; cursor:pointer;">
-            <button class="btn btn-main" onclick="startSim(document.getElementById('sq-range').value)">部署遠征</button>
-        </div>
-    </div>
-
-    <div id="esc-menu">
-        <div class="menu-card">
-            <div style="display:flex; flex-direction:column; width: 220px;">
-                <h2 style="color:#f1c40f; margin-top:0; text-align:center;">模擬暫停</h2>
-                <button class="btn btn-main" onclick="togglePause()">繼續 (ESC)</button>
-                <button class="btn" onclick="world={}; alert('建築方塊已清除');" style="background:#e67e22; color:#fff; border:none;">清除方塊</button>
-                <button class="btn" onclick="location.reload()" style="background:#444; color:#fff; border:none;">註銷登入</button>
-            </div>
-            <div id="radar-container" style="text-align:center;">
-                <b style="color:#f1c40f; display:block; margin-bottom:12px;">地形雷達</b>
-                <canvas id="radar" width="220" height="220" style="background:#000; border:2px solid #333; border-radius:15px;"></canvas>
-            </div>
-        </div>
+        <h1>SUPER HUMAN 2026</h1>
+        <input type="password" id="pw" placeholder="輸入激活金鑰" style="padding:10px; margin:10px;">
+        <button onclick="check()" style="padding:10px 40px;">驗證</button>
+        <button onclick="window.location.href='auth.html'" style="margin-top:20px; background:none; border:none; color:#666; cursor:pointer;">尚未登入購買？</button>
     </div>
 
     <div id="hud">
-        🕒 時間: <span id="clock-v" style="color:#f1c40f;">12:00</span> | ⚡ 1.5x<br>
-        ❤️ HP: <span id="hp-v">100</span> | 📍 海拔: <span id="alt-v">0</span>m<br>
-        ⚔️ [K] 攻擊 | 🏗️ 挖放模式
+        🕒 <span id="clock-v">12:00</span> | ❤️ HP: <span id="hp-v">100</span><br>
+        ⚔️ [K] 攻擊 | 🏗️ 挖/放方塊
     </div>
     <canvas id="g"></canvas>
 
 <script>
-    const KEYS = {
-        STUDENT: 'STUDENT-2026',
-        SOLO: 'ryan0111407',
-        FAMILY: 'ryan-family-2026',
-        ULTIMATE: 'ULTIMATE-RYAN-2026'
-    };
-    var live = false, paused = false, world = {}, ents = [], keys = {}, ticks = 600, T = 32, hasRadar = true;
-    var p = { x: -1500, y: 0, w: 22, h: 42, vx: 0, vy: 0, hp: 100, max: 100, gr: false, atkCd: 0 };
+    const KEYS = { SOLO: 'ryan0111407', FAM: 'ryan-family-2026' };
+    var live = false, world = {}, ents = [], keys = {}, ticks = 600, T = 32;
+    var p = { x: -500, y: 0, w: 20, h: 40, vx: 0, vy: 0, hp: 100, atkCd: 0 };
 
-    function checkAuth() {
+    function check() {
         let v = document.getElementById('pw').value.trim();
-        if(v === KEYS.STUDENT) setup(1, "學生方案 (不含雷達)", false);
-        else if(v === KEYS.SOLO) setup(5, "專業個人方案", true);
-        else if(v === KEYS.FAMILY) setup(20, "家庭 / 團隊方案", true);
-        else if(v === KEYS.ULTIMATE) setup(50, "至尊企業方案", true);
-        else alert("授權碼無效");
-    }
-
-    function setup(max, label, radar) {
-        hasRadar = radar;
-        document.getElementById('p-auth').style.display = 'none';
-        document.getElementById('p-mode').style.display = 'flex';
-        document.getElementById('plan-label').innerText = label;
-        document.getElementById('sq-range').max = max;
-        document.getElementById('sq-max').innerText = max;
-        if(!radar) document.getElementById('radar-container').style.display = 'none';
+        if(v === KEYS.SOLO || v === KEYS.FAM) {
+            document.getElementById('p-auth').style.display='none';
+            start(v === KEYS.FAM ? 15 : 1);
+        } else alert("金鑰無效");
     }
 
     function getB(gx, gy) {
         if(world[gx+'_'+gy] !== undefined) return world[gx+'_'+gy];
-        var agx = Math.abs(gx), f;
-        if (agx < 65) f = Math.floor(150 - (56 * Math.exp(-Math.pow(gx / 35, 2)))) + Math.floor((gx % 4)/3);
-        else f = Math.floor(138 + Math.sin(gx * 0.25) * 12 + Math.cos(gx * 0.1) * 15);
-        if(gy < f) return 0; if(gy === f) return (gy < 105) ? 7 : 2; if(gy > f && gy <= f + 5) return 3; return 1;
+        let f = Math.floor(130 + Math.sin(gx * 0.2) * 15);
+        return (gy < f) ? 0 : (gy === f ? 2 : 1);
     }
 
-    function startSim(n) {
-        document.getElementById('p-mode').style.display = 'none';
-        document.getElementById('hud').style.display = 'block';
-        var c = document.getElementById('g'); c.width = window.innerWidth; c.height = window.innerHeight;
-        c.style.visibility = 'visible';
+    function start(n) {
+        let c = document.getElementById('g'); c.width = window.innerWidth; c.height = window.innerHeight;
+        c.style.visibility = 'visible'; document.getElementById('hud').style.display='block';
         let sy = 0; while(getB(Math.floor(p.x/T), Math.floor(sy/T)) === 0) sy += T;
-        p.y = sy - 160;
-        ents = [];
-        for(var i=0; i<n-1; i++) ents.push({x:p.x+(Math.random()-0.5)*400, y:p.y, w:22, h:42, vx:0, vy:0, hp:100, max:100, dir:1});
-        live = true; requestAnimationFrame(loop);
-    }
-
-    function togglePause() {
-        if(!live) return;
-        paused = !paused;
-        document.getElementById('esc-menu').style.display = paused ? 'flex' : 'none';
-        if(paused && hasRadar) setTimeout(drawRadar, 50);
-    }
-
-    function drawRadar() {
-        var rc = document.getElementById('radar'), rctx = rc.getContext('2d');
-        rctx.fillStyle="#000"; rctx.fillRect(0,0,220,220);
-        var pgx=Math.floor(p.x/T), s=4;
-        for(var x=-25; x<25; x++) {
-            for(var y=-25; y<25; y++) {
-                var b = getB(pgx+x, Math.floor(p.y/T)+y);
-                if(b > 0) {
-                    rctx.fillStyle = (b===7)?"#fff":(b===2)?"#2ecc71":"#555";
-                    rctx.fillRect(110 + x*s, 110 + y*s, s, s);
-                }
-            }
-        }
-        rctx.fillStyle="#f1c40f"; rctx.fillRect(108, 108, 5, 5);
+        p.y = sy - 100;
+        
+        // 生成隊友、怪物與動物
+        for(let i=0; i<n-1; i++) ents.push({type:'ally', x:p.x+50, y:p.y, hp:100, dir:1});
+        for(let i=0; i<5; i++) ents.push({type:'mob', x:p.x+800+(i*200), y:p.y, hp:50, dir:1}); // 怪物
+        for(let i=0; i<5; i++) ents.push({type:'animal', x:p.x-500-(i*200), y:p.y, hp:20, dir:1}); // 動物
+        
+        live = true; loop();
     }
 
     window.onkeydown = e => {
-        if(e.code === 'Escape') togglePause();
-        if(!live || paused) return;
         if(e.code === 'KeyK' && p.atkCd <= 0) {
-            p.atkCd = 12;
-            ents.forEach(e => { if(Math.hypot(e.x-p.x, e.y-p.y)<100){ e.hp-=20; e.vx=(e.x>p.x?15:-15); e.vy=-8; }});
+            p.atkCd = 15;
+            ents.forEach(e => {
+                if(Math.hypot(e.x-p.x, e.y-p.y) < 80) { e.hp -= 20; e.vx = (e.x > p.x ? 10 : -10); }
+            });
         }
         keys[e.code] = true;
     };
     window.onkeyup = e => keys[e.code] = false;
 
-    window.onmousedown = e => {
-        if(!live || paused) return;
-        var c = document.getElementById('g'), cx = p.x - c.width/2, cy = p.y - c.height/2;
-        var gx = Math.floor((e.clientX + cx) / T), gy = Math.floor((e.clientY + cy) / T);
-        if(e.button === 0) world[gx+'_'+gy] = 0; if(e.button === 2) world[gx+'_'+gy] = 1;
-    };
-
-    function collision(x, y) { return getB(Math.floor(x/T), Math.floor(y/T))>0 || getB(Math.floor((x+21)/T), Math.floor((y+41)/T))>0; }
-
     function loop() {
         if(!live) return;
-        if(!paused) {
-            var c = document.getElementById('g'), ctx = c.getContext('2d');
-            ticks = (ticks + 0.075) % 1440; // 1.5x 加速
-            if(p.atkCd > 0) p.atkCd--;
-            [p].concat(ents).forEach(e => {
-                e.vy += 0.8; e.y += e.vy; e.x += (e.vx || 0); if(e.vx) e.vx *= 0.8;
-                if(collision(e.x, e.y)) { while(collision(e.x, e.y)) e.y -= 0.5; e.vy = 0; e.gr = true; } else e.gr = false;
-                if(e === p) {
-                    var dx = (keys['KeyD']?7:0)-(keys['KeyA']?7:0);
-                    if(dx) { p.x += dx; if(collision(p.x, p.y)) p.x -= dx; }
-                    if(keys['Space'] && p.gr) p.vy = -14;
-                } else {
-                    if(Math.random()<0.02) e.dir *= -1; e.x += e.dir*2.5;
-                    if(collision(e.x, e.y)) { e.x -= e.dir*2.5; if(e.gr) e.vy = -10; }
+        let c = document.getElementById('g'), ctx = c.getContext('2d');
+        ticks = (ticks + 0.08) % 1440;
+        if(p.atkCd > 0) p.atkCd--;
+
+        [p, ...ents].forEach(e => {
+            e.vy = (e.vy || 0) + 0.8; e.y += e.vy; e.x += (e.vx || 0); e.vx = (e.vx || 0) * 0.8;
+            let hit = () => getB(Math.floor(e.x/T), Math.floor(e.y/T))>0;
+            if(hit()) { while(hit()) e.y -= 1; e.vy = 0; e.gr = true; } else e.gr = false;
+
+            if(e === p) {
+                if(keys['KeyD']) p.x += 7; if(keys['KeyA']) p.x -= 7;
+                if(keys['Space'] && p.gr) p.vy = -12;
+            } else {
+                // AI 行為
+                if(e.type === 'mob') { // 怪物追玩家
+                    e.x += (p.x > e.x ? 2.5 : -2.5);
+                    if(Math.hypot(e.x-p.x, e.y-p.y) < 30) p.hp -= 0.5;
+                } else if(e.type === 'animal') { // 動物逃跑
+                    if(Math.hypot(e.x-p.x, e.y-p.y) < 150) e.x += (p.x > e.x ? -3 : 3);
                 }
-            });
-            ctx.fillStyle = (ticks > 1050 || ticks < 350) ? '#050510' : '#87ceeb';
-            ctx.fillRect(0, 0, c.width, c.height);
-            var cx = p.x - c.width/2, cy = p.y - c.height/2;
-            for(var x=Math.floor(cx/T); x<=Math.ceil((cx+c.width)/T); x++) {
-                for(var y=Math.floor(cy/T); y<=Math.ceil((cy+c.height)/T); y++) {
-                    var b = getB(x, y); if(b) { 
-                        ctx.fillStyle = b===7?"#fff":b===2?"#2ecc71":b===3?"#795548":"#555";
-                        ctx.fillRect(x*T-cx, y*T-cy, T-0.5, T-0.5); 
-                    }
-                }
+                if(hit() && e.gr) e.vy = -8;
             }
-            [p].concat(ents).forEach(e => {
-                if(e.hp <= 0) return;
-                ctx.fillStyle = (e===p?'#e67e22':'#3498db'); ctx.fillRect(e.x-cx, e.y-cy, e.w, e.h);
-                ctx.fillStyle="#333"; ctx.fillRect(e.x-cx-4, e.y-cy-12, 30, 5);
-                ctx.fillStyle="#2ecc71"; ctx.fillRect(e.x-cx-4, e.y-cy-12, 30*(e.hp/e.max), 5);
-            });
-            // HUD 時間換算
-            let hrs = Math.floor(ticks/60).toString().padStart(2,'0');
-            let mins = Math.floor(ticks%60).toString().padStart(2,'0');
-            document.getElementById('clock-v').innerText = hrs + ":" + mins;
-            document.getElementById('alt-v').innerText = Math.floor(Math.abs(p.y/T - 150)*32);
+        });
+
+        ctx.fillStyle = (ticks > 1000 || ticks < 300) ? '#050510' : '#87ceeb';
+        ctx.fillRect(0,0,c.width,c.height);
+        let cx = p.x-c.width/2, cy = p.y-c.height/2;
+        
+        // 繪製地圖
+        for(let x=Math.floor(cx/T); x<Math.ceil((cx+c.width)/T); x++) {
+            for(let y=Math.floor(cy/T); y<Math.ceil((cy+c.height)/T); y++) {
+                let b = getB(x, y);
+                if(b) { ctx.fillStyle = b===2?"#2ecc71":"#795548"; ctx.fillRect(x*T-cx, y*T-cy, T, T); }
+            }
         }
+
+        // 繪製實體
+        [p, ...ents].forEach(e => {
+            if(e.hp <= 0) return;
+            ctx.fillStyle = e===p?'#e67e22':(e.type==='mob'?'#e74c3c':(e.type==='animal'?'#2ecc71':'#3498db'));
+            ctx.fillRect(e.x-cx, e.y-cy, 20, 40);
+        });
+
+        document.getElementById('hp-v').innerText = Math.max(0, Math.floor(p.hp));
+        document.getElementById('clock-v').innerText = Math.floor(ticks/60).toString().padStart(2,'0')+":"+Math.floor(ticks%60).toString().padStart(2,'0');
         requestAnimationFrame(loop);
     }
 </script>
