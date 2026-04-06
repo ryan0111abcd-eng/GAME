@@ -3,52 +3,64 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>SUPER HUMAN 2026 - COMMERCIAL EDITION</title>
+    <title>SUPER HUMAN 2026 - UI FIXED</title>
     <style>
-        body, html { margin: 0; padding: 0; width: 100%; height: 100%; background: #000; overflow: hidden; font-family: 'Segoe UI', sans-serif; user-select: none; }
-        .page { position: fixed; inset: 0; z-index: 9999; display: flex; flex-direction: column; align-items: center; justify-content: center; background: radial-gradient(circle, #1a1a1a 0%, #000 100%); color: #f1c40f; }
+        body, html { margin: 0; padding: 0; width: 100%; height: 100%; background: #000; overflow: hidden; font-family: 'Segoe UI', sans-serif; }
         
-        /* 啟動碼頁面專業化 */
-        .auth-card { background: rgba(255,255,255,0.05); padding: 40px; border-radius: 20px; border: 1px solid #f1c40f55; box-shadow: 0 0 30px rgba(0,0,0,0.5); text-align: center; }
-        .btn { display: flex; align-items: center; justify-content: center; width: 300px; height: 55px; margin: 10px; font-size: 18px; font-weight: bold; color: #000; background: #f1c40f; border: 2px solid #fff; border-radius: 12px; box-shadow: 0 5px 0 #b8860b; cursor: pointer; transition: 0.2s; }
-        .btn:active { transform: translateY(3px); box-shadow: 0 2px 0 #b8860b; }
+        /* 確保 UI 層級最高且不被擋住 */
+        .ui-layer { position: fixed; inset: 0; z-index: 10000; display: flex; flex-direction: column; align-items: center; justify-content: center; background: radial-gradient(circle, #1a1a1a 0%, #000 100%); color: #f1c40f; pointer-events: auto; }
         
-        /* 購買按鈕樣式 */
-        .btn-buy { background: #2ecc71; color: #fff; box-shadow: 0 5px 0 #27ae60; border: none; margin-top: 20px; }
+        .auth-card { background: rgba(255,255,255,0.05); padding: 40px; border-radius: 20px; border: 1px solid #f1c40f55; text-align: center; pointer-events: auto; }
+        
+        .btn { 
+            display: flex; align-items: center; justify-content: center; 
+            width: 320px; height: 60px; margin: 15px auto; 
+            font-size: 20px; font-weight: bold; color: #000; 
+            background: #f1c40f; border: 2px solid #fff; border-radius: 15px; 
+            box-shadow: 0 6px 0 #b8860b; cursor: pointer; transition: 0.1s;
+            position: relative; z-index: 10001; pointer-events: auto;
+        }
+        .btn:hover { background: #ffdc4a; }
+        .btn:active { transform: translateY(4px); box-shadow: 0 2px 0 #b8860b; }
+        
+        .btn-buy { background: #2ecc71; color: #fff; box-shadow: 0 6px 0 #27ae60; border: none; }
         .btn-buy:hover { background: #27ae60; }
         
-        .in-box { width: 280px; padding: 15px; font-size: 24px; border: 2px solid #f1c40f; border-radius: 10px; background: #111; color: #fff; text-align: center; margin-bottom: 20px; outline: none; letter-spacing: 3px; }
-        
-        #esc-menu { position: fixed; inset: 0; z-index: 10000; display: none; flex-direction: column; align-items: center; justify-content: center; background: rgba(0,0,0,0.96); backdrop-filter: blur(15px); }
-        .menu-card { background: #1a1a1a; padding: 25px; border: 3px solid #f1c40f; border-radius: 20px; display: flex; flex-direction: row; gap: 25px; align-items: center; }
-        
-        #hud { position: fixed; top: 15px; left: 15px; z-index: 1000; color: white; background: rgba(0,0,0,0.85); padding: 12px; border-radius: 10px; border: 2px solid #f1c40f; display: none; pointer-events: none; }
+        .in-box { 
+            width: 300px; padding: 15px; font-size: 24px; border: 2px solid #f1c40f; border-radius: 12px; 
+            background: #111; color: #fff; text-align: center; margin-bottom: 10px; outline: none;
+            pointer-events: auto;
+        }
+
+        #esc-menu { position: fixed; inset: 0; z-index: 20000; display: none; flex-direction: column; align-items: center; justify-content: center; background: rgba(0,0,0,0.9); backdrop-filter: blur(15px); }
+        .menu-card { background: #1a1a1a; padding: 30px; border: 2px solid #f1c40f; border-radius: 20px; display: flex; gap: 30px; align-items: center; }
+
+        #hud { position: fixed; top: 15px; left: 15px; z-index: 5000; color: white; background: rgba(0,0,0,0.8); padding: 12px; border-radius: 10px; border: 2px solid #f1c40f; display: none; pointer-events: none; }
         canvas#g { display: block; position: absolute; top: 0; left: 0; z-index: 1; visibility: hidden; }
     </style>
 </head>
 <body oncontextmenu="event.preventDefault();">
 
-    <div id="p-auth" class="page">
+    <div id="p-auth" class="ui-layer">
         <div class="auth-card">
-            <h1 style="margin-top:0; letter-spacing: 2px;">SUPER HUMAN <span style="color:#fff;">2026</span></h1>
-            <p style="color:#aaa; font-size: 14px;">請輸入授權金鑰以解鎖無限地形模擬</p>
+            <h1 style="margin-bottom: 5px;">SUPER HUMAN <span style="color:#fff;">2026</span></h1>
+            <p style="color:#aaa; font-size: 14px; margin-bottom: 20px;">請輸入金鑰解鎖 3000m 聖山模擬</p>
             <input type="password" id="pw" class="in-box" placeholder="••••••••">
             <button class="btn" onclick="checkAuth()">驗證授權</button>
             <hr style="border:0; border-top:1px solid #333; margin:20px 0;">
-            <p style="color:#888; font-size: 12px;">尚未擁有金鑰？</p>
             <button class="btn btn-buy" onclick="purchaseKey()">🛒 立即購買啟動碼 (NTD $299)</button>
         </div>
     </div>
 
-    <div id="p-conn" class="page" style="display:none;">
+    <div id="p-conn" class="ui-layer" style="display:none;">
         <h1>伺服器連線成功</h1>
-        <button class="btn" onclick="nextPage('p-mode')">開始單人遠征</button>
-        <button class="btn" onclick="alert('多人模式正在維護中，請先體驗單人遠征。')">多人連線模式</button>
+        <button class="btn" onclick="nextPage('p-mode')">進入單人遠征</button>
+        <button class="btn" onclick="location.reload()" style="background:#555; color:white; border:none;">登出金鑰</button>
     </div>
 
-    <div id="p-mode" class="page" style="display:none;">
+    <div id="p-mode" class="ui-layer" style="display:none;">
         <h1>任務目標</h1>
-        <button class="btn" onclick="startGame()">🏔️ 聖山與丘陵遠征 (3000m)</button>
+        <button class="btn" onclick="startGame()">🏔️ 開始遠征 (3000m 聖山)</button>
     </div>
 
     <div id="esc-menu">
@@ -56,76 +68,64 @@
             <div style="display:flex; flex-direction:column;">
                 <h2 style="color:#f1c40f; text-align: center;">系統設置</h2>
                 <button class="btn" onclick="togglePause()">繼續遊戲 (ESC)</button>
-                <button class="btn" onclick="clearBlocks()" style="background:#d35400; color:white; border:none;">清除自建方塊</button>
-                <button class="btn" onclick="logout()" style="background:#7f8c8d; color:white; border:none;">登出授權</button>
-                <button class="btn" onclick="exitGame()" style="background:#000; color:#f00; border:2px solid #f00;">⚠️ 終止程式</button>
+                <button class="btn" onclick="resetWorld()" style="background:#d35400; color:white; border:none;">重置所有建築</button>
+                <button class="btn" onclick="location.reload()" style="background:#444; color:white; border:none;">退出至主頁</button>
             </div>
-            <div style="text-align:center;">
-                <b style="color:#f1c40f; display:block; margin-bottom:10px;">地形即時掃描</b>
-                <canvas id="esc-mm-canvas" width="250" height="250" style="background:#000; border:2px solid #333; border-radius:15px;"></canvas>
-            </div>
+            <canvas id="esc-mm-canvas" width="250" height="250" style="background:#000; border:2px solid #333; border-radius:15px;"></canvas>
         </div>
     </div>
 
     <div id="hud">
-        🕒 模擬時間: <span id="tm-v">12:00</span> | ❤️ 生命: <span id="p-hp-hud">100</span> | 📍 海拔: <span id="alt-v">0</span>m
+        🕒 模擬加速中 (1.5x) | ❤️ HP: <span id="p-hp-hud">100</span> | 📍 ALT: <span id="alt-v">0</span>m
     </div>
     <canvas id="g"></canvas>
 
 <script>
     const AUTH_KEY = 'ryan0111407';
-    // 真實購買頁面 URL (可以改為你指定的綠界、Paypal 或其他頁面)
-    const PURCHASE_URL = 'https://www.google.com/search?q=buy+access+key'; 
-
     var live = false, paused = false, world = {}, keys = {}, ticks = 600, T = 32;
     var p = { x: 0, y: 0, w: 22, h: 42, vx: 0, vy: 0, hp: 100, gr: false };
 
     window.onload = function() {
         if(localStorage.getItem('sh_save_v10')) world = JSON.parse(localStorage.getItem('sh_save_v10'));
-        // 檢查是否已登入
         if (localStorage.getItem('super_human_auth') === AUTH_KEY) {
-            document.getElementById('p-auth').style.display = 'none';
-            document.getElementById('p-conn').style.display = 'flex';
+            nextPage('p-conn');
         }
     };
 
     function checkAuth() {
-        if(document.getElementById('pw').value.trim() === AUTH_KEY) {
+        let input = document.getElementById('pw').value.trim();
+        if(input === AUTH_KEY) {
             localStorage.setItem('super_human_auth', AUTH_KEY);
             nextPage('p-conn');
         } else {
-            alert("授權失敗：無效的金鑰代碼。請確認輸入或購買新金鑰。");
+            alert("授權無效：請檢查金鑰或重新購買。");
         }
     }
 
     function purchaseKey() {
-        if(confirm("即將跳轉至安全支付頁面購買啟動碼，確定嗎？")) {
-            window.open(PURCHASE_URL, '_blank');
+        if(confirm("即將開啟支付頁面，確定嗎？")) {
+            window.open('https://www.google.com/search?q=buy+access+key', '_blank');
         }
     }
 
     function nextPage(id) {
-        document.querySelectorAll('.page').forEach(p => p.style.display = 'none');
-        document.getElementById(id).style.display = 'flex';
+        document.querySelectorAll('.ui-layer').forEach(p => p.style.display = 'none');
+        if(id !== 'none') document.getElementById(id).style.display = 'flex';
     }
 
-    function logout() { localStorage.removeItem('super_human_auth'); location.reload(); }
-    function clearBlocks() { if(confirm("確定清除？")){ world = {}; localStorage.setItem('sh_save_v10', "{}"); } }
-    function exitGame() { if(confirm("關閉模擬？")){ window.location.href="about:blank"; } }
+    function resetWorld() { if(confirm("重置建築數據？")){ world = {}; localStorage.setItem('sh_save_v10', "{}"); } }
 
-    // --- 地形引擎 V11.4 (防卡死丘陵) ---
+    // --- 地形引擎 V11.5 (聖山 + 平滑丘陵) ---
     function getB(gx, gy) {
         if(world[gx+'_'+gy] !== undefined) return world[gx+'_'+gy];
         var absGx = Math.abs(gx);
         var f;
         if (absGx < 60) {
-            // 3000m 聖山
-            var mountainShape = Math.exp(-Math.pow(gx / 30, 2)); 
+            var mountainShape = Math.exp(-Math.pow(gx / 32, 2)); 
             f = Math.floor(150 - (56 * mountainShape) + (gx % 2));
         } else {
-            // 無盡丘陵 (平滑坡度防卡死)
-            var hillBase = Math.sin(gx * 0.2) * 15 + Math.cos(gx * 0.08) * 10;
-            f = Math.floor(135 + hillBase);
+            var hillWave = Math.sin(gx * 0.25) * 12 + Math.cos(gx * 0.1) * 15;
+            f = Math.floor(138 + hillWave);
         }
         if(gy < f) return 0;
         if(gy === f) return (gy < 105) ? 7 : 2; 
@@ -136,8 +136,8 @@
     function startGame() {
         var cvs = document.getElementById('g');
         cvs.width = window.innerWidth; cvs.height = window.innerHeight;
-        cvs.style.visibility = 'visible'; cvs.style.display = 'block';
-        p.x = -1200; 
+        cvs.style.visibility = 'visible';
+        p.x = -1500; 
         let sy = 0; while(getB(Math.floor(p.x/T), Math.floor(sy/T)) === 0) sy += T;
         p.y = sy - 160;
         nextPage('none');
@@ -148,13 +148,56 @@
     function togglePause() {
         paused = !paused;
         document.getElementById('esc-menu').style.display = paused ? 'flex' : 'none';
-        if(paused) drawEscMap();
     }
 
-    function drawEscMap() {
-        var mCtx = document.getElementById('esc-mm-canvas').getContext('2d');
-        mCtx.fillStyle = "#000"; mCtx.fillRect(0,0,250,250);
-        var pgx = Math.floor(p.x/T), scale = 4;
-        for(var x=-30; x<30; x++) {
-            for(var y=-30; y<30; y++) {
-                var b =
+    window.onkeydown = e => { 
+        if(e.code==='Escape' && live) togglePause(); 
+        if(!live || paused) return; 
+        keys[e.code] = true; 
+    };
+    window.onkeyup = e => { keys[e.code] = false; };
+    
+    window.onmousedown = e => {
+        if(!live || paused) return;
+        var cvs = document.getElementById('g'), cx = p.x - cvs.width/2, cy = p.y - cvs.height/2;
+        var gx = Math.floor((e.clientX + cx) / T), gy = Math.floor((e.clientY + cy) / T);
+        if(e.button === 0) world[gx+'_'+gy] = 0; 
+        if(e.button === 2) world[gx+'_'+gy] = 1;
+        localStorage.setItem('sh_save_v10', JSON.stringify(world));
+    };
+
+    function check(x,y) { 
+        var gx=Math.floor(x/T), gy=Math.floor(y/T); 
+        return getB(gx, gy)>0 || getB(Math.floor((x+21)/T), Math.floor((y+41)/T))>0; 
+    }
+
+    function loop() {
+        if(!live) return;
+        if(!paused) {
+            var cvs = document.getElementById('g'), ctx = cvs.getContext('2d');
+            ticks = (ticks + 0.075) % 1440;
+            p.vy += 0.8; p.y += p.vy;
+            if(check(p.x, p.y)) { while(check(p.x, p.y)) p.y -= 0.5; p.vy = 0; p.gr = true; } else p.gr = false;
+            var dx = (keys['KeyD']?7:0) - (keys['KeyA']?7:0);
+            if(dx !== 0) { p.x += dx; if(check(p.x, p.y)) p.x -= dx; }
+            if(keys['Space'] && p.gr) p.vy = -14;
+
+            ctx.fillStyle = (ticks > 1050 || ticks < 350) ? '#050510' : '#87ceeb';
+            ctx.fillRect(0, 0, cvs.width, cvs.height);
+            var cx = p.x - cvs.width/2, cy = p.y - cvs.height/2;
+            var clrs = ["","#7f8c8d","#2ecc71","#795548","#f1c40f","#5d4037","#27ae60","#ecf0f1","#3498db"];
+            for(var x=Math.floor(cx/T); x<=Math.ceil((cx+cvs.width)/T); x++) {
+                for(var y=Math.floor(cy/T); y<=Math.ceil((cy+cvs.height)/T); y++) {
+                    var b = getB(x, y); if(b > 0) { ctx.fillStyle = clrs[b]; ctx.fillRect(x*T-cx, y*T-cy, T-0.5, T-0.5); }
+                }
+            }
+            ctx.fillStyle = '#e67e22'; ctx.fillRect(p.x-cx, p.y-cy, p.w, p.h);
+            ctx.fillStyle = "#2ecc71"; ctx.fillRect(p.x-cx-4, p.y-cy-12, 30, 5);
+            document.getElementById('alt-v').innerText = Math.floor(Math.abs(p.y/T - 150)*32);
+            document.getElementById('p-hp-hud').innerText = Math.floor(p.hp);
+        }
+        requestAnimationFrame(loop);
+    }
+</script>
+</body>
+</html>
