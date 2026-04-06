@@ -5,26 +5,26 @@
     <title>遊戲控制台</title>
     <style>
         body { font-family: sans-serif; background: #2c3e50; color: white; padding: 20px; }
-        .card { background: #34495e; padding: 20px; border-radius: 10px; margin-bottom: 20px; }
+        .card { background: #34495e; padding: 20px; border-radius: 10px; margin-bottom: 20px; border: 1px solid #444; }
         .btn { background: #27ae60; color: white; padding: 12px 25px; text-decoration: none; display: inline-block; border-radius: 5px; font-weight: bold; }
-        .locked { background: #7f8c8d; cursor: not-allowed; opacity: 0.5; }
-        .badge { background: gold; color: black; padding: 2px 5px; border-radius: 3px; font-size: 12px; }
+        .locked { background: #7f8c8d; cursor: not-allowed; opacity: 0.6; }
+        .vip-badge { background: gold; color: black; padding: 2px 6px; border-radius: 3px; font-size: 12px; font-weight: bold; }
     </style>
 </head>
 <body>
 
-    <h2 id="welcome">載入中...</h2>
+    <h2 id="greet">載入中...</h2>
 
     <div class="card">
-        <h3>穩定版 v1.0.0 (公開版)</h3>
-        <p>修復了「卡在地圖」問題的基本版本。</p>
-        <a href="game_v100.zip" download class="btn">立即下載 .ZIP</a>
+        <h3>穩定版 v1.0.0</h3>
+        <p>公開免費版本。</p>
+        <a href="game_v100.zip" download class="btn" onclick="checkFile(this)">下載遊戲 (.zip)</a>
     </div>
 
-    <div class="card" id="beta-card">
-        <h3>最新測試版 v1.1.0 <span class="badge">PRO</span></h3>
-        <p id="beta-msg">此版本僅限 PRO 會員下載（享 75 折優惠）。</p>
-        <a href="game_beta_v110.zip" id="dl-beta" download class="btn locked">尚未解鎖</a>
+    <div class="card">
+        <h3>測試版 v1.1.0 <span class="vip-badge">PRO</span></h3>
+        <p id="beta-desc">此版本僅限會員，包含 75 折商店功能。</p>
+        <a href="game_beta_v110.zip" id="beta-btn" download class="btn locked" onclick="checkFile(this)">尚未解鎖</a>
     </div>
 
     <script>
@@ -34,27 +34,31 @@
         if (!user) {
             window.location.href = 'auth.html';
         } else {
-            document.getElementById('welcome').innerText = `歡迎, ${user} ${isVip ? '(PRO)' : ''}`;
-
+            document.getElementById('greet').innerText = `你好, ${user} ${isVip ? '[PRO]' : ''}`;
+            
             if (isVip) {
-                const btn = document.getElementById('dl-beta');
-                const msg = document.getElementById('beta-msg');
-                
-                msg.innerText = "您已獲得 PRO 權限，可以下載最新測試版！";
+                const btn = document.getElementById('beta-btn');
+                document.getElementById('beta-desc').innerText = "已解鎖會員權限！請下載測試。";
                 btn.classList.remove('locked');
-                btn.innerText = "點此下載 Beta 版";
-                // 確保連結有效
-                btn.onclick = function() { 
-                    console.log("正在啟動會員專屬下載..."); 
-                };
+                btn.innerText = "下載測試版 (VIP)";
+                btn.style.background = "#27ae60";
             } else {
-                const btn = document.getElementById('dl-beta');
+                const btn = document.getElementById('beta-btn');
                 btn.onclick = function(e) {
-                    e.preventDefault(); // 沒會員不准下載
-                    alert("請先前往商店升級會員！");
+                    e.preventDefault();
+                    alert("這是會員專屬版本，請先去商店升級！");
                     window.location.href = 'buy.html';
                 };
             }
+        }
+
+        // 下載錯誤提示函數
+        function checkFile(element) {
+            // 如果檔案不存在，瀏覽器下載時會失敗，這裡給個溫馨提示
+            console.log("正在嘗試下載: " + element.href);
+            setTimeout(() => {
+                alert("如果下載失敗，請檢查資料夾內是否有 " + element.getAttribute('href') + " 這個檔案！");
+            }, 500);
         }
     </script>
 </body>
